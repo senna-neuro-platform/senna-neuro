@@ -1,5 +1,12 @@
 # Changelog
 
+## 07.03.2026 `0.10.0-dev`
+- Реализован `StructuralPlasticity` в `src/core/plasticity/structural_plasticity.h`: прунинг слабых связей по порогу `w_min`, спрутинг новых связей для тихих нейронов (`r_avg < r_target * quiet_ratio`) и периодический запуск раз в `N` тактов.
+- В `StructuralPlasticity` добавлен цикл `prune + sprout + rebuild_indices` с метриками `pruned/sprouted` за шаг и накопительными счетчиками.
+- При спрутинге используется `Lattice::neighbors` в заданном радиусе, фильтрация уже существующих связей и создание новых синапсов с весом `sprout_weight`.
+- Добавлены GTest-тесты `tests/test_structural_plasticity.cpp`: удаление слабого синапса, сохранение сильного, появление новых входов у тихого нейрона, стабильность количества связей после prune+sprout и проверка запуска по интервалу `N` тактов.
+- Тест `test_structural_plasticity` подключен в `CMakeLists.txt` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.9.0-dev`
 - Реализован `Homeostasis` в `src/core/plasticity/homeostasis.h`: EMA-оценка `r_avg`, корректировка порога к `r_target`, clamp в диапазоне `[theta_min, theta_max]`, обновление по окну `N` тактов.
 - В `Neuron` (`src/core/domain/neuron.h`) добавлены методы управления гомеостазом: `set_average_rate`, `set_threshold`, `adjust_threshold`.
