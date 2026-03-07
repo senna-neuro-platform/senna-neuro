@@ -3,6 +3,7 @@ SHELL := /bin/bash
 CONAN ?= conan
 CMAKE ?= cmake
 CTEST ?= ctest
+PYTHON ?= python3
 DOCKER_COMPOSE ?= docker compose
 CONAN_INSTALL_FLAGS := --build=missing -c tools.cmake.cmaketoolchain:user_presets= -cc core:skip_warnings='["deprecated"]'
 CONAN_PROFILE_DIR := build/conan/profiles
@@ -91,8 +92,9 @@ fmt:
 		ruff format .; \
 	fi
 
-lint: build-debug fmt
-	clang-tidy src/main.cpp -p build/debug
+lint: fmt
+	$(MAKE) build-debug
+	$(PYTHON) scripts/run_clang_tidy.py --build-dir build/debug
 	@if command -v ruff >/dev/null 2>&1; then \
 		ruff check .; \
 	else \

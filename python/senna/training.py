@@ -71,6 +71,20 @@ class TrainingPipeline:
         metrics["eval_samples"] = float(total)
         return metrics
 
+    def capture_trace(
+        self, sample: Sample, ticks_per_sample: int = 100
+    ) -> dict[str, object]:
+        self.handle.set_eval_mode(True)
+        self.handle.load_sample(sample.image, sample.label, False)
+        frames = list(self.handle.step_with_trace(ticks_per_sample))
+        return {
+            "label": sample.label,
+            "prediction": int(self.handle.get_prediction()),
+            "ticks": ticks_per_sample,
+            "frames": frames,
+            "lattice": dict(self.handle.get_lattice()),
+        }
+
     def save_state(self, path: str) -> None:
         senna_core.save_state(self.handle, path)
 
@@ -96,6 +110,17 @@ def evaluate_from_state(
     if mutate is not None:
         mutate(pipeline.handle)
     return pipeline.evaluate(samples, ticks_per_sample=ticks_per_sample)
+
+
+def capture_trace_from_state(
+    *,
+    state_path: str,
+    config_path: str | None,
+    sample: Sample,
+    ticks_per_sample: int,
+) -> dict[str, object]:
+    pipeline = TrainingPipeline.load_state(state_path, config_path=config_path)
+    return pipeline.capture_trace(sample, ticks_per_sample=ticks_per_sample)
 
 
 def robustness_report(
@@ -135,14 +160,15 @@ def robustness_report(
 
     prune_drop = max(0.0, baseline_acc - pruned_acc)
     noise_drop = max(0.0, baseline_acc - noised_acc)
+    has_meaningful_baseline = baseline_acc > 0.0
     return {
         "baseline_accuracy": baseline_acc,
         "pruned_accuracy": pruned_acc,
         "noise_accuracy": noised_acc,
         "prune_drop": prune_drop,
         "noise_drop": noise_drop,
-        "prune_pass": 1.0 if prune_drop < 0.05 else 0.0,
-        "noise_pass": 1.0 if noise_drop < 0.10 else 0.0,
+        "prune_pass": 1.0 if has_meaningful_baseline and prune_drop < 0.05 else 0.0,
+        "noise_pass": 1.0 if has_meaningful_baseline and noise_drop < 0.10 else 0.0,
     }
 
 

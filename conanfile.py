@@ -4,7 +4,13 @@ from pathlib import Path
 
 class SennaNeuroConan(ConanFile):
     name = "senna-neuro"
-    version = Path(__file__).resolve().parent.joinpath("VERSION").read_text(encoding="utf-8").strip()
+    version = (
+        Path(__file__)
+        .resolve()
+        .parent.joinpath("VERSION")
+        .read_text(encoding="utf-8")
+        .strip()
+    )
     package_type = "application"
 
     settings = "os", "compiler", "build_type", "arch"

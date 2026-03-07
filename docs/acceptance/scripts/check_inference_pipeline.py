@@ -172,7 +172,9 @@ def main() -> int:
         "label": label,
         "prediction": prediction,
         "ticks": args.ticks,
-        "senna_active_neurons_ratio": float(metrics.get("senna_active_neurons_ratio", 0.0)),
+        "senna_active_neurons_ratio": float(
+            metrics.get("senna_active_neurons_ratio", 0.0)
+        ),
         "senna_spikes_per_tick": float(metrics.get("senna_spikes_per_tick", 0.0)),
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))

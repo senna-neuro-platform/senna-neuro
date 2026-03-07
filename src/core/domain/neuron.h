@@ -89,16 +89,7 @@ class Neuron final {
     [[nodiscard]] const NeuronConfig& config() const noexcept { return config_; }
     [[nodiscard]] NeuronSnapshot snapshot() const noexcept {
         return NeuronSnapshot{
-            id_,
-            position_,
-            type_,
-            config_,
-            V_,
-            theta_,
-            t_last_,
-            t_spike_,
-            r_avg_,
-            in_refractory_,
+            id_, position_, type_, config_, V_, theta_, t_last_, t_spike_, r_avg_, in_refractory_,
         };
     }
 

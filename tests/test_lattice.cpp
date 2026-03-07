@@ -1,8 +1,22 @@
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <random>
+#include <stdexcept>
 
 #include "core/domain/lattice.h"
+
+namespace {
+
+template <typename T>
+T require_value(const std::optional<T>& value, const char* message) {
+    if (!value.has_value()) {
+        throw std::runtime_error(message);
+    }
+    return *value;
+}
+
+}  // namespace
 
 TEST(LatticeTest, BuildsExpectedMvpGridAndLayerCounts) {
     using senna::core::domain::Lattice;
@@ -73,8 +87,9 @@ TEST(LatticeTest, FindsExpectedNeighborCountsInCenterAndCorner) {
 
     const auto center_id = lattice.neuron_id_at(Coord3D{14U, 14U, 10U});
     ASSERT_TRUE(center_id.has_value());
+    const auto center = require_value(center_id, "center neuron must exist");
 
-    const auto center_neighbors = lattice.neighbors(*center_id);
+    const auto center_neighbors = lattice.neighbors(center);
     EXPECT_EQ(center_neighbors.size(), 32U);
     for (const auto& neighbor : center_neighbors) {
         EXPECT_LE(neighbor.distance, 2.0F);
@@ -82,8 +97,9 @@ TEST(LatticeTest, FindsExpectedNeighborCountsInCenterAndCorner) {
 
     const auto corner_id = lattice.neuron_id_at(Coord3D{0U, 0U, 0U});
     ASSERT_TRUE(corner_id.has_value());
+    const auto corner = require_value(corner_id, "corner neuron must exist");
 
-    const auto corner_neighbors = lattice.neighbors(*corner_id, 2.0F);
+    const auto corner_neighbors = lattice.neighbors(corner, 2.0F);
     EXPECT_EQ(corner_neighbors.size(), 10U);
     EXPECT_LT(corner_neighbors.size(), center_neighbors.size());
 }
@@ -119,9 +135,11 @@ TEST(LatticeTest, IsDeterministicForSameSeed) {
                     continue;
                 }
 
-                EXPECT_EQ(*id_a, *id_b);
-                EXPECT_EQ(lattice_a.neurons().at(*id_a).type(),
-                          lattice_b.neurons().at(*id_b).type());
+                const auto neuron_id_a = require_value(id_a, "lattice_a neuron id must exist");
+                const auto neuron_id_b = require_value(id_b, "lattice_b neuron id must exist");
+                EXPECT_EQ(neuron_id_a, neuron_id_b);
+                EXPECT_EQ(lattice_a.neurons().at(neuron_id_a).type(),
+                          lattice_b.neurons().at(neuron_id_b).type());
             }
         }
     }

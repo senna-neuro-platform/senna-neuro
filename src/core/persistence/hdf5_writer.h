@@ -132,9 +132,9 @@ inline std::vector<std::string> split_path(const std::string& path) {
 
 inline ScopedH5 open_or_create_group(const hid_t parent_id, const std::string& name) {
     if (link_exists(parent_id, name)) {
-        return ScopedH5{check_id(H5Gopen2(parent_id, name.c_str(), H5P_DEFAULT),
-                                 "Failed to open HDF5 group"),
-                        H5Gclose};
+        return ScopedH5{
+            check_id(H5Gopen2(parent_id, name.c_str(), H5P_DEFAULT), "Failed to open HDF5 group"),
+            H5Gclose};
     }
 
     return ScopedH5{
@@ -145,9 +145,9 @@ inline ScopedH5 open_or_create_group(const hid_t parent_id, const std::string& n
 }
 
 inline ScopedH5 open_group(const hid_t parent_id, const std::string& name) {
-    return ScopedH5{check_id(H5Gopen2(parent_id, name.c_str(), H5P_DEFAULT),
-                             "Failed to open HDF5 group"),
-                    H5Gclose};
+    return ScopedH5{
+        check_id(H5Gopen2(parent_id, name.c_str(), H5P_DEFAULT), "Failed to open HDF5 group"),
+        H5Gclose};
 }
 
 inline ScopedH5 open_or_create_group_path(const hid_t root_id, const std::string& path) {
@@ -185,9 +185,8 @@ inline void write_compound_dataset(const hid_t group_id, const std::string& data
     delete_dataset_if_exists(group_id, dataset_name);
 
     hsize_t dims[1]{static_cast<hsize_t>(records.size())};
-    auto space = ScopedH5{check_id(H5Screate_simple(1, dims, nullptr),
-                                   "Failed to create HDF5 dataspace"),
-                          H5Sclose};
+    auto space = ScopedH5{
+        check_id(H5Screate_simple(1, dims, nullptr), "Failed to create HDF5 dataspace"), H5Sclose};
 
     auto dataset = ScopedH5{check_id(H5Dcreate2(group_id, dataset_name.c_str(), compound_type,
                                                 space.id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
@@ -208,8 +207,8 @@ inline std::vector<Record> read_compound_dataset(const hid_t group_id,
     auto dataset = ScopedH5{check_id(H5Dopen2(group_id, dataset_name.c_str(), H5P_DEFAULT),
                                      "Failed to open HDF5 dataset"),
                             H5Dclose};
-    auto space = ScopedH5{check_id(H5Dget_space(dataset.id), "Failed to read HDF5 dataspace"),
-                          H5Sclose};
+    auto space =
+        ScopedH5{check_id(H5Dget_space(dataset.id), "Failed to read HDF5 dataspace"), H5Sclose};
 
     hsize_t dims[1]{0U};
     check_status(H5Sget_simple_extent_dims(space.id, dims, nullptr),
@@ -323,9 +322,8 @@ inline hid_t make_neuron_type() {
                  "Failed to insert Neuron.tau_m");
     check_status(H5Tinsert(type, "t_ref", HOFFSET(NeuronRecord, t_ref), H5T_NATIVE_FLOAT),
                  "Failed to insert Neuron.t_ref");
-    check_status(
-        H5Tinsert(type, "theta_base", HOFFSET(NeuronRecord, theta_base), H5T_NATIVE_FLOAT),
-        "Failed to insert Neuron.theta_base");
+    check_status(H5Tinsert(type, "theta_base", HOFFSET(NeuronRecord, theta_base), H5T_NATIVE_FLOAT),
+                 "Failed to insert Neuron.theta_base");
 
     check_status(H5Tinsert(type, "potential", HOFFSET(NeuronRecord, potential), H5T_NATIVE_FLOAT),
                  "Failed to insert Neuron.potential");
@@ -334,9 +332,9 @@ inline hid_t make_neuron_type() {
     check_status(H5Tinsert(type, "last_update_time", HOFFSET(NeuronRecord, last_update_time),
                            H5T_NATIVE_FLOAT),
                  "Failed to insert Neuron.last_update_time");
-    check_status(
-        H5Tinsert(type, "last_spike_time", HOFFSET(NeuronRecord, last_spike_time), H5T_NATIVE_FLOAT),
-        "Failed to insert Neuron.last_spike_time");
+    check_status(H5Tinsert(type, "last_spike_time", HOFFSET(NeuronRecord, last_spike_time),
+                           H5T_NATIVE_FLOAT),
+                 "Failed to insert Neuron.last_spike_time");
     check_status(
         H5Tinsert(type, "average_rate", HOFFSET(NeuronRecord, average_rate), H5T_NATIVE_FLOAT),
         "Failed to insert Neuron.average_rate");
@@ -413,8 +411,8 @@ inline senna::core::domain::NeuronSnapshot from_record(const NeuronRecord& recor
         senna::core::domain::Coord3D{record.x, record.y, record.z},
         record.type == 0U ? senna::core::domain::NeuronType::Excitatory
                           : senna::core::domain::NeuronType::Inhibitory,
-        senna::core::domain::NeuronConfig{record.v_rest, record.v_reset, record.tau_m,
-                                          record.t_ref, record.theta_base},
+        senna::core::domain::NeuronConfig{record.v_rest, record.v_reset, record.tau_m, record.t_ref,
+                                          record.theta_base},
         record.potential,
         record.threshold,
         record.last_update_time,
@@ -445,8 +443,8 @@ class HDF5Writer final {
                            const std::vector<senna::core::domain::SpikeEvent>& trace) const {
         auto file = detail::open_rw_or_create_file(file_path_);
         auto epoch_group = detail::open_or_create_group_path(file.id, epoch_group_path(epoch));
-        auto spike_type =
-            detail::ScopedH5{detail::make_spike_event_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
+        auto spike_type = detail::ScopedH5{detail::make_spike_event_type(),
+                                           static_cast<herr_t (*)(hid_t)>(H5Tclose)};
 
         std::vector<detail::SpikeEventRecord> records{};
         records.reserve(trace.size());
@@ -520,10 +518,9 @@ class HDF5Writer final {
             sorted.push_back(MetricPoint{name, value});
         }
 
-        std::sort(sorted.begin(), sorted.end(),
-                  [](const MetricPoint& lhs, const MetricPoint& rhs) {
-                      return lhs.name < rhs.name;
-                  });
+        std::sort(sorted.begin(), sorted.end(), [](const MetricPoint& lhs, const MetricPoint& rhs) {
+            return lhs.name < rhs.name;
+        });
 
         write_metrics(epoch, sorted);
     }
@@ -532,12 +529,11 @@ class HDF5Writer final {
         const std::size_t epoch) const {
         auto file = detail::open_ro_file(file_path_);
         auto epoch_group = detail::open_group_path(file.id, epoch_group_path(epoch));
-        auto spike_type =
-            detail::ScopedH5{detail::make_spike_event_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
+        auto spike_type = detail::ScopedH5{detail::make_spike_event_type(),
+                                           static_cast<herr_t (*)(hid_t)>(H5Tclose)};
 
-        const auto records =
-            detail::read_compound_dataset<detail::SpikeEventRecord>(epoch_group.id, "spike_trace",
-                                                                     spike_type.id);
+        const auto records = detail::read_compound_dataset<detail::SpikeEventRecord>(
+            epoch_group.id, "spike_trace", spike_type.id);
 
         std::vector<senna::core::domain::SpikeEvent> trace{};
         trace.reserve(records.size());
@@ -581,9 +577,8 @@ class HDF5Writer final {
         auto metric_type =
             detail::ScopedH5{detail::make_metric_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
 
-        const auto records =
-            detail::read_compound_dataset<detail::MetricRecord>(epoch_group.id, "metrics",
-                                                                 metric_type.id);
+        const auto records = detail::read_compound_dataset<detail::MetricRecord>(
+            epoch_group.id, "metrics", metric_type.id);
 
         std::vector<MetricPoint> metrics{};
         metrics.reserve(records.size());

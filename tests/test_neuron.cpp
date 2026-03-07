@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <optional>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -10,6 +12,14 @@ namespace {
 
 bool almost_equal(const float lhs, const float rhs, const float eps = 1e-4F) {
     return std::fabs(lhs - rhs) <= eps;
+}
+
+template <typename T>
+T require_value(const std::optional<T>& value, const char* message) {
+    if (!value.has_value()) {
+        throw std::runtime_error(message);
+    }
+    return *value;
 }
 
 void expect_time_equal(const float lhs, const float rhs, const float eps = 1e-4F) {
@@ -51,8 +61,9 @@ TEST(NeuronTest, SpikesAndResetsPotential) {
     const auto spike = neuron.receive_input(0.0F, 0.2F);
 
     ASSERT_TRUE(spike.has_value());
-    EXPECT_NEAR(spike->arrival, 0.0F, 1e-5F);
-    EXPECT_NEAR(spike->value, 1.0F, 1e-5F);
+    const auto emitted = require_value(spike, "expected spike to be present");
+    EXPECT_NEAR(emitted.arrival, 0.0F, 1e-5F);
+    EXPECT_NEAR(emitted.value, 1.0F, 1e-5F);
     EXPECT_NEAR(neuron.potential(), 0.0F, 1e-5F);
     EXPECT_NEAR(neuron.last_spike_time(), 0.0F, 1e-5F);
 }
@@ -70,7 +81,8 @@ TEST(NeuronTest, HonorsRefractoryPeriod) {
 
     const auto after_ref = neuron.receive_input(2.01F, 1.1F);
     ASSERT_TRUE(after_ref.has_value());
-    EXPECT_NEAR(after_ref->arrival, 2.01F, 1e-5F);
+    EXPECT_NEAR(require_value(after_ref, "expected spike after refractory period").arrival, 2.01F,
+                1e-5F);
 }
 
 TEST(NeuronTest, EmitsSignedSpikeByNeuronType) {
@@ -86,8 +98,8 @@ TEST(NeuronTest, EmitsSignedSpikeByNeuronType) {
 
     ASSERT_TRUE(e_spike.has_value());
     ASSERT_TRUE(i_spike.has_value());
-    EXPECT_GT(e_spike->value, 0.0F);
-    EXPECT_LT(i_spike->value, 0.0F);
+    EXPECT_GT(require_value(e_spike, "expected excitatory spike").value, 0.0F);
+    EXPECT_LT(require_value(i_spike, "expected inhibitory spike").value, 0.0F);
 }
 
 TEST(NeuronTest, IsDeterministicForSameInputSequence) {
@@ -109,8 +121,10 @@ TEST(NeuronTest, IsDeterministicForSameInputSequence) {
 
         ASSERT_EQ(spike_a.has_value(), spike_b.has_value());
         if (spike_a.has_value()) {
-            EXPECT_NEAR(spike_a->arrival, spike_b->arrival, 1e-5F);
-            EXPECT_NEAR(spike_a->value, spike_b->value, 1e-5F);
+            const auto emitted_a = require_value(spike_a, "expected neuron_a spike");
+            const auto emitted_b = require_value(spike_b, "expected neuron_b spike");
+            EXPECT_NEAR(emitted_a.arrival, emitted_b.arrival, 1e-5F);
+            EXPECT_NEAR(emitted_a.value, emitted_b.value, 1e-5F);
         }
 
         EXPECT_TRUE(almost_equal(neuron_a.potential(), neuron_b.potential()));

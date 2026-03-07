@@ -27,8 +27,7 @@ struct EpochArtifactConfig {
 class EpochArtifactPipeline final {
    public:
     explicit EpochArtifactPipeline(EpochArtifactConfig config = {})
-        : config_(std::move(config)),
-          experiment_writer_(config_.experiment_file.string()) {
+        : config_(std::move(config)), experiment_writer_(config_.experiment_file.string()) {
         ensure_directories();
     }
 

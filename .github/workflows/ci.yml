@@ -67,23 +67,19 @@ jobs:
         run: ctest --preset debug
 
       - name: clang-tidy
-        run: clang-tidy src/main.cpp -p build/debug
+        run: python3 scripts/run_clang_tidy.py --build-dir build/debug
 
       - name: Ruff
         run: ruff check .
 
       - name: Conan install (Sanitize)
-        if: github.event_name == 'pull_request'
         run: conan install . --output-folder=build/sanitize --build=missing --profile:host=build/conan/profiles/host --profile:build=build/conan/profiles/build -s:h build_type=Debug -c tools.cmake.cmaketoolchain:user_presets= -cc core:skip_warnings='["deprecated"]'
 
       - name: Configure (Sanitize)
-        if: github.event_name == 'pull_request'
         run: cmake --preset sanitize
 
       - name: Build (Sanitize)
-        if: github.event_name == 'pull_request'
         run: cmake --build --preset sanitize
 
       - name: Test (Sanitize)
-        if: github.event_name == 'pull_request'
         run: ctest --preset sanitize

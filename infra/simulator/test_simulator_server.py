@@ -11,7 +11,20 @@ import simulator_server
 class PrometheusExporterTest(unittest.TestCase):
     def test_rendered_payload_contains_required_metric_families(self) -> None:
         state = simulator_server.ExporterState()
-        snapshot = simulator_server.synthetic_snapshot(now=0.0)
+        snapshot = simulator_server.MetricsSnapshot(
+            active_neurons_ratio=0.04,
+            spikes_per_tick=111.0,
+            ei_balance=2.5,
+            train_accuracy=0.77,
+            test_accuracy=0.74,
+            synapse_count=12345.0,
+            pruned_total=88.0,
+            sprouted_total=55.0,
+            stdp_updates_total=999.0,
+            tick_duration_seconds=0.00075,
+            e_rate_hz=7.5,
+            i_rate_hz=3.0,
+        )
         state.observe(snapshot)
         payload = simulator_server.render_metrics_payload(snapshot, state)
 
@@ -56,9 +69,9 @@ class PrometheusExporterTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            snapshot = simulator_server.read_snapshot(
-                now=0.0, snapshot_path=snapshot_path
-            )
+            snapshot = simulator_server.read_snapshot(snapshot_path=snapshot_path)
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
 
             self.assertAlmostEqual(snapshot.active_neurons_ratio, 0.04)
             self.assertAlmostEqual(snapshot.spikes_per_tick, 111.0)
@@ -70,6 +83,12 @@ class PrometheusExporterTest(unittest.TestCase):
             self.assertAlmostEqual(snapshot.sprouted_total, 55.0)
             self.assertAlmostEqual(snapshot.stdp_updates_total, 999.0)
             self.assertAlmostEqual(snapshot.tick_duration_seconds, 0.00075)
+
+    def test_snapshot_returns_none_when_file_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing_path = Path(temp_dir) / "missing.json"
+            snapshot = simulator_server.read_snapshot(snapshot_path=missing_path)
+            self.assertIsNone(snapshot)
 
 
 if __name__ == "__main__":

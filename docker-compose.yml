@@ -35,8 +35,11 @@ services:
   visualizer:
     image: node:20-alpine
     working_dir: /app
+    environment:
+      VISUALIZER_TRACE_PATH: /artifacts/visualizer/latest.json
     volumes:
       - ./visualizer:/app:ro
+      - ./data/artifacts:/artifacts:ro
     command: ["node", "server.js"]
     ports:
       - "8080:8080"

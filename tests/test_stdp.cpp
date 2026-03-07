@@ -1,11 +1,25 @@
 #include <gtest/gtest.h>
 
+#include <optional>
+#include <stdexcept>
 #include <vector>
 
 #include "core/domain/synapse.h"
 #include "core/domain/types.h"
 #include "core/plasticity/stdp.h"
 #include "core/plasticity/supervisor.h"
+
+namespace {
+
+template <typename T>
+T require_value(const std::optional<T>& value, const char* message) {
+    if (!value.has_value()) {
+        throw std::runtime_error(message);
+    }
+    return *value;
+}
+
+}  // namespace
 
 TEST(STDPRuleTest, CausalPairIncreasesWeight) {
     using senna::core::domain::Coord3D;
@@ -110,7 +124,8 @@ TEST(SupervisorTest, ReinforcementGrowsWeightToCorrectOutput) {
         const auto correction = supervisor.correction_event(
             /*predicted_class=*/1, /*expected_class=*/0, output_neurons, t_pre + 1.0F);
         ASSERT_TRUE(correction.has_value());
-        stdp.on_post_spike(correction->target, correction->arrival, synapses);
+        const auto correction_event = require_value(correction, "expected supervision event");
+        stdp.on_post_spike(correction_event.target, correction_event.arrival, synapses);
     }
 
     EXPECT_GT(synapses.at(to_correct).weight, synapses.at(to_wrong).weight);

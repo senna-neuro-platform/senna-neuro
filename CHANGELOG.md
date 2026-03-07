@@ -1,15 +1,40 @@
 # Changelog
 
-## 07.03.2026 `0.15.3-dev`
-- В `docs/step16-acceptance/README.md` добавлен явный раздел `Как запускать training-run` с двумя сценариями: через `run_acceptance.sh` (training-only режим) и напрямую через `python/train.py`.
+## 07.03.2026 `0.16.1-dev`
+- В `docs/acceptance/scripts/run_acceptance.sh` acceptance-runtime переведён на release-сборку: вместо `build/debug` и `make test` используются `make build-release`, `ctest --preset release` и `PYTHONPATH=build/release:python` для training/inference-проверок.
+- В `docs/acceptance/scripts/run_acceptance.sh` добавлена обязательная пауза после `print_observe_stack_memo`: скрипт ждёт, пока оператор откроет Grafana и visualizer, и продолжает training-run только после ввода `continue`; для неинтерактивного режима добавлен флаг `--no-observe-pause`.
+- В `docs/acceptance/README.md` обновлены пошаговые инструкции шага 16 под release-runtime и интерактивную паузу наблюдения перед training-run.
+
+## 07.03.2026 `0.16.0-dev`
+- В `src/bindings/python_module.cpp`, `python/senna/training.py` и `python/train.py` добавлен экспорт реального visualizer trace: pybind отдаёт lattice и per-tick activity, а training-run пишет `data/artifacts/visualizer/latest.json` вместе с checkpoint и metrics snapshot.
+- В `visualizer/server.js`, `visualizer/index.html` и `docker-compose.yml` visualizer переведён на чтение только реального trace из `data/artifacts`; до появления артефакта `/lattice` не подменяется synthetic-данными, UI честно ждёт trace, а Docker-монтирование даёт доступ к общему artifact volume.
+- В `python/senna/training.py` исправлена семантика robustness-gates: `prune_pass` и `noise_pass` больше не могут проходить при нулевой baseline accuracy.
+- В `docs/acceptance/scripts/run_acceptance.sh`, `docs/acceptance/README.md`, `README.md` и ADR-0006 зафиксирован новый acceptance-контракт: exporter и visualizer используют только реальные артефакты, orchestration чистит stale trace и ждёт готовность `/metrics` и `/lattice` после training-run.
+
+## 07.03.2026 `0.15.6-dev`
+- В `python/train.py` отключён неявный fallback на synthetic при `--dataset mnist`; training-run шага 15 теперь требует реальный MNIST и пишет свежий exporter snapshot в `data/artifacts/metrics/latest.json`.
+- В `infra/simulator/simulator_server.py` удалён synthetic fallback метрик: exporter читает только реальный snapshot, `/metrics` отдаёт `503` до его появления, а `/health` явно сообщает `snapshot_ready`.
+- В `src/core/metrics/metrics_collector.h` добавлен `senna_max_active_neurons_ratio`, а `docs/acceptance/scripts/check_dod_metrics.py` переведён на проверку максимальной разреженности по всем `epoch_end`, с обязательным `dataset_mode=mnist`.
+- В `docs/acceptance/scripts/run_acceptance.sh` и `docs/acceptance/README.md` синхронизированы шаги 15/16: acceptance теперь работает только с `mnist`, очищает stale exporter snapshot, проверяет реальный `/metrics`, использует корректные имена Grafana-метрик и CLI-флаги WebSocket-check.
+- Обновлены `README.md`, ADR-0010 и тесты exporter/metrics под новый контракт без synthetic метрик.
+
+## 07.03.2026 `0.15.5-dev`
+- В `docs/acceptance/README.md` убран абсолютный локальный путь к workspace; команды запуска приведены к нейтральному виду без данных о локальном окружении.
+- В `.clang-tidy` зафиксирован прагматичный full-project профиль проверок (`clang-analyzer`, `bugprone`, `performance` и точечные `modernize`/`readability`) для `src/` и `tests/`, пригодный для стабильного quality gate без мусорных warning.
+- Добавлен `scripts/run_clang_tidy.py`: последовательный прогон `clang-tidy` по всем translation units из `build/debug/compile_commands.json` с `--warnings-as-errors=*`.
+- В `Makefile` цель `make lint` переведена на полный прогон `clang-format` + `scripts/run_clang_tidy.py` + `ruff check`, вместо проверки одного `src/main.cpp`.
+- В `CMakeLists.txt` закрыт sanitize-прогон Python integration test: при `SENNA_ENABLE_SANITIZERS=ON` для `pytest` автоматически выставляются `LD_PRELOAD=<libasan.so>`, `ASAN_OPTIONS=detect_leaks=0` и `UBSAN_OPTIONS=print_stacktrace=1`.
+- В `.github/workflows/ci.yml` `clang-tidy` переведён на новый full-project runner, а sanitize configure/build/test теперь выполняются и на `push`, и на `pull_request`.
+- В `docs/acceptance/README.md` расширены сценарии закрытия шагов 15 и 16: отдельные процедуры для training-run на MNIST, перечень обязательных evidence-артефактов, ручные проверки Grafana/Visualizer и точные команды для DoD 13/14.
+- В `docs/acceptance/README.md` добавлен явный раздел `Как запускать training-run` с двумя сценариями: через `run_acceptance.sh` (training-only режим) и напрямую через `python/train.py`.
 - В runbook зафиксированы обязательные выходные артефакты training-run: `metrics.jsonl`, `epoch_XXXXXXXXX.h5`, `final_state.h5`.
-- В `docs/step16-acceptance/README.md` добавлены промежуточные памятки наблюдения между шагами приёмки: где смотреть Docker-состояние, Grafana-дашборды, exporter и визуализатор.
-- В `docs/step16-acceptance/scripts/run_acceptance.sh` добавлены автоматические блоки `Observation memo` после `make up`/health-check и после training-run с командами для live-наблюдения (`docker compose ps`, `make logs`, `tail metrics.jsonl`, probe exporter).
-- Добавлен runbook финальной приёмки MVP: `docs/step16-acceptance/README.md` с пошаговым сценарием от развёртывания до DoD-гейтов шага 16.
-- Добавлен orchestration-скрипт `docs/step16-acceptance/scripts/run_acceptance.sh` для автоматического прогона build/test/lint/sanitize, docker health-check, train-run и DoD-проверок.
-- Добавлен скрипт `docs/step16-acceptance/scripts/check_dod_metrics.py` для валидации числовых DoD-гейтов по `metrics.jsonl` (`accuracy`, `active_ratio`, `prune_drop`, `noise_drop`).
-- Добавлен скрипт `docs/step16-acceptance/scripts/check_inference_pipeline.py` для проверки пути `state + sample -> prediction [0..9]` через Python bindings.
-- Добавлен скрипт `docs/step16-acceptance/scripts/check_ws_sparsity.py` для проверки разреженности кадров визуализатора по WebSocket (`activeCount/totalNeurons < 5%`) без внешних зависимостей.
+- В `docs/acceptance/README.md` добавлены промежуточные памятки наблюдения между шагами приёмки: где смотреть Docker-состояние, Grafana-дашборды, exporter и визуализатор.
+- В `docs/acceptance/scripts/run_acceptance.sh` добавлены автоматические блоки `Observation memo` после `make up`/health-check и после training-run с командами для live-наблюдения (`docker compose ps`, `make logs`, `tail metrics.jsonl`, probe exporter).
+- Добавлен runbook финальной приёмки MVP: `docs/acceptance/README.md` с пошаговым сценарием от развёртывания до DoD-гейтов шага 16.
+- Добавлен orchestration-скрипт `docs/acceptance/scripts/run_acceptance.sh` для автоматического прогона build/test/lint/sanitize, docker health-check, train-run и DoD-проверок.
+- Добавлен скрипт `docs/acceptance/scripts/check_dod_metrics.py` для валидации числовых DoD-гейтов по `metrics.jsonl` (`accuracy`, `active_ratio`, `prune_drop`, `noise_drop`).
+- Добавлен скрипт `docs/acceptance/scripts/check_inference_pipeline.py` для проверки пути `state + sample -> prediction [0..9]` через Python bindings.
+- Добавлен скрипт `docs/acceptance/scripts/check_ws_sparsity.py` для проверки разреженности кадров визуализатора по WebSocket (`activeCount/totalNeurons < 5%`) без внешних зависимостей.
 - В `src/bindings/python_module.cpp` усилен training-контур шага 15: `supervise()` теперь выполняет детерминированное обновление весов сенсорных входов к правильному/ошибочному выходу с clamp по `stdp.w_max`.
 - В биндингах подключено применение `encoder.max_rate` для плотности входных спайков и `decoder.W_wta` для латерального торможения (WTA) через инъекцию inhibitory-событий.
 - В `python/senna/training.py` добавлены helper-функции `evaluate_from_state` и `robustness_report` для воспроизводимой оценки сохранённых состояний и робастности.

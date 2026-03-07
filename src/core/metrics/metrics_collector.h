@@ -21,6 +21,7 @@ struct MetricsSnapshot {
     double mean_spikes_per_tick{0.0};
 
     double active_neurons_ratio{0.0};
+    double max_active_neurons_ratio{0.0};
     double mean_active_neurons_ratio{0.0};
 
     double e_rate_hz{0.0};
@@ -56,10 +57,11 @@ class MetricsCollector final {
 
         const auto total_neurons = neurons_.size();
         snapshot_.active_neurons_ratio =
-            total_neurons == 0U
-                ? 0.0
-                : static_cast<double>(active_neurons_this_tick_.size()) /
-                      static_cast<double>(total_neurons);
+            total_neurons == 0U ? 0.0
+                                : static_cast<double>(active_neurons_this_tick_.size()) /
+                                      static_cast<double>(total_neurons);
+        snapshot_.max_active_neurons_ratio =
+            std::max(snapshot_.max_active_neurons_ratio, snapshot_.active_neurons_ratio);
 
         const auto [e_rate_hz, i_rate_hz] = average_rates_by_type();
         snapshot_.e_rate_hz = e_rate_hz;
@@ -96,8 +98,7 @@ class MetricsCollector final {
         snapshot_.stdp_updates_total += updates;
     }
 
-    void record_structural_changes(const std::size_t pruned,
-                                   const std::size_t sprouted) noexcept {
+    void record_structural_changes(const std::size_t pruned, const std::size_t sprouted) noexcept {
         snapshot_.pruned_total += pruned;
         snapshot_.sprouted_total += sprouted;
     }
@@ -114,6 +115,7 @@ class MetricsCollector final {
     [[nodiscard]] std::unordered_map<std::string, double> as_metric_map() const {
         return {
             {"senna_active_neurons_ratio", snapshot_.active_neurons_ratio},
+            {"senna_max_active_neurons_ratio", snapshot_.max_active_neurons_ratio},
             {"senna_spikes_per_tick", snapshot_.spikes_per_tick},
             {"senna_e_rate_hz", snapshot_.e_rate_hz},
             {"senna_i_rate_hz", snapshot_.i_rate_hz},

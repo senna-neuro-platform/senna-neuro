@@ -22,8 +22,7 @@ namespace {
 
 std::filesystem::path make_temp_h5_path(const std::string& prefix) {
     const auto now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    return std::filesystem::temp_directory_path() /
-           (prefix + "_" + std::to_string(now) + ".h5");
+    return std::filesystem::temp_directory_path() / (prefix + "_" + std::to_string(now) + ".h5");
 }
 
 void expect_events_equal(const std::vector<senna::core::domain::SpikeEvent>& lhs,
@@ -223,9 +222,8 @@ TEST(StateSerializerTest, SaveLoadAndContinuationMatchReferenceRun) {
     Runtime split{};
     auto split_trace = run_ticks(split.engine, 4U);
 
-    const auto captured =
-        senna::core::persistence::StateSerializer::capture(split.neurons, split.synapses,
-                                                           split.queue, split.time, 42U);
+    const auto captured = senna::core::persistence::StateSerializer::capture(
+        split.neurons, split.synapses, split.queue, split.time, 42U);
     senna::core::persistence::StateSerializer::save_state(file, captured);
 
     const auto loaded = senna::core::persistence::StateSerializer::load_state(file);
@@ -234,12 +232,12 @@ TEST(StateSerializerTest, SaveLoadAndContinuationMatchReferenceRun) {
     std::vector<senna::core::domain::Neuron> restored_neurons{};
     senna::core::domain::SynapseStore restored_synapses{};
     senna::core::engine::EventQueue restored_queue{};
-    senna::core::persistence::StateSerializer::restore(loaded, restored_neurons,
-                                                       restored_synapses, restored_queue);
+    senna::core::persistence::StateSerializer::restore(loaded, restored_neurons, restored_synapses,
+                                                       restored_queue);
     auto restored_time = senna::core::persistence::StateSerializer::make_time_manager(loaded);
 
     senna::core::engine::SimulationEngine restored_engine{restored_neurons, restored_synapses,
-                                                           restored_queue, restored_time};
+                                                          restored_queue, restored_time};
 
     const auto tail_trace = run_ticks(restored_engine, 4U);
     split_trace.insert(split_trace.end(), tail_trace.begin(), tail_trace.end());
@@ -249,11 +247,10 @@ TEST(StateSerializerTest, SaveLoadAndContinuationMatchReferenceRun) {
 }
 
 TEST(EpochArtifactPipelineTest, WritesEpochFileToOutboxAutomatically) {
-    const auto root = std::filesystem::temp_directory_path() /
-                      ("senna_artifacts_" +
-                       std::to_string(std::chrono::high_resolution_clock::now()
-                                          .time_since_epoch()
-                                          .count()));
+    const auto root =
+        std::filesystem::temp_directory_path() /
+        ("senna_artifacts_" +
+         std::to_string(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 
     const auto experiment_file = root / "experiment.h5";
     const auto outbox_dir = root / "outbox";

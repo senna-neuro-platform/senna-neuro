@@ -240,6 +240,14 @@
           <span>Buffered frames</span>
           <span id="queueValue">0</span>
         </div>
+        <div class="status-line">
+          <span>Trace</span>
+          <span id="traceValue">waiting</span>
+        </div>
+        <div class="status-line">
+          <span>Label / Pred</span>
+          <span id="classValue">- / -</span>
+        </div>
       </div>
     </aside>
 
@@ -294,6 +302,8 @@
         activeValue: document.getElementById("activeValue"),
         ratioValue: document.getElementById("ratioValue"),
         queueValue: document.getElementById("queueValue"),
+        traceValue: document.getElementById("traceValue"),
+        classValue: document.getElementById("classValue"),
       };
 
       const state = {
@@ -321,6 +331,26 @@
         ui.connState.textContent = connected ? "online" : "offline";
         ui.connState.classList.toggle("ok", connected);
         ui.connState.classList.toggle("bad", !connected);
+      }
+
+      function setWaitingState(message) {
+        ui.connState.textContent = message;
+        ui.connState.classList.remove("ok");
+        ui.connState.classList.add("bad");
+      }
+
+      function updateTraceMeta(payload) {
+        if (!payload || payload.traceReady !== true) {
+          ui.traceValue.textContent = "waiting";
+          ui.classValue.textContent = "- / -";
+          return;
+        }
+
+        const epochText = Number.isInteger(payload.epoch) ? `epoch ${payload.epoch}` : "trace";
+        ui.traceValue.textContent = epochText;
+        const label = Number.isInteger(payload.label) ? payload.label : "-";
+        const prediction = Number.isInteger(payload.prediction) ? payload.prediction : "-";
+        ui.classValue.textContent = `${label} / ${prediction}`;
       }
 
       function colorForType(type) {
@@ -605,6 +635,13 @@
           }
 
           if (payload.type === "hello") {
+            updateTraceMeta(payload);
+            return;
+          }
+
+          if (payload.type === "trace_meta") {
+            updateTraceMeta(payload);
+            state.frameQueue = [];
             return;
           }
 
@@ -628,15 +665,26 @@
         });
       }
 
+      async function loadLatticeWithRetry() {
+        for (;;) {
+          const response = await fetch("/lattice");
+          if (response.ok) {
+            return response.json();
+          }
+
+          if (response.status !== 503) {
+            throw new Error(`Failed to load lattice: ${response.status}`);
+          }
+
+          setWaitingState("waiting");
+          ui.queueValue.textContent = "trace pending";
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        }
+      }
+
       async function bootstrap() {
         installControls();
-
-        const response = await fetch("/lattice");
-        if (!response.ok) {
-          throw new Error(`Failed to load lattice: ${response.status}`);
-        }
-
-        const lattice = await response.json();
+        const lattice = await loadLatticeWithRetry();
         initMesh(lattice);
         connectWebSocket();
 

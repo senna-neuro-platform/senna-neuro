@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 #include "core/domain/lattice.h"
@@ -12,6 +14,14 @@
 #include "core/io/rate_encoder.h"
 
 namespace {
+
+template <typename T>
+T require_value(const std::optional<T>& value, const char* message) {
+    if (!value.has_value()) {
+        throw std::runtime_error(message);
+    }
+    return *value;
+}
 
 senna::core::domain::Lattice make_sensor_lattice() {
     senna::core::domain::LatticeConfig config{};
@@ -57,6 +67,7 @@ TEST(RateEncoderTest, EncodesBlackWhiteAndMediumPixelRates) {
     const auto lattice = make_sensor_lattice();
     const auto sensor_id = lattice.neuron_id_at(senna::core::domain::Coord3D{0U, 0U, 0U});
     ASSERT_TRUE(sensor_id.has_value());
+    const auto sensor = require_value(sensor_id, "sensor neuron must exist");
 
     RateEncoderConfig config{};
     config.max_rate_hz = 100.0F;
@@ -79,8 +90,8 @@ TEST(RateEncoderTest, EncodesBlackWhiteAndMediumPixelRates) {
     EXPECT_GE(white_spikes.size(), medium_spikes.size());
 
     for (const auto& spike : white_spikes) {
-        EXPECT_EQ(spike.source, *sensor_id);
-        EXPECT_EQ(spike.target, *sensor_id);
+        EXPECT_EQ(spike.source, sensor);
+        EXPECT_EQ(spike.target, sensor);
         EXPECT_GE(spike.arrival, 0.0F);
         EXPECT_LT(spike.arrival, 50.0F);
     }

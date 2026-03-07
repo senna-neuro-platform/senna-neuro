@@ -26,7 +26,7 @@ namespace py = pybind11;
 
 namespace {
 
-constexpr std::size_t kMnistPixels = 28U * 28U;
+constexpr std::size_t kMnistPixels = static_cast<std::size_t>(28U) * static_cast<std::size_t>(28U);
 
 struct BindingConfig {
     senna::core::engine::NetworkBuilderConfig network{};
@@ -54,6 +54,16 @@ T yaml_required(const YAML::Node& node, const char* key, const char* section) {
                                     key);
     }
     return node[key].as<T>();
+}
+
+[[nodiscard]] const char* neuron_type_name(const senna::core::domain::NeuronType type) noexcept {
+    switch (type) {
+        case senna::core::domain::NeuronType::Excitatory:
+            return "excitatory";
+        case senna::core::domain::NeuronType::Inhibitory:
+            return "inhibitory";
+    }
+    return "unknown";
 }
 
 void validate_config(const BindingConfig& config) {
@@ -340,6 +350,54 @@ class PyNetworkHandle final {
         return out;
     }
 
+    [[nodiscard]] py::dict get_lattice() const {
+        const auto& lattice = network_->lattice();
+        const auto& config = lattice.config();
+        const auto& neurons = lattice.neurons();
+
+        py::list neuron_items{};
+        for (const auto& neuron : neurons) {
+            py::dict item{};
+            item[py::str("id")] = py::int_(neuron.id());
+            item[py::str("x")] = py::int_(neuron.position().x);
+            item[py::str("y")] = py::int_(neuron.position().y);
+            item[py::str("z")] = py::int_(neuron.position().z);
+            item[py::str("type")] =
+                py::str(neuron.type() == senna::core::domain::NeuronType::Excitatory
+                            ? (neuron.position().z == config.depth - 1U ? "output" : "excitatory")
+                            : neuron_type_name(neuron.type()));
+            neuron_items.append(std::move(item));
+        }
+
+        py::dict payload{};
+        payload[py::str("width")] = py::int_(config.width);
+        payload[py::str("height")] = py::int_(config.height);
+        payload[py::str("depth")] = py::int_(config.depth);
+        payload[py::str("neuronCount")] = py::int_(neurons.size());
+        payload[py::str("neurons")] = std::move(neuron_items);
+        return payload;
+    }
+
+    [[nodiscard]] py::list step_with_trace(const std::size_t n_ticks) {
+        py::list frames{};
+        if (n_ticks == 0U) {
+            return frames;
+        }
+
+        for (std::size_t i = 0U; i < n_ticks; ++i) {
+            static_cast<void>(network_->tick());
+            frames.append(build_tick_frame(i + 1U));
+        }
+
+        if (!sample_loaded_) {
+            return frames;
+        }
+
+        finalize_prediction();
+        sample_loaded_ = false;
+        return frames;
+    }
+
     void save_state(const std::string& path) const {
         const auto state = senna::core::persistence::StateSerializer::capture(
             network_->neurons(), network_->synapses(), network_->event_queue(),
@@ -354,8 +412,8 @@ class PyNetworkHandle final {
     }
 
     static std::shared_ptr<PyNetworkHandle> load_state(const std::string& path,
-                                                       const std::string& config_path = "") {
-        std::string chosen_config = config_path;
+                                                       const char* config_path = nullptr) {
+        std::string chosen_config = config_path == nullptr ? "" : config_path;
 
         std::ifstream meta(path + ".meta");
         if (!meta.fail()) {
@@ -409,14 +467,17 @@ class PyNetworkHandle final {
         }
 
         auto& neurons = network_->neurons();
-        const auto remove_count = static_cast<std::size_t>(std::floor(fraction * neurons.size()));
+        const auto neuron_count = neurons.size();
+        const auto remove_count =
+            static_cast<std::size_t>(std::floor(fraction * static_cast<double>(neuron_count)));
         if (remove_count == 0U) {
             return;
         }
 
         for (std::size_t i = 0U; i < remove_count; ++i) {
-            const auto index =
-                static_cast<std::size_t>(next_unit() * neurons.size()) % neurons.size();
+            const auto random_index =
+                static_cast<std::size_t>(next_unit() * static_cast<double>(neuron_count));
+            const auto index = random_index % neuron_count;
             neurons[index].set_threshold(1e9F);
             neurons[index].set_average_rate(0.0F);
         }
@@ -446,7 +507,7 @@ class PyNetworkHandle final {
         static_cast<void>(network_->tick());
         const auto corrected = decoder_.decode(output_spikes_);
         last_prediction_ = corrected >= 0 ? corrected : expected_label;
-        emit_wta_for_prediction(last_prediction_, network_->elapsed());
+        emit_wta_for_prediction(last_prediction_);
         if (sample_is_train_ && sample_label_.has_value() && *sample_label_ == expected_label &&
             !was_correct && last_prediction_ == expected_label) {
             ++train_correct_;
@@ -509,13 +570,13 @@ class PyNetworkHandle final {
         }
     }
 
-    void emit_wta_for_prediction(const int prediction, const senna::core::domain::Time t_now) {
+    void emit_wta_for_prediction(const int prediction) {
         if (!is_valid_output_label(prediction)) {
             return;
         }
 
         const auto winner = output_neuron_for_label(prediction);
-        const auto inhibitory = decoder_.winner_take_all_events(winner, t_now);
+        const auto inhibitory = decoder_.winner_take_all_events(winner, network_->elapsed());
         for (const auto& event : inhibitory) {
             network_->inject_event(event);
         }
@@ -571,7 +632,7 @@ class PyNetworkHandle final {
 
             for (std::size_t pulse = 0U; pulse < pulse_count; ++pulse) {
                 const auto deterministic_jitter =
-                    static_cast<senna::core::domain::Time>((index % 17U) * dt * 0.01F);
+                    static_cast<senna::core::domain::Time>(index % 17U) * dt * 0.01F;
                 const auto local_offset = static_cast<senna::core::domain::Time>(
                     static_cast<senna::core::domain::Time>(pulse) * pulse_stride +
                     deterministic_jitter);
@@ -593,7 +654,7 @@ class PyNetworkHandle final {
 
     void finalize_prediction() {
         last_prediction_ = decoder_.decode(output_spikes_);
-        emit_wta_for_prediction(last_prediction_, network_->elapsed());
+        emit_wta_for_prediction(last_prediction_);
 
         if (sample_is_train_) {
             ++train_seen_;
@@ -621,6 +682,45 @@ class PyNetworkHandle final {
                              : static_cast<double>(test_correct_) / static_cast<double>(test_seen_);
         metrics_collector_.set_train_accuracy(train_acc);
         metrics_collector_.set_test_accuracy(test_acc);
+    }
+
+    [[nodiscard]] py::dict build_tick_frame(const std::size_t tick_index) const {
+        const auto& neurons = network_->neurons();
+        const auto& spikes = network_->emitted_spikes_last_tick();
+
+        std::unordered_set<senna::core::domain::NeuronId> active_ids{};
+        py::list active_neurons{};
+        for (const auto& spike : spikes) {
+            if (!active_ids.insert(spike.source).second) {
+                continue;
+            }
+
+            const auto neuron_index = static_cast<std::size_t>(spike.source);
+            if (neuron_index >= neurons.size()) {
+                continue;
+            }
+
+            const auto& neuron = neurons.at(neuron_index);
+            py::dict item{};
+            item[py::str("id")] = py::int_(neuron.id());
+            item[py::str("x")] = py::int_(neuron.position().x);
+            item[py::str("y")] = py::int_(neuron.position().y);
+            item[py::str("z")] = py::int_(neuron.position().z);
+            item[py::str("type")] =
+                py::str(neuron.type() == senna::core::domain::NeuronType::Excitatory &&
+                                neuron.position().z == network_->lattice().config().depth - 1U
+                            ? "output"
+                            : neuron_type_name(neuron.type()));
+            item[py::str("fired")] = py::bool_(true);
+            active_neurons.append(std::move(item));
+        }
+
+        py::dict frame{};
+        frame[py::str("tick")] = py::int_(tick_index);
+        frame[py::str("neurons")] = std::move(active_neurons);
+        frame[py::str("activeCount")] = py::int_(active_ids.size());
+        frame[py::str("totalNeurons")] = py::int_(neurons.size());
+        return frame;
     }
 
     [[nodiscard]] static std::uint64_t seed_to_state(const std::uint32_t seed) noexcept {
@@ -676,7 +776,9 @@ PYBIND11_MODULE(senna_core, module) {
         .def("load_sample", &PyNetworkHandle::load_sample, py::arg("image"), py::arg("label"),
              py::arg("is_train") = true)
         .def("step", &PyNetworkHandle::step, py::arg("n_ticks"))
+        .def("step_with_trace", &PyNetworkHandle::step_with_trace, py::arg("n_ticks"))
         .def("get_prediction", &PyNetworkHandle::get_prediction)
+        .def("get_lattice", &PyNetworkHandle::get_lattice)
         .def("get_metrics", &PyNetworkHandle::get_metrics)
         .def("save_state", &PyNetworkHandle::save_state, py::arg("path"))
         .def("inject_noise", &PyNetworkHandle::inject_noise, py::arg("sigma"))
@@ -705,8 +807,20 @@ PYBIND11_MODULE(senna_core, module) {
         py::arg("handle"), py::arg("n_ticks"));
 
     module.def(
+        "step_with_trace",
+        [](const std::shared_ptr<PyNetworkHandle>& handle, const std::size_t n_ticks) {
+            return handle->step_with_trace(n_ticks);
+        },
+        py::arg("handle"), py::arg("n_ticks"));
+
+    module.def(
         "get_prediction",
         [](const std::shared_ptr<PyNetworkHandle>& handle) { return handle->get_prediction(); },
+        py::arg("handle"));
+
+    module.def(
+        "get_lattice",
+        [](const std::shared_ptr<PyNetworkHandle>& handle) { return handle->get_lattice(); },
         py::arg("handle"));
 
     module.def(
@@ -728,7 +842,7 @@ PYBIND11_MODULE(senna_core, module) {
         "load_state",
         [](const std::shared_ptr<PyNetworkHandle>& /*handle*/, const std::string& path,
            const std::string& config_path) {
-            return PyNetworkHandle::load_state(path, config_path);
+            return PyNetworkHandle::load_state(path, config_path.c_str());
         },
         py::arg("handle"), py::arg("path"), py::arg("config_path") = "");
 

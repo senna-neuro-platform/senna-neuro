@@ -8,6 +8,7 @@ from typing import Iterable, Literal
 
 from senna.training import (
     TrainingPipeline,
+    capture_trace_from_state,
     iter_mnist_samples,
     make_synthetic_digit_samples,
     robustness_report,
@@ -22,7 +23,7 @@ def append_metrics_line(path: Path, payload: dict[str, object]) -> None:
 
 
 def resolve_dataset_mode(args: argparse.Namespace) -> Literal["mnist", "synthetic"]:
-    if args.dataset != "mnist":
+    if args.dataset == "synthetic":
         return "synthetic"
 
     try:
@@ -43,8 +44,9 @@ def resolve_dataset_mode(args: argparse.Namespace) -> Literal["mnist", "syntheti
         next(iter(test_probe))
         return "mnist"
     except Exception as exc:
-        print(f"mnist_unavailable={exc}; fallback=synthetic")
-        return "synthetic"
+        raise RuntimeError(
+            "MNIST dataset is unavailable. Install torchvision and ensure data/MNIST/raw is populated."
+        ) from exc
 
 
 def make_samples(
@@ -103,6 +105,110 @@ def diagnostics_for_step15(
         )
 
     return diagnostics
+
+
+def metric_float(metrics: dict[str, float], key: str, default: float = 0.0) -> float:
+    value = metrics.get(key, default)
+    return float(value) if isinstance(value, int | float) else default
+
+
+def write_metrics_snapshot(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    temp_path.replace(path)
+
+
+def first_sample(
+    *,
+    dataset_mode: Literal["mnist", "synthetic"],
+    data_root: str,
+    train: bool,
+    epoch_seed: int,
+    download: bool,
+):
+    iterator = iter(
+        make_samples(
+            dataset_mode=dataset_mode,
+            data_root=data_root,
+            train=train,
+            limit=1,
+            epoch_seed=epoch_seed,
+            download=download,
+        )
+    )
+    sample = next(iterator, None)
+    if sample is None:
+        raise RuntimeError("No samples available for visualizer trace export")
+    return sample
+
+
+def exporter_snapshot_payload(
+    *,
+    dataset_mode: Literal["mnist", "synthetic"],
+    epoch: int,
+    train_limit: int,
+    test_limit: int,
+    ticks: int,
+    checkpoint_path: Path,
+    train_metrics: dict[str, float],
+    eval_metrics: dict[str, float],
+) -> dict[str, object]:
+    return {
+        "ts_utc": datetime.now(timezone.utc).isoformat(),
+        "snapshot_source": "training_epoch_end",
+        "dataset_mode": dataset_mode,
+        "epoch": epoch,
+        "train_limit": train_limit,
+        "test_limit": test_limit,
+        "ticks": ticks,
+        "checkpoint_path": str(checkpoint_path),
+        "active_neurons_ratio": metric_float(
+            eval_metrics, "senna_active_neurons_ratio"
+        ),
+        "max_active_neurons_ratio": metric_float(
+            eval_metrics,
+            "senna_max_active_neurons_ratio",
+            metric_float(eval_metrics, "senna_active_neurons_ratio"),
+        ),
+        "spikes_per_tick": metric_float(eval_metrics, "senna_spikes_per_tick"),
+        "e_rate_hz": metric_float(eval_metrics, "senna_e_rate_hz"),
+        "i_rate_hz": metric_float(eval_metrics, "senna_i_rate_hz"),
+        "ei_balance": metric_float(eval_metrics, "senna_ei_balance"),
+        "train_accuracy": metric_float(train_metrics, "epoch_accuracy"),
+        "test_accuracy": metric_float(eval_metrics, "eval_accuracy"),
+        "synapse_count": metric_float(eval_metrics, "senna_synapse_count"),
+        "pruned_total": metric_float(eval_metrics, "senna_pruned_total"),
+        "sprouted_total": metric_float(eval_metrics, "senna_sprouted_total"),
+        "stdp_updates_total": metric_float(eval_metrics, "senna_stdp_updates_total"),
+        "tick_duration_seconds": metric_float(
+            eval_metrics, "senna_tick_duration_seconds"
+        ),
+    }
+
+
+def visualizer_trace_payload(
+    *,
+    dataset_mode: Literal["mnist", "synthetic"],
+    epoch: int,
+    checkpoint_path: Path,
+    sample,
+    trace: dict[str, object],
+) -> dict[str, object]:
+    return {
+        "ts_utc": datetime.now(timezone.utc).isoformat(),
+        "trace_source": "training_epoch_end",
+        "dataset_mode": dataset_mode,
+        "epoch": epoch,
+        "checkpoint_path": str(checkpoint_path),
+        "label": sample.label,
+        "prediction": trace["prediction"],
+        "ticks": trace["ticks"],
+        "lattice": trace["lattice"],
+        "frames": trace["frames"],
+    }
 
 
 def main() -> int:
@@ -165,6 +271,16 @@ def main() -> int:
         help="JSONL path for epoch and robustness metrics",
     )
     parser.add_argument(
+        "--metrics-snapshot-path",
+        default="data/artifacts/metrics/latest.json",
+        help="JSON snapshot path consumed by Prometheus exporter",
+    )
+    parser.add_argument(
+        "--visualizer-trace-path",
+        default="data/artifacts/visualizer/latest.json",
+        help="JSON trace path consumed by visualizer websocket server",
+    )
+    parser.add_argument(
         "--robust-remove-fraction",
         type=float,
         default=0.1,
@@ -184,10 +300,15 @@ def main() -> int:
     args = parser.parse_args()
 
     pipeline = TrainingPipeline(config_path=args.config)
-    dataset_mode = resolve_dataset_mode(args)
+    try:
+        dataset_mode = resolve_dataset_mode(args)
+    except RuntimeError as exc:
+        parser.exit(status=1, message=f"{exc}\n")
     checkpoint_dir = Path(args.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = Path(args.metrics_out)
+    metrics_snapshot_path = Path(args.metrics_snapshot_path)
+    visualizer_trace_path = Path(args.visualizer_trace_path)
     prediction_history: list[int] = []
     last_eval_accuracy = 0.0
     last_checkpoint_path: Path | None = None
@@ -244,6 +365,43 @@ def main() -> int:
                 "checkpoint_path": str(checkpoint_path),
             },
         )
+        write_metrics_snapshot(
+            metrics_snapshot_path,
+            exporter_snapshot_payload(
+                dataset_mode=dataset_mode,
+                epoch=epoch + 1,
+                train_limit=args.train_limit,
+                test_limit=args.test_limit,
+                ticks=args.ticks,
+                checkpoint_path=checkpoint_path,
+                train_metrics=train_metrics,
+                eval_metrics=eval_metrics,
+            ),
+        )
+        visualizer_sample = first_sample(
+            dataset_mode=dataset_mode,
+            data_root=args.data_root,
+            train=False,
+            epoch_seed=7_000 + epoch,
+            download=False,
+        )
+        visualizer_trace = capture_trace_from_state(
+            state_path=str(checkpoint_path),
+            config_path=args.config,
+            sample=visualizer_sample,
+            ticks_per_sample=args.ticks,
+        )
+        write_metrics_snapshot(
+            visualizer_trace_path,
+            visualizer_trace_payload(
+                dataset_mode=dataset_mode,
+                epoch=epoch + 1,
+                checkpoint_path=checkpoint_path,
+                sample=visualizer_sample,
+                trace=visualizer_trace,
+            ),
+        )
+        print(f"visualizer_trace_saved={visualizer_trace_path}")
 
         if not args.no_early_stop and last_eval_accuracy >= args.target_accuracy:
             print(

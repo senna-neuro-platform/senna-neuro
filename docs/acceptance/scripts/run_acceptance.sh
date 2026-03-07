@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-SCRIPTS_DIR="${ROOT_DIR}/docs/step16-acceptance/scripts"
+SCRIPTS_DIR="${ROOT_DIR}/docs/acceptance/scripts"
 
 EPOCHS=5
 TRAIN_LIMIT=60000
@@ -18,6 +18,8 @@ CONFIG_PATH="configs/default.yaml"
 CHECKPOINT_DIR="data/artifacts/outbox"
 STATE_PATH="data/artifacts/outbox/final_state.h5"
 METRICS_PATH="data/artifacts/training/metrics.jsonl"
+METRICS_SNAPSHOT_PATH="data/artifacts/metrics/latest.json"
+VISUALIZER_TRACE_PATH="data/artifacts/visualizer/latest.json"
 WS_URL="ws://localhost:8080/ws"
 LATTICE_URL="http://localhost:8080/lattice"
 SIMULATOR_HEALTH_URL="http://localhost:8000/health"
@@ -25,6 +27,7 @@ VISUALIZER_HEALTH_URL="http://localhost:8080/health"
 PROMETHEUS_HEALTH_URL="http://localhost:9090/-/healthy"
 GRAFANA_HEALTH_URL="http://localhost:3000/api/health"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+RUNTIME_PYTHONPATH="build/release:python"
 
 SKIP_BUILD=false
 SKIP_LINT=false
@@ -32,10 +35,11 @@ SKIP_SANITIZE=false
 SKIP_DOCKER=false
 SKIP_TRAINING=false
 SKIP_WS_SPARSITY=false
+SKIP_OBSERVE_PAUSE=false
 
 print_usage() {
   cat <<'EOF'
-Usage: docs/step16-acceptance/scripts/run_acceptance.sh [options]
+Usage: docs/acceptance/scripts/run_acceptance.sh [options]
 
 Options:
   --epochs <int>
@@ -46,12 +50,14 @@ Options:
   --max-active-ratio <float>
   --max-prune-drop <float>
   --max-noise-drop <float>
-  --dataset <mnist|synthetic>
+  --dataset <mnist>
   --data-root <path>
   --config <path>
   --checkpoint-dir <path>
   --state-path <path>
   --metrics-path <path>
+  --metrics-snapshot-path <path>
+  --visualizer-trace-path <path>
   --ws-url <url>
   --lattice-url <url>
   --skip-build
@@ -60,12 +66,13 @@ Options:
   --skip-docker
   --skip-training
   --skip-ws-sparsity
+  --no-observe-pause
   --help
 EOF
 }
 
 log() {
-  printf '\n[%s] %s\n' "step16" "$*"
+  printf '\n[%s] %s\n' "" "$*"
 }
 
 run_cmd() {
@@ -98,13 +105,34 @@ wait_http_ok() {
   return 1
 }
 
+wait_for_observe_confirmation() {
+  if [[ "${SKIP_OBSERVE_PAUSE}" == true ]]; then
+    return 0
+  fi
+
+  if [[ ! -t 0 ]]; then
+    echo "[FAIL] observation pause requires an interactive terminal; use --no-observe-pause to skip it"
+    return 1
+  fi
+
+  local answer=""
+  while true; do
+    read -r -p "[PAUSE] Open Grafana and Visualizer in browser, then type 'continue' to start training: " answer
+    if [[ "${answer}" == "continue" ]]; then
+      return 0
+    fi
+    echo "[WAIT] type 'continue' when you are ready"
+  done
+}
+
 print_observe_stack_memo() {
   cat <<EOF
 [OBSERVE] Docker status: docker compose ps
 [OBSERVE] Docker logs: make logs
 [OBSERVE] Grafana: http://localhost:3000 (admin/admin), dashboards: SENNA Activity / SENNA Training / SENNA Performance
 [OBSERVE] Visualizer: http://localhost:8080 (WS: ${WS_URL})
-[OBSERVE] Exporter: http://localhost:8000/metrics
+[OBSERVE] Exporter health: http://localhost:8000/health
+[OBSERVE] Exporter metrics become available after current training run writes ${METRICS_SNAPSHOT_PATH}
 EOF
 }
 
@@ -112,6 +140,8 @@ print_observe_training_memo() {
   cat <<'EOF'
 [OBSERVE] Training metrics tail: tail -f data/artifacts/training/metrics.jsonl
 [OBSERVE] Epoch checkpoints: ls -1 data/artifacts/outbox/epoch_*.h5 | tail
+[OBSERVE] Exporter snapshot: cat data/artifacts/metrics/latest.json
+[OBSERVE] Visualizer trace: cat data/artifacts/visualizer/latest.json
 [OBSERVE] Prometheus probe: curl -fsS http://localhost:8000/metrics | rg 'senna_(train|test|active|spikes)'
 EOF
 }
@@ -174,6 +204,14 @@ while [[ $# -gt 0 ]]; do
       METRICS_PATH="$2"
       shift 2
       ;;
+    --metrics-snapshot-path)
+      METRICS_SNAPSHOT_PATH="$2"
+      shift 2
+      ;;
+    --visualizer-trace-path)
+      VISUALIZER_TRACE_PATH="$2"
+      shift 2
+      ;;
     --ws-url)
       WS_URL="$2"
       shift 2
@@ -206,6 +244,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_WS_SPARSITY=true
       shift
       ;;
+    --no-observe-pause)
+      SKIP_OBSERVE_PAUSE=true
+      shift
+      ;;
     --help|-h)
       print_usage
       exit 0
@@ -224,14 +266,30 @@ require_cmd ctest
 require_cmd curl
 require_cmd "${PYTHON_BIN}"
 
+if [[ "${DATASET}" != "mnist" ]]; then
+  echo "[FAIL] acceptance run requires --dataset mnist"
+  exit 1
+fi
+
 cd "${ROOT_DIR}"
 log "root=${ROOT_DIR}"
+
+mkdir -p \
+  "$(dirname "${STATE_PATH}")" \
+  "$(dirname "${METRICS_PATH}")" \
+  "$(dirname "${METRICS_SNAPSHOT_PATH}")" \
+  "$(dirname "${VISUALIZER_TRACE_PATH}")" \
+  "${CHECKPOINT_DIR}"
+
+if [[ "${SKIP_TRAINING}" == false ]]; then
+  rm -f "${METRICS_PATH}" "${METRICS_SNAPSHOT_PATH}" "${VISUALIZER_TRACE_PATH}"
+fi
 
 if [[ "${SKIP_BUILD}" == false ]]; then
   log "Build + test gates"
   run_cmd make install
-  run_cmd make build-debug
-  run_cmd make test
+  run_cmd make build-release
+  run_cmd ctest --preset release
 fi
 
 if [[ "${SKIP_LINT}" == false ]]; then
@@ -254,15 +312,14 @@ if [[ "${SKIP_DOCKER}" == false ]]; then
   wait_http_ok "grafana health" "${GRAFANA_HEALTH_URL}"
   log "Observation memo (Docker/Grafana/Visualizer)"
   print_observe_stack_memo
+  if [[ "${SKIP_TRAINING}" == false ]]; then
+    wait_for_observe_confirmation
+  fi
 fi
-
-mkdir -p "$(dirname "${STATE_PATH}")" "$(dirname "${METRICS_PATH}")" "${CHECKPOINT_DIR}"
-
 if [[ "${SKIP_TRAINING}" == false ]]; then
   log "Training run (Step 15/16 prerequisites)"
-  rm -f "${METRICS_PATH}"
   run_cmd env \
-    PYTHONPATH="build/debug:python${PYTHONPATH:+:${PYTHONPATH}}" \
+    PYTHONPATH="${RUNTIME_PYTHONPATH}${PYTHONPATH:+:${PYTHONPATH}}" \
     "${PYTHON_BIN}" python/train.py \
     --config "${CONFIG_PATH}" \
     --dataset "${DATASET}" \
@@ -274,7 +331,13 @@ if [[ "${SKIP_TRAINING}" == false ]]; then
     --target-accuracy "${TARGET_ACCURACY}" \
     --checkpoint-dir "${CHECKPOINT_DIR}" \
     --state-out "${STATE_PATH}" \
-    --metrics-out "${METRICS_PATH}"
+    --metrics-out "${METRICS_PATH}" \
+    --metrics-snapshot-path "${METRICS_SNAPSHOT_PATH}" \
+    --visualizer-trace-path "${VISUALIZER_TRACE_PATH}"
+  if [[ "${SKIP_DOCKER}" == false ]]; then
+    wait_http_ok "exporter metrics" "http://localhost:8000/metrics"
+    wait_http_ok "visualizer lattice" "${LATTICE_URL}"
+  fi
   log "Observation memo (training telemetry)"
   print_observe_training_memo
 fi
@@ -289,11 +352,11 @@ run_cmd "${PYTHON_BIN}" "${SCRIPTS_DIR}/check_dod_metrics.py" \
 
 log "Inference pipeline check (state -> prediction)"
 run_cmd env \
-  PYTHONPATH="build/debug:python${PYTHONPATH:+:${PYTHONPATH}}" \
+  PYTHONPATH="${RUNTIME_PYTHONPATH}${PYTHONPATH:+:${PYTHONPATH}}" \
   "${PYTHON_BIN}" "${SCRIPTS_DIR}/check_inference_pipeline.py" \
   --state-path "${STATE_PATH}" \
   --config "${CONFIG_PATH}" \
-  --dataset "auto" \
+  --dataset "${DATASET}" \
   --metrics-path "${METRICS_PATH}" \
   --data-root "${DATA_ROOT}" \
   --ticks "${TICKS}"

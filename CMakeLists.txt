@@ -60,6 +60,24 @@ if(SENNA_BUILD_PYTHON_BINDINGS)
     endif()
 endif()
 
+set(SENNA_PYTHON_TEST_ENV "PYTHONPATH=${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_SOURCE_DIR}/python")
+if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    execute_process(
+        COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libasan.so
+        OUTPUT_VARIABLE SENNA_LIBASAN_PATH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(SENNA_LIBASAN_PATH AND NOT SENNA_LIBASAN_PATH STREQUAL "libasan.so")
+        list(APPEND SENNA_PYTHON_TEST_ENV
+            "LD_PRELOAD=${SENNA_LIBASAN_PATH}"
+            "ASAN_OPTIONS=detect_leaks=0"
+            "UBSAN_OPTIONS=print_stacktrace=1"
+        )
+    else()
+        message(WARNING "Unable to resolve libasan.so for sanitized Python integration tests")
+    endif()
+endif()
+
 if(BUILD_TESTING)
     list(PREPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}")
     find_package(GTest REQUIRED MODULE)
@@ -255,7 +273,7 @@ if(BUILD_TESTING)
                 test_python_bindings_integration
                 PROPERTIES
                     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-                    ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_SOURCE_DIR}/python"
+                    ENVIRONMENT "${SENNA_PYTHON_TEST_ENV}"
             )
         else()
             message(STATUS "pytest not found, skipping test_python_bindings_integration")

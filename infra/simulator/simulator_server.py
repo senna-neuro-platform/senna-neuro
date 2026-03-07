@@ -82,29 +82,6 @@ def _read_float(payload: dict[str, Any], default: float, *keys: str) -> float:
     return default
 
 
-def synthetic_snapshot(now: float) -> MetricsSnapshot:
-    active_ratio = 0.03 + (0.01 * math.sin(now / 5.0))
-    spikes_per_tick = 120.0 + (20.0 * math.sin(now / 7.0))
-    e_rate_hz = 6.0 + (1.5 * math.sin(now / 6.0))
-    i_rate_hz = 4.0 + (1.0 * math.cos(now / 9.0))
-    ei_balance = e_rate_hz / i_rate_hz if i_rate_hz > 0.0 else e_rate_hz
-
-    return MetricsSnapshot(
-        active_neurons_ratio=max(0.0, active_ratio),
-        spikes_per_tick=max(0.0, spikes_per_tick),
-        ei_balance=max(0.0, ei_balance),
-        train_accuracy=_clamp_0_1(0.65 + (0.15 * math.sin(now / 90.0))),
-        test_accuracy=_clamp_0_1(0.61 + (0.12 * math.sin(now / 110.0))),
-        synapse_count=300000.0,
-        pruned_total=max(0.0, 150.0 + (30.0 * math.sin(now / 45.0))),
-        sprouted_total=max(0.0, 120.0 + (25.0 * math.cos(now / 40.0))),
-        stdp_updates_total=max(0.0, 5000.0 + (900.0 * math.sin(now / 30.0))),
-        tick_duration_seconds=0.0004 + (0.0002 * (1.0 + math.sin(now / 10.0)) / 2.0),
-        e_rate_hz=max(0.0, e_rate_hz),
-        i_rate_hz=max(0.0, i_rate_hz),
-    )
-
-
 def load_snapshot_from_file(path: Path) -> MetricsSnapshot | None:
     if not path.exists():
         return None
@@ -169,12 +146,9 @@ def load_snapshot_from_file(path: Path) -> MetricsSnapshot | None:
     )
 
 
-def read_snapshot(now: float, snapshot_path: Path | None = None) -> MetricsSnapshot:
+def read_snapshot(snapshot_path: Path | None = None) -> MetricsSnapshot | None:
     path = snapshot_path if snapshot_path is not None else METRICS_SNAPSHOT_PATH
-    file_snapshot = load_snapshot_from_file(path)
-    if file_snapshot is not None:
-        return file_snapshot
-    return synthetic_snapshot(now)
+    return load_snapshot_from_file(path)
 
 
 def _format_metric(name: str, value: float) -> str:
@@ -240,7 +214,17 @@ EXPORTER_STATE = ExporterState()
 class MetricsHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/metrics":
-            snapshot = read_snapshot(time.time())
+            snapshot = read_snapshot()
+            if snapshot is None:
+                payload = f"# snapshot_not_ready path={METRICS_SNAPSHOT_PATH}\n".encode(
+                    "utf-8"
+                )
+                self.send_response(503)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
             EXPORTER_STATE.observe(snapshot)
             payload = render_metrics_payload(snapshot, EXPORTER_STATE).encode("utf-8")
 
@@ -252,9 +236,16 @@ class MetricsHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/health":
-            payload = b"ok"
+            snapshot_ready = read_snapshot() is not None
+            payload = json.dumps(
+                {
+                    "status": "ok" if snapshot_ready else "waiting_for_snapshot",
+                    "snapshot_ready": snapshot_ready,
+                    "snapshot_path": str(METRICS_SNAPSHOT_PATH),
+                }
+            ).encode("utf-8")
             self.send_response(200)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)

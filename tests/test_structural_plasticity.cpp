@@ -39,15 +39,15 @@ senna::core::domain::NeuronId find_neuron_with_neighbors(
 void expect_index_consistency(const senna::core::domain::SynapseStore& synapses,
                               const std::size_t neuron_count) {
     for (std::size_t neuron = 0U; neuron < neuron_count; ++neuron) {
-        for (const auto synapse_id : synapses.outgoing(static_cast<senna::core::domain::NeuronId>(
-                 neuron))) {
+        for (const auto synapse_id :
+             synapses.outgoing(static_cast<senna::core::domain::NeuronId>(neuron))) {
             ASSERT_LT(static_cast<std::size_t>(synapse_id), synapses.size());
             EXPECT_EQ(synapses.at(synapse_id).pre_id,
                       static_cast<senna::core::domain::NeuronId>(neuron));
         }
 
-        for (const auto synapse_id : synapses.incoming(static_cast<senna::core::domain::NeuronId>(
-                 neuron))) {
+        for (const auto synapse_id :
+             synapses.incoming(static_cast<senna::core::domain::NeuronId>(neuron))) {
             ASSERT_LT(static_cast<std::size_t>(synapse_id), synapses.size());
             EXPECT_EQ(synapses.at(synapse_id).post_id,
                       static_cast<senna::core::domain::NeuronId>(neuron));

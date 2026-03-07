@@ -130,9 +130,12 @@ PYTHONPATH=build/debug:python python3 python/train.py --config configs/default.y
 
 Notes:
 - For real MNIST in `train.py`, install `torchvision` in your Python env.
-- If `torchvision` is unavailable, `train.py` falls back to synthetic samples.
+- `train.py --dataset mnist` больше не делает automatic fallback: при недоступном MNIST/`torchvision` запуск завершается ошибкой.
+- `--dataset synthetic` остаётся только для явных smoke/dev сценариев, но не для acceptance.
 - `train.py` writes per-epoch checkpoints to `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.
 - Training and robustness metrics are appended as JSONL to `data/artifacts/training/metrics.jsonl`.
+- A real exporter snapshot is written to `data/artifacts/metrics/latest.json`; until this file exists, exporter `/metrics` stays unavailable instead of fabricating values.
+- A real visualizer trace is written to `data/artifacts/visualizer/latest.json`; until this file exists, visualizer `/lattice` stays unavailable instead of fabricating lattice/activity frames.
 - Step 15 robustness checks are executed after training:
   - `remove_neurons(0.1)` with expected drop `<5%`
   - `inject_noise(0.3)` with expected drop `<10%`

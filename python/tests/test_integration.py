@@ -6,6 +6,7 @@ import senna_core
 
 from senna.training import (
     TrainingPipeline,
+    Sample,
     make_synthetic_digit_samples,
     robustness_report,
 )
@@ -66,6 +67,23 @@ def test_module_level_api(tmp_path: Path) -> None:
     senna_core.step(loaded, 10)
 
 
+def test_module_level_trace_export() -> None:
+    handle = senna_core.create_network("configs/default.yaml")
+    image = [0] * (28 * 28)
+    for i in range(0, 28 * 28, 17):
+        image[i] = 255
+
+    senna_core.load_sample(handle, image, 5, False)
+    frames = senna_core.step_with_trace(handle, 12)
+    lattice = senna_core.get_lattice(handle)
+
+    assert len(frames) == 12
+    assert lattice["neuronCount"] == len(lattice["neurons"])
+    assert lattice["width"] >= 28
+    assert lattice["depth"] >= 2
+    assert any(frame["totalNeurons"] == lattice["neuronCount"] for frame in frames)
+
+
 def test_robustness_report_smoke(tmp_path: Path) -> None:
     pipeline = TrainingPipeline(config_path="configs/default.yaml")
     train_samples = make_synthetic_digit_samples(8, seed=23)
@@ -88,3 +106,29 @@ def test_robustness_report_smoke(tmp_path: Path) -> None:
     assert 0.0 <= report["noise_accuracy"] <= 1.0
     assert report["prune_drop"] >= 0.0
     assert report["noise_drop"] >= 0.0
+
+
+def test_robustness_report_requires_positive_baseline(monkeypatch) -> None:
+    responses = iter(
+        [
+            {"eval_accuracy": 0.0},
+            {"eval_accuracy": 0.0},
+            {"eval_accuracy": 0.0},
+        ]
+    )
+
+    def fake_evaluate_from_state(**_: object) -> dict[str, float]:
+        return next(responses)
+
+    monkeypatch.setattr("senna.training.evaluate_from_state", fake_evaluate_from_state)
+
+    report = robustness_report(
+        state_path="unused.h5",
+        config_path="configs/default.yaml",
+        sample_factory=lambda: [Sample(image=[0] * (28 * 28), label=0)],
+        ticks_per_sample=8,
+    )
+
+    assert report["baseline_accuracy"] == 0.0
+    assert report["prune_pass"] == 0.0
+    assert report["noise_pass"] == 0.0

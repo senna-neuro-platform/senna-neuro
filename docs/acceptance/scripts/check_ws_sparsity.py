@@ -134,7 +134,9 @@ class WsClient:
         header = response.decode("iso-8859-1", errors="replace")
         lines = header.split("\r\n")
         if not lines or "101" not in lines[0]:
-            raise RuntimeError(f"websocket upgrade failed: {lines[0] if lines else header}")
+            raise RuntimeError(
+                f"websocket upgrade failed: {lines[0] if lines else header}"
+            )
 
         accept_header = ""
         for line in lines[1:]:
@@ -222,6 +224,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--max-ratio",
+        "--max-active-ratio",
+        dest="max_ratio",
         type=float,
         default=0.05,
         help="Maximum allowed active ratio for each frame",
@@ -241,7 +245,9 @@ def main() -> int:
 
     total_neurons_fallback = fetch_total_neurons(args.lattice_url, args.timeout_sec)
     if total_neurons_fallback is None:
-        print("[WARN] could not fetch total neurons from /lattice, will rely on WS payload")
+        print(
+            "[WARN] could not fetch total neurons from /lattice, will rely on WS payload"
+        )
 
     client = WsClient(args.ws_url, args.timeout_sec)
     try:

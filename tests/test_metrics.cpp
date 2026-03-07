@@ -72,6 +72,7 @@ TEST(MetricsCollectorTest, AggregatesExpectedValuesForKnownTickSequence) {
     EXPECT_DOUBLE_EQ(snapshot.mean_spikes_per_tick, 3.0);
 
     EXPECT_DOUBLE_EQ(snapshot.active_neurons_ratio, 0.5);
+    EXPECT_DOUBLE_EQ(snapshot.max_active_neurons_ratio, 0.5);
     EXPECT_DOUBLE_EQ(snapshot.mean_active_neurons_ratio, 0.5);
 
     EXPECT_NEAR(snapshot.e_rate_hz, 7.0, 1e-9);
@@ -103,6 +104,7 @@ TEST(MetricsCollectorTest, ExportsPrometheusMetricMapWithExpectedKeys) {
     const auto metrics = collector.as_metric_map();
 
     EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_active_neurons_ratio"), 0.25);
+    EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_max_active_neurons_ratio"), 0.25);
     EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_spikes_per_tick"), 1.0);
     EXPECT_NEAR(metric_or_throw(metrics, "senna_e_rate_hz"), 7.0, 1e-9);
     EXPECT_NEAR(metric_or_throw(metrics, "senna_i_rate_hz"), 3.0, 1e-9);

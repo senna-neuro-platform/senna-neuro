@@ -49,7 +49,8 @@ class StructuralPlasticity final {
                                        const std::vector<senna::core::domain::Neuron>& neurons,
                                        senna::core::domain::SynapseStore& synapses) {
         if (neurons.size() != lattice.neuron_count()) {
-            throw std::invalid_argument("StructuralPlasticity expects neurons.size() == lattice.neuron_count()");
+            throw std::invalid_argument(
+                "StructuralPlasticity expects neurons.size() == lattice.neuron_count()");
         }
 
         StructuralPlasticityStats stats{};
@@ -96,11 +97,10 @@ class StructuralPlasticity final {
         const auto before = all_synapses.size();
 
         all_synapses.erase(
-            std::remove_if(
-                all_synapses.begin(), all_synapses.end(),
-                [w_min = config_.w_min](const senna::core::domain::Synapse& synapse) {
-                    return std::fabs(synapse.weight) < w_min;
-                }),
+            std::remove_if(all_synapses.begin(), all_synapses.end(),
+                           [w_min = config_.w_min](const senna::core::domain::Synapse& synapse) {
+                               return std::fabs(synapse.weight) < w_min;
+                           }),
             all_synapses.end());
 
         return before - all_synapses.size();
@@ -133,7 +133,7 @@ class StructuralPlasticity final {
 
                 const auto& pre_neuron = neurons.at(static_cast<std::size_t>(pre_id));
                 synapses.connect(pre_id, post_id, pre_neuron.position(), post_neuron.position(),
-                                pre_neuron.type(), config_.sprout_weight, config_.c_base);
+                                 pre_neuron.type(), config_.sprout_weight, config_.c_base);
                 ++sprouts_for_neuron;
                 ++sprouted;
             }

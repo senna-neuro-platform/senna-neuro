@@ -35,14 +35,14 @@ inline hid_t make_state_metadata_type() {
     const auto type = check_id(H5Tcreate(H5T_COMPOUND, sizeof(StateMetadataRecord)),
                                "Failed to create StateMetadata HDF5 type");
 
-    check_status(H5Tinsert(type, "elapsed", HOFFSET(StateMetadataRecord, elapsed),
-                           H5T_NATIVE_FLOAT),
-                 "Failed to insert StateMetadata.elapsed");
+    check_status(
+        H5Tinsert(type, "elapsed", HOFFSET(StateMetadataRecord, elapsed), H5T_NATIVE_FLOAT),
+        "Failed to insert StateMetadata.elapsed");
     check_status(H5Tinsert(type, "dt", HOFFSET(StateMetadataRecord, dt), H5T_NATIVE_FLOAT),
                  "Failed to insert StateMetadata.dt");
-    check_status(H5Tinsert(type, "rng_state", HOFFSET(StateMetadataRecord, rng_state),
-                           H5T_NATIVE_UINT64),
-                 "Failed to insert StateMetadata.rng_state");
+    check_status(
+        H5Tinsert(type, "rng_state", HOFFSET(StateMetadataRecord, rng_state), H5T_NATIVE_UINT64),
+        "Failed to insert StateMetadata.rng_state");
 
     return type;
 }
@@ -145,8 +145,7 @@ class StateSerializer final {
     [[nodiscard]] static SimulationState capture(
         const std::vector<senna::core::domain::Neuron>& neurons,
         const senna::core::domain::SynapseStore& synapses,
-        const senna::core::engine::EventQueue& queue,
-        const senna::core::engine::TimeManager& time,
+        const senna::core::engine::EventQueue& queue, const senna::core::engine::TimeManager& time,
         const std::uint64_t rng_state = 0U) {
         SimulationState state{};
         state.neurons.reserve(neurons.size());

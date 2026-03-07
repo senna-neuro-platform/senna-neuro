@@ -37,6 +37,12 @@ def last_event(events: list[dict[str, Any]], event_name: str) -> dict[str, Any] 
     return None
 
 
+def collect_events(
+    events: list[dict[str, Any]], event_name: str
+) -> list[dict[str, Any]]:
+    return [event for event in events if event.get("event") == event_name]
+
+
 def read_float(payload: dict[str, Any], *path: str) -> float | None:
     current: Any = payload
     for key in path:
@@ -47,6 +53,13 @@ def read_float(payload: dict[str, Any], *path: str) -> float | None:
         return None
     if isinstance(current, int | float):
         return float(current)
+    return None
+
+
+def first_defined_float(*values: float | None) -> float | None:
+    for value in values:
+        if value is not None:
+            return value
     return None
 
 
@@ -88,6 +101,11 @@ def main() -> int:
         default=0.10,
         help="Maximum allowed drop after inject_noise(0.3)",
     )
+    parser.add_argument(
+        "--require-dataset",
+        default="mnist",
+        help="Require this dataset_mode in all epoch_end events (default: mnist).",
+    )
     args = parser.parse_args()
 
     metrics_path = Path(args.metrics_path)
@@ -96,25 +114,43 @@ def main() -> int:
     except (FileNotFoundError, ValueError) as exc:
         return fail(str(exc))
 
-    epoch_event = last_event(events, "epoch_end")
-    if epoch_event is None:
+    epoch_events = collect_events(events, "epoch_end")
+    if not epoch_events:
         return fail("metrics JSONL does not contain event='epoch_end'")
+    epoch_event = epoch_events[-1]
 
     robustness_event = last_event(events, "robustness")
     if robustness_event is None:
         return fail("metrics JSONL does not contain event='robustness'")
 
+    if args.require_dataset:
+        for index, event in enumerate(epoch_events, start=1):
+            dataset_mode = event.get("dataset_mode")
+            if dataset_mode != args.require_dataset:
+                return fail(
+                    f"epoch_end #{index} has dataset_mode={dataset_mode!r}, expected {args.require_dataset!r}"
+                )
+
     eval_accuracy = read_float(epoch_event, "eval", "eval_accuracy")
     if eval_accuracy is None:
         return fail("missing eval.eval_accuracy in epoch_end event")
 
-    active_ratio = (
-        read_float(epoch_event, "eval", "senna_active_neurons_ratio")
-        or read_float(epoch_event, "eval", "active_neurons_ratio")
-        or read_float(epoch_event, "eval", "active_ratio")
-    )
-    if active_ratio is None:
-        return fail("missing eval.senna_active_neurons_ratio in epoch_end event")
+    active_ratios: list[float] = []
+    for event in epoch_events:
+        active_ratio = first_defined_float(
+            read_float(event, "eval", "senna_max_active_neurons_ratio"),
+            read_float(event, "eval", "max_active_neurons_ratio"),
+            read_float(event, "eval", "senna_active_neurons_ratio"),
+            read_float(event, "eval", "active_neurons_ratio"),
+            read_float(event, "eval", "active_ratio"),
+        )
+        if active_ratio is None:
+            return fail(
+                "missing eval.senna_max_active_neurons_ratio in epoch_end event"
+            )
+        active_ratios.append(active_ratio)
+
+    max_active_ratio = max(active_ratios)
 
     prune_drop = read_float(robustness_event, "metrics", "prune_drop")
     noise_drop = read_float(robustness_event, "metrics", "noise_drop")
@@ -128,9 +164,9 @@ def main() -> int:
         failures.append(
             f"eval_accuracy {eval_accuracy:.4f} < target {args.target_accuracy:.4f}"
         )
-    if active_ratio > args.max_active_ratio:
+    if max_active_ratio > args.max_active_ratio:
         failures.append(
-            f"active_ratio {active_ratio:.4f} > max {args.max_active_ratio:.4f}"
+            f"max_active_ratio {max_active_ratio:.4f} > max {args.max_active_ratio:.4f}"
         )
     if prune_drop >= args.max_prune_drop:
         failures.append(f"prune_drop {prune_drop:.4f} >= max {args.max_prune_drop:.4f}")
@@ -141,7 +177,7 @@ def main() -> int:
     print(
         "summary "
         f"eval_accuracy={eval_accuracy:.4f} "
-        f"active_ratio={active_ratio:.4f} "
+        f"max_active_ratio={max_active_ratio:.4f} "
         f"prune_drop={prune_drop:.4f} "
         f"noise_drop={noise_drop:.4f}"
     )
