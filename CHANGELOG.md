@@ -1,5 +1,15 @@
 # Changelog
 
+## 07.03.2026 `0.14.0-dev`
+- Добавлен pybind11-модуль `senna_core` в `src/bindings/python_module.cpp` с контрактом шага 14: `create_network`, `load_sample`, `step`, `get_prediction`, `get_metrics`, `save_state`, `load_state`, `inject_noise`, `remove_neurons`, `supervise`.
+- В C++ биндингах реализована строгая YAML-валидация `configs/default.yaml` через `yaml-cpp` (обязательные секции и диапазоны параметров), без дублирования в Python-слое.
+- Добавлен единый конфиг `configs/default.yaml` со всеми разделами гиперпараметров: `lattice`, `neuron`, `synapse`, `stdp`, `homeostasis`, `structural`, `encoder`, `decoder`, `training`.
+- В `CMakeLists.txt` подключена сборка Python-модуля `senna_core` и интеграционный запуск `python/tests/test_integration.py` через `pytest` в CTest.
+- Добавлен Python training pipeline: `python/senna/training.py` и `python/train.py` (MNIST через `torchvision` с fallback на synthetic dataset, цикл `load_sample -> step -> predict -> supervise`).
+- Добавлены Python integration tests `python/tests/test_integration.py` для полного цикла API, supervision и save/load.
+- В CI (`.github/workflows/ci.yml`) добавлена установка `pytest` для запуска Python integration-тестов.
+- Добавлен ADR-0011 `docs/adr/0011-python-bindings-and-training-contract.md` с фиксацией контракта биндингов и training pipeline.
+
 ## 07.03.2026 `0.13.0-dev`
 - Реализован WebSocket-сервер визуализатора в `visualizer/server.js`: endpoint `/ws`, поток кадров `{tick, neurons:[...]}` только по активным нейронам, endpoint `/lattice` для полной геометрии решётки и `/health` для проверки сервиса.
 - В `visualizer/server.js` добавлена детерминированная генерация 3D-решётки и волнового паттерна активности (интерференционные фронты) с ограничением разреженности активных нейронов (<5% от общего числа на кадр).

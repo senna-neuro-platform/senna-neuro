@@ -15,7 +15,7 @@ MNIST_FILES := train-images-idx3-ubyte train-labels-idx1-ubyte t10k-images-idx3-
 
 CPP_FILES := $(shell find src tests -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \) 2>/dev/null)
 
-.PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize build-saniryze test up down logs
+.PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize test up down logs
 
 help:
 	@echo "Available targets:"

@@ -1,0 +1,49 @@
+lattice:
+  width: 28
+  height: 28
+  depth: 20
+  processing_density: 0.70
+  output_neurons: 10
+  excitatory_ratio: 0.80
+  neighbor_radius: 2.0
+
+neuron:
+  tau_m: 20.0
+  theta_base: 1.0
+  t_ref: 2.0
+  V_rest: 0.0
+
+synapse:
+  c_base: 1.0
+  w_init_range: [0.01, 0.10]
+
+stdp:
+  A_plus: 0.02
+  A_minus: 0.018
+  tau_plus: 20.0
+  tau_minus: 20.0
+  w_max: 1.5
+
+homeostasis:
+  r_target: 5.0
+  eta_homeo: 0.002
+  theta_min: 0.5
+  theta_max: 2.5
+
+structural:
+  w_min: 0.005
+  N_prune: 100
+
+encoder:
+  max_rate: 120.0
+  dt: 0.5
+  duration_ms: 50.0
+  spike_value: 1.1
+
+decoder:
+  W_wta: -6.0
+
+training:
+  epochs: 3
+  seed: 42
+  supervision_spike_value: 1.1

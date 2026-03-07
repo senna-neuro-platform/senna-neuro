@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <random>
 #include <stdexcept>
 #include <utility>
@@ -52,6 +53,8 @@ class Network final {
             input_spike_value_,
         });
     }
+
+    void inject_event(const senna::core::domain::SpikeEvent& event) { engine_.inject_event(event); }
 
     [[nodiscard]] std::size_t tick() {
         static_cast<void>(engine_.tick());
@@ -107,6 +110,14 @@ class Network final {
         return lattice_.neurons();
     }
 
+    [[nodiscard]] EventQueue& event_queue() noexcept { return queue_; }
+
+    [[nodiscard]] const EventQueue& event_queue() const noexcept { return queue_; }
+
+    [[nodiscard]] TimeManager& time_manager() noexcept { return time_; }
+
+    [[nodiscard]] const TimeManager& time_manager() const noexcept { return time_; }
+
    private:
     senna::core::domain::Lattice lattice_{};
     senna::core::domain::SynapseStore synapses_{};
@@ -143,6 +154,29 @@ class NetworkBuilder final {
 
         return Network{std::move(lattice), std::move(synapses), config_.dt,
                        config_.input_spike_value};
+    }
+
+    [[nodiscard]] std::unique_ptr<Network> build_ptr(const std::uint32_t seed = 42U) const {
+        std::mt19937 random{seed};
+
+        senna::core::domain::Lattice lattice{config_.lattice};
+        lattice.generate(random);
+
+        senna::core::domain::SynapseStore synapses{lattice.neuron_count()};
+        const auto& neurons = lattice.neurons();
+        for (const auto& pre_neuron : neurons) {
+            const auto neighbors =
+                lattice.neighbors(pre_neuron.id(), config_.lattice.neighbor_radius);
+            for (const auto& neighbor : neighbors) {
+                const auto& post_neuron = neurons.at(static_cast<std::size_t>(neighbor.id));
+                synapses.connect_random(pre_neuron.id(), post_neuron.id(), pre_neuron.position(),
+                                        post_neuron.position(), pre_neuron.type(), random,
+                                        config_.c_base, config_.min_weight, config_.max_weight);
+            }
+        }
+
+        return std::make_unique<Network>(std::move(lattice), std::move(synapses), config_.dt,
+                                         config_.input_spike_value);
     }
 
     [[nodiscard]] const NetworkBuilderConfig& config() const noexcept { return config_; }

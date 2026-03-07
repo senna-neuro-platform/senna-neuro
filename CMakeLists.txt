@@ -10,12 +10,15 @@ endif()
 project(senna_neuro VERSION ${SENNA_VERSION_CORE} LANGUAGES CXX)
 
 include(CTest)
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}")
+list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SENNA_ENABLE_SANITIZERS "Enable ASan and UBSan for Debug builds" OFF)
+option(SENNA_BUILD_PYTHON_BINDINGS "Build pybind11 module senna_core" ON)
 
 add_library(senna_domain INTERFACE)
 target_include_directories(senna_domain INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -33,10 +36,33 @@ if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_link_options(senna_simulator PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
 endif()
 
+if(SENNA_BUILD_PYTHON_BINDINGS OR BUILD_TESTING)
+    find_package(HDF5 REQUIRED MODULE)
+endif()
+
+if(SENNA_BUILD_PYTHON_BINDINGS)
+    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}")
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+    find_package(pybind11 REQUIRED CONFIG)
+    find_package(yaml-cpp REQUIRED CONFIG)
+
+    pybind11_add_module(senna_core MODULE src/bindings/python_module.cpp)
+    target_link_libraries(senna_core PRIVATE senna_domain yaml-cpp::yaml-cpp HDF5::HDF5)
+    set_target_properties(senna_core PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(senna_core PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(senna_core PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(senna_core PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+endif()
+
 if(BUILD_TESTING)
     list(PREPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}")
     find_package(GTest REQUIRED MODULE)
-    find_package(HDF5 REQUIRED MODULE)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     include(GoogleTest)
 
@@ -212,6 +238,32 @@ if(BUILD_TESTING)
         NAME test_prometheus_exporter_format
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/infra/simulator/test_simulator_server.py
     )
+
+    if(SENNA_BUILD_PYTHON_BINDINGS)
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} -m pytest --version
+            RESULT_VARIABLE SENNA_PYTEST_STATUS
+            OUTPUT_QUIET
+            ERROR_QUIET
+        )
+        if(SENNA_PYTEST_STATUS EQUAL 0)
+            add_test(
+                NAME test_python_bindings_integration
+                COMMAND ${Python3_EXECUTABLE} -m pytest -q ${CMAKE_CURRENT_SOURCE_DIR}/python/tests/test_integration.py
+            )
+            set_tests_properties(
+                test_python_bindings_integration
+                PROPERTIES
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_SOURCE_DIR}/python"
+            )
+        else()
+            message(STATUS "pytest not found, skipping test_python_bindings_integration")
+        endif()
+    endif()
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)
+if(SENNA_BUILD_PYTHON_BINDINGS)
+    install(TARGETS senna_core LIBRARY DESTINATION python)
+endif()

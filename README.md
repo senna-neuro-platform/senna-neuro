@@ -11,7 +11,7 @@ make install
 make lint
 make build-debug
 make build-release
-make build-sanityze
+make build-sanitize
 make test
 make up
 make down
@@ -110,3 +110,24 @@ docker compose down
 - C++ persistence can now form outbox epoch artifacts automatically via
   `core/persistence/epoch_artifact_pipeline.h` (`EpochArtifactPipeline`), writing
   `data/artifacts/outbox/epoch_XXXXXXXXX.h5` and the main experiment file in one call.
+
+## Python Bindings + Training (Step 14)
+
+- `senna_core` pybind11 module is built by CMake (`src/bindings/python_module.cpp`).
+- Python integration tests are discovered by CTest when `pytest` is available.
+
+Build + run tests:
+
+```bash
+make test
+```
+
+Run training entrypoint:
+
+```bash
+PYTHONPATH=build/debug:python python3 python/train.py --config configs/default.yaml --dataset mnist --train-limit 2000 --test-limit 1000
+```
+
+Notes:
+- For real MNIST in `train.py`, install `torchvision` in your Python env.
+- If `torchvision` is unavailable, `train.py` falls back to synthetic samples.
