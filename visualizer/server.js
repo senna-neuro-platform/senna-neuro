@@ -84,6 +84,9 @@ function writeJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
   });
   res.end(body);
 }
@@ -307,6 +310,25 @@ function serveStatic(req, res) {
     return;
   }
 
+  if (requestPath === "/trace") {
+    refreshTrace();
+    if (!currentTrace) {
+      writeJson(res, 503, {
+        error: "trace_not_ready",
+        traceReady: false,
+        tracePath,
+      });
+      return;
+    }
+
+    writeJson(res, 200, {
+      type: "trace_snapshot",
+      traceReady: true,
+      ...currentTrace,
+    });
+    return;
+  }
+
   if (requestPath === "/ws") {
     writeJson(res, 426, { error: "Upgrade Required" });
     return;
@@ -330,6 +352,9 @@ function serveStatic(req, res) {
     res.writeHead(200, {
       "Content-Type": contentType,
       "Content-Length": data.length,
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
     });
     res.end(data);
   });

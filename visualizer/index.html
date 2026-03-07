@@ -6,14 +6,14 @@
     <title>SENNA Visualizer</title>
     <style>
       :root {
-        --bg-top: #081421;
-        --bg-bottom: #11283d;
-        --panel-bg: rgba(8, 18, 30, 0.72);
-        --panel-border: rgba(99, 209, 255, 0.25);
-        --accent: #49d2c2;
-        --accent-warm: #ffb15c;
-        --text: #e6f7ff;
-        --muted: #a4c4d3;
+        --bg-top: #0b1726;
+        --bg-bottom: #28506a;
+        --panel-bg: rgba(8, 18, 30, 0.8);
+        --panel-border: rgba(138, 229, 255, 0.34);
+        --accent: #86efe1;
+        --accent-warm: #ffd082;
+        --text: #eef9ff;
+        --muted: #c6dce8;
       }
 
       html,
@@ -26,8 +26,8 @@
 
       body {
         background:
-          radial-gradient(circle at 20% 15%, rgba(73, 210, 194, 0.16), transparent 45%),
-          radial-gradient(circle at 85% 85%, rgba(255, 177, 92, 0.13), transparent 46%),
+          radial-gradient(circle at 20% 15%, rgba(134, 239, 225, 0.22), transparent 45%),
+          radial-gradient(circle at 85% 85%, rgba(255, 208, 130, 0.18), transparent 46%),
           linear-gradient(170deg, var(--bg-top), var(--bg-bottom));
         color: var(--text);
         font-family: "Futura", "Trebuchet MS", "Gill Sans", sans-serif;
@@ -252,8 +252,8 @@
     </aside>
 
     <script type="module">
-      import * as THREE from "https://unpkg.com/three@0.161.0/build/three.module.js";
-      import { OrbitControls } from "https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js";
+      import * as THREE from "./vendor/three.module.js";
+      import { OrbitControls } from "./vendor/OrbitControls.js";
 
       const canvas = document.getElementById("scene");
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -261,8 +261,8 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color("#081421");
-      scene.fog = new THREE.FogExp2("#081421", 0.023);
+      scene.background = new THREE.Color("#0b1726");
+      scene.fog = new THREE.FogExp2("#163042", 0.013);
 
       const camera = new THREE.PerspectiveCamera(57, window.innerWidth / window.innerHeight, 0.1, 280);
       camera.position.set(28, 25, 36);
@@ -273,13 +273,18 @@
       controls.target.set(0, 0, 0);
       controls.maxDistance = 120;
 
-      scene.add(new THREE.AmbientLight(0x80cfff, 0.44));
-      const keyLight = new THREE.DirectionalLight(0x8de3ff, 0.7);
+      scene.add(new THREE.AmbientLight(0xe8f6ff, 0.62));
+      const hemiLight = new THREE.HemisphereLight(0xbaf3ff, 0x254860, 0.85);
+      scene.add(hemiLight);
+      const keyLight = new THREE.DirectionalLight(0xd8f8ff, 1.08);
       keyLight.position.set(18, 22, 11);
       scene.add(keyLight);
-      const rimLight = new THREE.DirectionalLight(0xffc17d, 0.34);
+      const rimLight = new THREE.DirectionalLight(0xffd08d, 0.72);
       rimLight.position.set(-15, 11, -17);
       scene.add(rimLight);
+      const fillLight = new THREE.DirectionalLight(0x8fe8ff, 0.46);
+      fillLight.position.set(-8, 10, 18);
+      scene.add(fillLight);
 
       const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
       const wsUrl = `${wsProtocol}://${window.location.host}/ws`;
@@ -309,9 +314,15 @@
       const state = {
         paused: false,
         heatmap: false,
+        connected: false,
         speed: 1,
         zSlice: -1,
         frameQueue: [],
+        traceFrames: [],
+        fallbackCursor: 0,
+        traceVersion: "",
+        tracePollHandle: 0,
+        traceRefreshPending: false,
         lattice: null,
         mesh: null,
         idToIndex: new Map(),
@@ -328,12 +339,23 @@
       const tempScale = new THREE.Vector3();
 
       function setConnectionState(connected) {
-        ui.connState.textContent = connected ? "online" : "offline";
-        ui.connState.classList.toggle("ok", connected);
-        ui.connState.classList.toggle("bad", !connected);
+        state.connected = connected;
+
+        if (connected) {
+          ui.connState.textContent = "online";
+          ui.connState.classList.add("ok");
+          ui.connState.classList.remove("bad");
+          return;
+        }
+
+        const hasFallback = state.traceFrames.length > 0;
+        ui.connState.textContent = hasFallback ? "fallback" : "offline";
+        ui.connState.classList.toggle("ok", false);
+        ui.connState.classList.toggle("bad", true);
       }
 
       function setWaitingState(message) {
+        state.connected = false;
         ui.connState.textContent = message;
         ui.connState.classList.remove("ok");
         ui.connState.classList.add("bad");
@@ -353,14 +375,66 @@
         ui.classValue.textContent = `${label} / ${prediction}`;
       }
 
+      function applyTraceSnapshot(payload, replaceQueue = true) {
+        if (!payload || !Array.isArray(payload.frames) || !payload.lattice) {
+          return false;
+        }
+
+        updateTraceMeta({
+          traceReady: true,
+          epoch: payload.epoch,
+          label: payload.label,
+          prediction: payload.prediction,
+        });
+
+        state.traceFrames = payload.frames.slice();
+        state.fallbackCursor = 0;
+        state.traceVersion = typeof payload.version === "string" ? payload.version : "";
+        if (replaceQueue) {
+          state.frameQueue = payload.frames.slice();
+        }
+        setConnectionState(state.connected);
+        return true;
+      }
+
       function colorForType(type) {
         if (type === "output") {
-          return [0.34, 0.96, 0.53];
+          return [1.0, 0.91, 0.50];
         }
         if (type === "inhibitory") {
-          return [0.96, 0.31, 0.31];
+          return [1.0, 0.58, 0.43];
         }
-        return [0.19, 0.66, 1.0];
+        return [0.50, 0.92, 1.0];
+      }
+
+      function lerp(a, b, t) {
+        return a + ((b - a) * t);
+      }
+
+      function heatColorForIntensity(h) {
+        const stops = [
+          { at: 0.0, color: [0.16, 0.29, 0.56] },
+          { at: 0.25, color: [0.10, 0.84, 1.0] },
+          { at: 0.55, color: [0.46, 1.0, 0.48] },
+          { at: 0.8, color: [1.0, 0.92, 0.36] },
+          { at: 1.0, color: [1.0, 0.48, 0.20] },
+        ];
+
+        for (let i = 1; i < stops.length; i += 1) {
+          if (h <= stops[i].at) {
+            const left = stops[i - 1];
+            const right = stops[i];
+            const span = Math.max(0.0001, right.at - left.at);
+            const t = (h - left.at) / span;
+            return [
+              lerp(left.color[0], right.color[0], t),
+              lerp(left.color[1], right.color[1], t),
+              lerp(left.color[2], right.color[2], t),
+            ];
+          }
+        }
+
+        return stops[stops.length - 1].color;
       }
 
       function toWorldPosition(neuron, lattice) {
@@ -419,41 +493,53 @@
         ui.visibleCount.textContent = `${visibleCount} visible`;
       }
 
-      function updateColors() {
+      function updateInstances() {
         if (!state.mesh || !state.lattice) {
           return;
         }
+
+        const baseScale = 0.10;
+        const flashScale = 0.22;
+        const heatScale = state.heatmap ? 0.13 : 0.05;
+        const hiddenScale = 0.00001;
 
         for (let i = 0; i < state.lattice.neurons.length; i += 1) {
           const base = state.baseColors[i];
           let r = base[0];
           let g = base[1];
           let b = base[2];
+          let scale = baseScale;
 
           if (!state.visible[i]) {
             r = 0.0;
             g = 0.0;
             b = 0.0;
+            scale = hiddenScale;
           } else if (state.heatmap) {
             const h = state.heat[i];
-            const hotR = Math.min(1.0, 0.14 + (h * 0.92));
-            const hotG = Math.min(1.0, 0.22 + (h * 0.78));
-            const hotB = Math.max(0.06, 0.93 - (h * 0.88));
-            r = (r * (1.0 - (h * 0.35))) + (hotR * (h * 0.85));
-            g = (g * (1.0 - (h * 0.35))) + (hotG * (h * 0.85));
-            b = (b * (1.0 - (h * 0.35))) + (hotB * (h * 0.85));
+            const heat = heatColorForIntensity(h);
+            r = Math.min(1.0, (base[0] * 0.10) + (heat[0] * (0.72 + (h * 0.28))));
+            g = Math.min(1.0, (base[1] * 0.10) + (heat[1] * (0.72 + (h * 0.28))));
+            b = Math.min(1.0, (base[2] * 0.10) + (heat[2] * (0.72 + (h * 0.28))));
+            scale = baseScale + (h * heatScale) + (state.flash[i] * flashScale);
           } else {
             const s = state.flash[i];
-            r = Math.min(1.0, r + ((1.0 - r) * s));
-            g = Math.min(1.0, g + ((1.0 - g) * s));
-            b = Math.min(1.0, b + ((1.0 - b) * s));
+            const h = state.heat[i];
+            r = Math.min(1.0, (r * 0.62) + (0.14 * h) + ((1.0 - r) * s));
+            g = Math.min(1.0, (g * 0.62) + (0.12 * h) + ((1.0 - g) * s));
+            b = Math.min(1.0, (b * 0.62) + (0.06 * h) + ((1.0 - b) * (s * 0.92)));
+            scale = baseScale + (h * heatScale) + (s * flashScale);
           }
 
           tempColor.setRGB(r, g, b);
           state.mesh.setColorAt(i, tempColor);
+          tempScale.setScalar(scale);
+          tempMatrix.compose(state.positions[i], tempQuat, tempScale);
+          state.mesh.setMatrixAt(i, tempMatrix);
         }
 
         state.mesh.instanceColor.needsUpdate = true;
+        state.mesh.instanceMatrix.needsUpdate = true;
       }
 
       function processFrame(frame) {
@@ -487,6 +573,49 @@
         processFrame(frame);
       }
 
+      async function loadTraceSnapshot() {
+        const response = await fetch("/trace", { cache: "no-store" });
+        if (!response.ok) {
+          return null;
+        }
+        return response.json();
+      }
+
+      async function refreshTraceSnapshot(replaceQueue = false) {
+        if (state.traceRefreshPending) {
+          return false;
+        }
+
+        state.traceRefreshPending = true;
+        try {
+          const snapshot = await loadTraceSnapshot();
+          if (!snapshot) {
+            return false;
+          }
+
+          const nextVersion = typeof snapshot.version === "string" ? snapshot.version : "";
+          const shouldReplace =
+            replaceQueue || state.frameQueue.length === 0 || state.traceFrames.length === 0 || nextVersion !== state.traceVersion;
+          return applyTraceSnapshot(snapshot, shouldReplace);
+        } finally {
+          state.traceRefreshPending = false;
+        }
+      }
+
+      function ensureTracePolling() {
+        if (state.tracePollHandle !== 0) {
+          return;
+        }
+
+        state.tracePollHandle = window.setInterval(() => {
+          if (state.connected && state.frameQueue.length > 0) {
+            return;
+          }
+
+          refreshTraceSnapshot(state.frameQueue.length === 0).catch(() => {});
+        }, 1500);
+      }
+
       function animate(nowMs) {
         requestAnimationFrame(animate);
 
@@ -502,9 +631,16 @@
           let steps = Math.floor(animate.queueBudget);
           if (steps > 0) {
             animate.queueBudget -= steps;
-            steps = Math.min(steps, state.frameQueue.length);
-            for (let i = 0; i < steps; i += 1) {
-              processFrame(state.frameQueue.shift());
+            if (state.frameQueue.length > 0) {
+              steps = Math.min(steps, state.frameQueue.length);
+              for (let i = 0; i < steps; i += 1) {
+                processFrame(state.frameQueue.shift());
+              }
+            } else if (state.traceFrames.length > 0) {
+              for (let i = 0; i < steps; i += 1) {
+                processFrame(state.traceFrames[state.fallbackCursor]);
+                state.fallbackCursor = (state.fallbackCursor + 1) % state.traceFrames.length;
+              }
             }
           }
         }
@@ -517,9 +653,10 @@
           state.heat[i] *= heatDecay;
         }
 
-        ui.queueValue.textContent = String(state.frameQueue.length);
+        const bufferedFrames = state.frameQueue.length > 0 ? state.frameQueue.length : state.traceFrames.length;
+        ui.queueValue.textContent = String(bufferedFrames);
 
-        updateColors();
+        updateInstances();
         controls.update();
         renderer.render(scene, camera);
       }
@@ -568,8 +705,8 @@
         const count = lattice.neurons.length;
         const geometry = new THREE.SphereGeometry(0.48, 7, 7);
         const material = new THREE.MeshStandardMaterial({
-          roughness: 0.42,
-          metalness: 0.12,
+          roughness: 0.26,
+          metalness: 0.06,
           vertexColors: true,
           transparent: true,
           opacity: 0.98,
@@ -607,7 +744,7 @@
         state.mesh.instanceColor.needsUpdate = true;
 
         const gridSize = Math.max(lattice.width, lattice.height) * 0.9;
-        const grid = new THREE.GridHelper(gridSize, Math.ceil(gridSize / 2), 0x2f7ba0, 0x1d3f53);
+        const grid = new THREE.GridHelper(gridSize, Math.ceil(gridSize / 2), 0x8eeaff, 0x35667e);
         grid.position.y = -((lattice.depth - 1) * 0.46);
         scene.add(grid);
 
@@ -636,12 +773,22 @@
 
           if (payload.type === "hello") {
             updateTraceMeta(payload);
+            if (payload.traceReady === true) {
+              refreshTraceSnapshot(state.frameQueue.length === 0).catch(() => {});
+            }
             return;
           }
 
           if (payload.type === "trace_meta") {
             updateTraceMeta(payload);
-            state.frameQueue = [];
+            refreshTraceSnapshot(true)
+              .catch(() => {
+                state.frameQueue = [];
+                state.traceFrames = [];
+                state.traceVersion = "";
+                state.fallbackCursor = 0;
+                setConnectionState(state.connected);
+              });
             return;
           }
 
@@ -657,6 +804,7 @@
 
         socket.addEventListener("close", () => {
           setConnectionState(false);
+          refreshTraceSnapshot(state.frameQueue.length === 0).catch(() => {});
           window.setTimeout(connectWebSocket, 1500);
         });
 
@@ -667,7 +815,7 @@
 
       async function loadLatticeWithRetry() {
         for (;;) {
-          const response = await fetch("/lattice");
+          const response = await fetch("/lattice", { cache: "no-store" });
           if (response.ok) {
             return response.json();
           }
@@ -686,6 +834,8 @@
         installControls();
         const lattice = await loadLatticeWithRetry();
         initMesh(lattice);
+        ensureTracePolling();
+        await refreshTraceSnapshot(true).catch(() => false);
         connectWebSocket();
 
         requestAnimationFrame(animate);

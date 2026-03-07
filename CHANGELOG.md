@@ -1,5 +1,25 @@
 # Changelog
 
+## 07.03.2026 `0.16.12-dev`
+- В `visualizer/index.html` сцена visualizer осветлена сильнее: фон и fog стали светлее, ambient/hemisphere/fill lighting усилены, а материал вокселей сделан менее матовым, чтобы сеть не проваливалась в тёмный фон.
+- В `visualizer/index.html` ещё раз поднят контраст палитры: базовые цвета типов нейронов стали ярче, а heatmap переведена на более светящуюся шкалу с отчётливыми переходами между холодными, зелёными и тёплыми зонами активности.
+
+## 07.03.2026 `0.16.11-dev`
+- В `visualizer/index.html` подправлена сцена visualizer: фон и свет сделаны контрастнее, а базовые цвета excitatory / inhibitory / output нейронов разведены сильнее, чтобы воксели не терялись на фоне.
+- В `visualizer/index.html` переработана heatmap-палитра на шкалу `navy -> cyan -> lime -> amber -> orange`, поэтому уровни активности теперь различаются заметно лучше и не сливаются в один оттенок.
+
+## 07.03.2026 `0.16.10-dev`
+- В `visualizer/index.html` playback fallback больше не зависит от состояния WebSocket: если live-queue пуст, visualizer продолжает циклически проигрывать последний реальный trace snapshot, поэтому анимация не замирает на статичном кубе.
+- В `visualizer/index.html` усилен визуальный отклик активности: базовые воксели стали компактнее и темнее, а активные нейроны теперь заметно пульсируют размером и яркостью, чтобы динамика сети была видна сразу.
+
+## 07.03.2026 `0.16.9-dev`
+- В `visualizer/index.html` удалена зависимость от внешнего CDN: `three.module.js` и `OrbitControls.js` теперь грузятся локально из `visualizer/vendor`, поэтому visualizer больше не замирает на стартовом экране из-за недоступности `unpkg.com`.
+- В `visualizer/index.html` добавлен фоновый HTTP polling `/trace` при offline/fallback режиме, чтобы вкладка сама подхватывала реальный trace после старта backend и не требовала ручного reload в пограничных сценариях.
+
+## 07.03.2026 `0.16.8-dev`
+- В `visualizer/server.js` добавлена no-cache выдача и новый HTTP endpoint `/trace`, который отдаёт актуальный полный visualizer trace вместе с lattice/frame payload без зависимости от WebSocket-потока.
+- В `visualizer/index.html` visualizer переведён на bootstrap и fallback от `/trace`: страница загружает последний реальный trace по HTTP, умеет проигрывать его при деградации WebSocket и больше не зависает в состоянии `offline / Trace waiting / Buffered frames 0`, если backend trace уже готов.
+
 ## 07.03.2026 `0.16.7-dev`
 - В `docs/acceptance/scripts/run_acceptance.sh` убрана интерактивная пауза с вводом `continue`: после `make up` и `Observation memo` training-run теперь стартует сразу.
 - В `docs/acceptance/README.md` синхронизирован runbook шага 16: удалены упоминания `--no-observe-pause` и ручной остановки acceptance-скрипта перед началом обучения.
