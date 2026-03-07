@@ -34,8 +34,12 @@ if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 
 if(BUILD_TESTING)
+    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}")
+    find_package(GTest REQUIRED MODULE)
+    include(GoogleTest)
+
     add_executable(test_types tests/test_types.cpp)
-    target_link_libraries(test_types PRIVATE senna_domain)
+    target_link_libraries(test_types PRIVATE senna_domain GTest::gtest_main)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(test_types PRIVATE -Wall -Wextra -Wpedantic)
@@ -46,7 +50,21 @@ if(BUILD_TESTING)
         target_link_options(test_types PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     endif()
 
-    add_test(NAME test_types COMMAND test_types)
+    gtest_discover_tests(test_types)
+
+    add_executable(test_neuron tests/test_neuron.cpp)
+    target_link_libraries(test_neuron PRIVATE senna_domain GTest::gtest_main)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_neuron PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_neuron PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_neuron PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    gtest_discover_tests(test_neuron)
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)

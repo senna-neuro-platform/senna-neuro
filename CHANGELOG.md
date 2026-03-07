@@ -1,5 +1,15 @@
 # Changelog
 
+## 07.03.2026 `0.2.2-dev`
+- Зафиксирован ADR-0009: стандарт C++ тестов на GoogleTest и регистрация кейсов в CTest через `gtest_discover_tests`.
+- Индекс ADR обновлен: добавлен ADR-0009.
+- Тесты `tests/test_types.cpp` и `tests/test_neuron.cpp` переведены на GoogleTest (`TEST`, `ASSERT_*`, `EXPECT_*`) вместо ручных проверок и `main`.
+- В `CMakeLists.txt` тесты подключены через `find_package(GTest)` и регистрируются в `CTest` через `gtest_discover_tests`, каждый кейс виден как отдельный тест.
+- Реализован `Domain: Neuron` в `src/core/domain/neuron.h`: состояние LIF-нейрона, параметры (`V_rest`, `V_reset`, `tau_m`, `t_ref`, `theta_base`) и метод `receive_input(Time, Weight) -> std::optional<SpikeEvent>`.
+- В `receive_input` добавлены аналитическое затухание мембранного потенциала, проверка рефрактерного окна, генерация спайка с `reset` состояния и детерминированное обновление внутреннего состояния.
+- Добавлены тесты шага 2 в `tests/test_neuron.cpp`: затухание, срабатывание и reset, рефрактерный период, знак спайка для E/I и детерминированность.
+- Тест `test_neuron` подключен в CMake и запускается через `ctest`.
+
 ## 07.03.2026 `0.1.4-dev`
 - В CI (`.github/workflows/ci.yml`) Conan install теперь запускается с `-s compiler.cppstd=gnu23`.
 - В `Makefile` для `install`, `build-release`, `build-sanitize` зафиксирован Conan-флаг `-s compiler.cppstd=gnu23`.
