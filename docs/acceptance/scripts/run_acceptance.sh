@@ -26,6 +26,7 @@ SIMULATOR_HEALTH_URL="http://localhost:8000/health"
 VISUALIZER_HEALTH_URL="http://localhost:8080/health"
 PROMETHEUS_HEALTH_URL="http://localhost:9090/-/healthy"
 GRAFANA_HEALTH_URL="http://localhost:3000/api/health"
+MINIO_HEALTH_URL="http://localhost:9000/minio/health/live"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 RUNTIME_PYTHONPATH="build/release:python"
 
@@ -87,6 +88,42 @@ require_cmd() {
   fi
 }
 
+require_python_module() {
+  local module_expr="$1"
+  local install_hint="$2"
+
+  if ! "${PYTHON_BIN}" -c "${module_expr}" >/dev/null 2>&1; then
+    echo "[FAIL] missing required Python modules in current host env"
+    echo "[INFO] install with: ${install_hint}"
+    echo "[INFO] real MNIST for acceptance is read locally from ${DATA_ROOT}/MNIST/raw by host Python; MinIO is used only for artifact upload from data/artifacts/outbox"
+    exit 1
+  fi
+}
+
+require_mnist_raw_files() {
+  local data_root="$1"
+  local raw_dir="${data_root%/}/MNIST/raw"
+  local missing=()
+  local file=""
+
+  for file in \
+    train-images-idx3-ubyte \
+    train-labels-idx1-ubyte \
+    t10k-images-idx3-ubyte \
+    t10k-labels-idx1-ubyte; do
+    if [[ ! -f "${raw_dir}/${file}" ]]; then
+      missing+=("${file}")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "[FAIL] missing MNIST raw files under ${raw_dir}"
+    printf '[INFO] missing files: %s\n' "${missing[*]}"
+    echo "[INFO] run 'make install' to download them locally; MinIO is not used for MNIST input"
+    exit 1
+  fi
+}
+
 wait_http_ok() {
   local name="$1"
   local url="$2"
@@ -132,6 +169,8 @@ print_observe_stack_memo() {
 [OBSERVE] Grafana: http://localhost:3000 (admin/admin), dashboards: SENNA Activity / SENNA Training / SENNA Performance
 [OBSERVE] Visualizer: http://localhost:8080 (WS: ${WS_URL})
 [OBSERVE] Exporter health: http://localhost:8000/health
+[OBSERVE] MinIO live: ${MINIO_HEALTH_URL} and console: http://localhost:9001
+[OBSERVE] MinIO receives epoch/state artifacts from data/artifacts/outbox; MNIST input stays local in ${DATA_ROOT}/MNIST/raw
 [OBSERVE] Exporter metrics become available after current training run writes ${METRICS_SNAPSHOT_PATH}
 EOF
 }
@@ -142,6 +181,7 @@ print_observe_training_memo() {
 [OBSERVE] Epoch checkpoints: ls -1 data/artifacts/outbox/epoch_*.h5 | tail
 [OBSERVE] Exporter snapshot: cat data/artifacts/metrics/latest.json
 [OBSERVE] Visualizer trace: cat data/artifacts/visualizer/latest.json
+[OBSERVE] MinIO uploader logs: docker compose logs -f artifact-uploader
 [OBSERVE] Prometheus probe: curl -fsS http://localhost:8000/metrics | rg 'senna_(train|test|active|spikes)'
 EOF
 }
@@ -274,6 +314,12 @@ fi
 cd "${ROOT_DIR}"
 log "root=${ROOT_DIR}"
 
+if [[ "${SKIP_TRAINING}" == false ]]; then
+  require_python_module \
+    "import torch, torchvision" \
+    "${PYTHON_BIN} -m pip install torch torchvision"
+fi
+
 mkdir -p \
   "$(dirname "${STATE_PATH}")" \
   "$(dirname "${METRICS_PATH}")" \
@@ -303,9 +349,14 @@ if [[ "${SKIP_SANITIZE}" == false ]]; then
   run_cmd ctest --preset sanitize
 fi
 
+if [[ "${SKIP_TRAINING}" == false ]]; then
+  require_mnist_raw_files "${DATA_ROOT}"
+fi
+
 if [[ "${SKIP_DOCKER}" == false ]]; then
   log "Docker stack bring-up + health checks"
   run_cmd make up
+  wait_http_ok "minio health" "${MINIO_HEALTH_URL}"
   wait_http_ok "simulator health" "${SIMULATOR_HEALTH_URL}"
   wait_http_ok "visualizer health" "${VISUALIZER_HEALTH_URL}"
   wait_http_ok "prometheus health" "${PROMETHEUS_HEALTH_URL}"

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import senna_core
 
+import senna.training as training_module
 from senna.training import (
     TrainingPipeline,
     Sample,
@@ -132,3 +134,19 @@ def test_robustness_report_requires_positive_baseline(monkeypatch) -> None:
     assert report["baseline_accuracy"] == 0.0
     assert report["prune_pass"] == 0.0
     assert report["noise_pass"] == 0.0
+
+
+def test_iter_mnist_samples_requires_torch_and_torchvision(monkeypatch) -> None:
+    monkeypatch.setattr(training_module, "datasets", None)
+
+    with pytest.raises(RuntimeError, match="torch and torchvision"):
+        next(training_module.iter_mnist_samples(root="data", train=True, limit=1))
+
+
+def test_iter_mnist_samples_requires_local_raw_files(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(training_module, "datasets", object())
+
+    with pytest.raises(RuntimeError, match="MNIST raw files are missing"):
+        next(training_module.iter_mnist_samples(root=tmp_path, train=True, limit=1))

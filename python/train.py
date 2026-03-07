@@ -26,27 +26,22 @@ def resolve_dataset_mode(args: argparse.Namespace) -> Literal["mnist", "syntheti
     if args.dataset == "synthetic":
         return "synthetic"
 
-    try:
-        train_probe = iter_mnist_samples(
-            root=args.data_root,
-            train=True,
-            limit=1,
-            download=args.download,
-        )
-        next(iter(train_probe))
+    train_probe = iter_mnist_samples(
+        root=args.data_root,
+        train=True,
+        limit=1,
+        download=args.download,
+    )
+    next(iter(train_probe))
 
-        test_probe = iter_mnist_samples(
-            root=args.data_root,
-            train=False,
-            limit=1,
-            download=args.download,
-        )
-        next(iter(test_probe))
-        return "mnist"
-    except Exception as exc:
-        raise RuntimeError(
-            "MNIST dataset is unavailable. Install torchvision and ensure data/MNIST/raw is populated."
-        ) from exc
+    test_probe = iter_mnist_samples(
+        root=args.data_root,
+        train=False,
+        limit=1,
+        download=args.download,
+    )
+    next(iter(test_probe))
+    return "mnist"
 
 
 def make_samples(

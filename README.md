@@ -99,6 +99,7 @@ docker compose down
   - `minio` (S3-compatible storage),
   - `minio-init` (creates bucket `senna-artifacts`),
   - `artifact-uploader` (background batch uploader).
+- MinIO stores HDF5 experiment artifacts from `data/artifacts/outbox`; MNIST input is read locally from `data/MNIST/raw` by `train.py` and is not uploaded to MinIO.
 - Put epoch artifacts into `data/artifacts/outbox`, for example:
   - `data/artifacts/outbox/epoch_000000001.h5`
   - `data/artifacts/outbox/epoch_000000002.h5`
@@ -129,7 +130,8 @@ PYTHONPATH=build/debug:python python3 python/train.py --config configs/default.y
 ```
 
 Notes:
-- For real MNIST in `train.py`, install `torchvision` in your Python env.
+- For real MNIST in `train.py`, install `torch` and `torchvision` in your Python env.
+- Real MNIST is read locally from `data/MNIST/raw`; MinIO is not used as dataset storage.
 - `train.py --dataset mnist` больше не делает automatic fallback: при недоступном MNIST/`torchvision` запуск завершается ошибкой.
 - `--dataset synthetic` остаётся только для явных smoke/dev сценариев, но не для acceptance.
 - `train.py` writes per-epoch checkpoints to `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.

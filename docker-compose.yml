@@ -55,20 +55,32 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live >/dev/null || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
 
   minio-init:
     image: minio/mc:latest
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     entrypoint:
       - /bin/sh
       - -c
       - |
-        until mc alias set local http://minio:9000 minioadmin minioadmin123; do
-          echo "waiting for minio...";
+        set -eu
+        mc alias set local http://minio:9000 minioadmin minioadmin123
+        until mc ready local; do
+          echo "waiting for minio cluster readiness...";
           sleep 2;
         done
-        mc mb --ignore-existing local/senna-artifacts
+        until mc mb --ignore-existing local/senna-artifacts; do
+          echo "waiting to create bucket...";
+          sleep 2;
+        done
     restart: "no"
 
   artifact-uploader:
@@ -79,6 +91,6 @@ services:
     volumes:
       - ./data/artifacts:/artifacts
     depends_on:
-      - minio
-      - minio-init
+      minio:
+        condition: service_healthy
     restart: unless-stopped

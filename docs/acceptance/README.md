@@ -41,8 +41,9 @@ docs/acceptance/scripts/run_acceptance.sh
 1. `python3`, `conan`, `cmake`, `ninja`, `clang-tidy`, `docker compose`, `ruff`, `pytest`
 2. доступен `g++` с `libasan.so`
 3. в `data/MNIST/raw` лежат 4 файла MNIST (`make install` скачивает их автоматически)
-4. установлен `torchvision` в текущем Python env
+4. установлены `torch` и `torchvision` в текущем Python env
 5. локально открыт доступ к портам `3000`, `8000`, `8080`
+6. MinIO в этом сценарии используется только для выгрузки артефактов из `data/artifacts/outbox`; training-run читает MNIST локально из `data/MNIST/raw`, а не из S3/MinIO
 
 Базовая подготовка:
 
@@ -52,14 +53,22 @@ make build-release
 ctest --preset release
 ```
 
+Установка Python-зависимостей для реального MNIST:
+
+```bash
+python3 -m pip install torch torchvision
+```
+
 ## Памятки Наблюдения Между Шагами
 
 1. После `make up`: проверь состояние контейнеров через `docker compose ps`, логи через `make logs`, и что открываются `http://localhost:3000`, `http://localhost:8080/health`, `http://localhost:8000/health`.
-2. Во время training-run: смотри `tail -f data/artifacts/training/metrics.jsonl`; параллельно в Grafana открой `SENNA Training` и `SENNA Activity`.
-3. После начала training-run проверь `data/artifacts/metrics/latest.json` и `http://localhost:8000/metrics`: exporter должен отдавать реальные метрики только после появления свежего snapshot.
-4. После начала training-run проверь `data/artifacts/visualizer/latest.json` и `http://localhost:8080/lattice`: visualizer должен читать только реальный trace и до его появления честно ждать данные.
-5. После проверки DoD-метрик: сверяй `eval_accuracy`, `senna_max_active_neurons_ratio`, `prune_drop`, `noise_drop` в JSONL с графиками Grafana, чтобы подтвердить совпадение телеметрии.
-6. После WS-проверки sparsity: открой `http://localhost:8080`, включи heatmap и покадровый режим `Next Tick`, визуально проверь волну и разреженность на реальном trace.
+2. После `make up`: проверь MinIO через `http://localhost:9000/minio/health/live` и `http://localhost:9001`; он нужен только для фоновой выгрузки epoch/state артефактов, но не для чтения MNIST.
+3. Во время training-run: смотри `tail -f data/artifacts/training/metrics.jsonl`; параллельно в Grafana открой `SENNA Training` и `SENNA Activity`.
+4. После начала training-run проверь `data/artifacts/metrics/latest.json` и `http://localhost:8000/metrics`: exporter должен отдавать реальные метрики только после появления свежего snapshot.
+5. После начала training-run проверь `data/artifacts/visualizer/latest.json` и `http://localhost:8080/lattice`: visualizer должен читать только реальный trace и до его появления честно ждать данные.
+6. После начала training-run проверь `docker compose logs -f artifact-uploader`: uploader должен забирать `epoch_XXXXXXXXX.h5` и `final_state.h5` из `data/artifacts/outbox` в MinIO батчами.
+7. После проверки DoD-метрик: сверяй `eval_accuracy`, `senna_max_active_neurons_ratio`, `prune_drop`, `noise_drop` в JSONL с графиками Grafana, чтобы подтвердить совпадение телеметрии.
+8. После WS-проверки sparsity: открой `http://localhost:8080`, включи heatmap и покадровый режим `Next Tick`, визуально проверь волну и разреженность на реальном trace.
 
 ## Как Запускать Training-Run
 
@@ -85,6 +94,7 @@ docs/acceptance/scripts/run_acceptance.sh \
 ```bash
 make install
 make build-release
+python3 -m pip install torch torchvision
 PYTHONPATH=build/release:python python3 python/train.py \
   --config configs/default.yaml \
   --dataset mnist \
@@ -145,6 +155,7 @@ PYTHONPATH=build/release:python python3 python/train.py \
    - `ls data/artifacts/outbox/epoch_*.h5`
    - `cat data/artifacts/metrics/latest.json`
    - `cat data/artifacts/visualizer/latest.json`
+   - `docker compose logs -f artifact-uploader`
    - `curl -fsS http://localhost:8000/metrics`
    - `curl -fsS http://localhost:8080/lattice`
 
@@ -204,6 +215,7 @@ docs/acceptance/scripts/run_acceptance.sh \
 ```bash
 make up
 docker compose ps
+curl -fsS http://localhost:9000/minio/health/live
 curl -fsS http://localhost:3000/api/health
 curl -fsS http://localhost:8080/health
 curl -fsS http://localhost:8000/health
@@ -214,23 +226,28 @@ curl -fsS http://localhost:8000/health
    - `curl -fsS http://localhost:8000/metrics`
    - до появления snapshot exporter не должен отдавать synthetic/искусственные метрики
 
-4. После training-run проверь visualizer trace:
+4. После training-run проверь MinIO/upload path:
+   - `docker compose logs -f artifact-uploader`
+   - `data/artifacts/outbox/epoch_XXXXXXXXX.h5` и `final_state.h5` должны уходить в bucket `senna-artifacts`
+   - MinIO не участвует в чтении MNIST; dataset остаётся локальным в `data/MNIST/raw`
+
+5. После training-run проверь visualizer trace:
    - `cat data/artifacts/visualizer/latest.json`
    - `curl -fsS http://localhost:8080/lattice`
    - до появления trace visualizer не должен подменять lattice или websocket synthetic-данными
 
-5. Проверь Grafana:
+6. Проверь Grafana:
    - `http://localhost:3000`
    - дашборды `SENNA Training`, `SENNA Activity`, `SENNA Performance`
    - метрики `senna_test_accuracy`, `senna_active_neurons_ratio`, `senna_spikes_per_tick`
 
-6. Проверь visualizer:
+7. Проверь visualizer:
    - `http://localhost:8080`
    - режим `Next Tick`
    - heatmap
    - фильтрацию по типам нейронов
 
-7. Проверь WebSocket sparsity:
+8. Проверь WebSocket sparsity:
 
 ```bash
 python3 docs/acceptance/scripts/check_ws_sparsity.py \
@@ -238,7 +255,7 @@ python3 docs/acceptance/scripts/check_ws_sparsity.py \
   --max-ratio 0.05
 ```
 
-8. Для пункта 6 DoD вручную собери evidence по интерференционным картинам:
+9. Для пункта 6 DoD вручную собери evidence по интерференционным картинам:
    - screen/video visualizer для нескольких классов
    - метрики/correlation report, если делается внешний анализ
    - фиксируй, что наблюдаемый паттерн не вырождается в равномерный шум
@@ -247,9 +264,10 @@ python3 docs/acceptance/scripts/check_ws_sparsity.py \
 
 1. acceptance orchestration проходит без FAIL
 2. Docker stack поднимается одной командой `make up`
-3. Grafana, exporter и visualizer доступны, exporter не подменяет данные synthetic fallback, visualizer не подменяет lattice/frames synthetic trace
-4. WebSocket-проверка sparsity проходит
-5. все quality gates 13 и 14 зелёные
+3. MinIO и artifact-uploader доступны, epoch/state артефакты уходят в bucket, но dataset остаётся локальным
+4. Grafana, exporter и visualizer доступны, exporter не подменяет данные synthetic fallback, visualizer не подменяет lattice/frames synthetic trace
+5. WebSocket-проверка sparsity проходит
+6. все quality gates 13 и 14 зелёные
 
 ## Пример с параметрами
 

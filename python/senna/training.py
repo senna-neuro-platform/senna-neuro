@@ -14,6 +14,13 @@ try:
 except Exception:  # pragma: no cover - optional dependency in local env
     datasets = None
 
+MNIST_RAW_FILES = (
+    "train-images-idx3-ubyte",
+    "train-labels-idx1-ubyte",
+    "t10k-images-idx3-ubyte",
+    "t10k-labels-idx1-ubyte",
+)
+
 
 @dataclass(frozen=True)
 class Sample:
@@ -181,8 +188,20 @@ def iter_mnist_samples(
 ) -> Iterator[Sample]:
     if datasets is None:
         raise RuntimeError(
-            "torchvision is not installed. Install it to use real MNIST in train.py."
+            "Real MNIST requires host Python packages torch and torchvision. "
+            "Install them in the current environment before running train.py. "
+            "MinIO is not used for MNIST input."
         )
+
+    raw_dir = Path(root) / "MNIST" / "raw"
+    if not download:
+        missing_files = [name for name in MNIST_RAW_FILES if not (raw_dir / name).exists()]
+        if missing_files:
+            missing_list = ", ".join(missing_files)
+            raise RuntimeError(
+                f"MNIST raw files are missing under {raw_dir}: {missing_list}. "
+                "Run `make install` to download them locally or rerun train.py with --download."
+            )
 
     dataset = datasets.MNIST(root=str(root), train=train, download=download)
     max_items = len(dataset) if limit is None else min(limit, len(dataset))

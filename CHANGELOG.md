@@ -1,5 +1,11 @@
 # Changelog
 
+## 07.03.2026 `0.16.2-dev`
+- В `docker-compose.yml` старт MinIO сделан устойчивым: добавлен HTTP healthcheck, `minio-init` ждёт `service_healthy` и `mc ready`, а `artifact-uploader` больше не стартует по гонке раньше MinIO.
+- В `docs/acceptance/scripts/run_acceptance.sh` добавлен ранний preflight для реального MNIST: проверяются host Python-модули `torch` и `torchvision`, наличие `data/MNIST/raw/*`, health endpoint MinIO и явная памятка, что MinIO используется только для артефактов, а не для dataset input.
+- В `python/senna/training.py`, `python/train.py` и `python/tests/test_integration.py` уточнён контракт ошибок для MNIST: вместо размытого сообщения training-run теперь отдельно сообщает про отсутствие `torch`/`torchvision` или локальных raw-файлов, и это покрыто pytest-тестами.
+- В `docs/acceptance/README.md`, `README.md` и ADR-0011 синхронизирована документация: реальный MNIST читается локально из `data/MNIST/raw`, для него нужны `torch` и `torchvision`, а MinIO хранит только epoch/state артефакты.
+
 ## 07.03.2026 `0.16.1-dev`
 - В `docs/acceptance/scripts/run_acceptance.sh` acceptance-runtime переведён на release-сборку: вместо `build/debug` и `make test` используются `make build-release`, `ctest --preset release` и `PYTHONPATH=build/release:python` для training/inference-проверок.
 - В `docs/acceptance/scripts/run_acceptance.sh` добавлена обязательная пауза после `print_observe_stack_memo`: скрипт ждёт, пока оператор откроет Grafana и visualizer, и продолжает training-run только после ввода `continue`; для неинтерактивного режима добавлен флаг `--no-observe-pause`.

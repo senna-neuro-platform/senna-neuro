@@ -13,7 +13,7 @@
 2. Обязательные операции контракта: `create_network`, `load_sample`, `step`, `get_prediction`, `get_metrics`, `save_state`, `load_state`, `inject_noise`, `remove_neurons`.
 3. Супервизия обучения реализуется отдельной операцией `supervise(expected_label)` через teacher-spike на правильный выходной нейрон.
 4. YAML конфигурация валидируется только на стороне C++ (через `yaml-cpp`), Python-слой не дублирует валидацию.
-5. Python training pipeline (`python/senna/training.py`, `python/train.py`) использует контракт модуля и поддерживает MNIST через `torchvision` с синтетическим fallback.
+5. Python training pipeline (`python/senna/training.py`, `python/train.py`) использует контракт модуля, читает реальный MNIST локально через host-installed `torch`/`torchvision` из `data/MNIST/raw`, а synthetic dataset допускается только при явном `--dataset synthetic`.
 6. Интеграционные Python-тесты запускаются в CTest через `pytest` при доступности `pytest`.
 
 ## Consequences
