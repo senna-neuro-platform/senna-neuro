@@ -21,7 +21,6 @@ help:
 	@echo "  make build-debug     - configure and build Debug preset"
 	@echo "  make build-release   - configure and build Release preset"
 	@echo "  make build-sanitize  - configure and build Sanitize preset"
-	@echo "  make build-saniryze  - alias for build-sanitize"
 	@echo "  make test            - run tests (ctest debug)"
 	@echo "  make up              - docker compose up -d"
 	@echo "  make down            - docker compose down"

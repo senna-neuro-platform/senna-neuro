@@ -1,5 +1,13 @@
 # Changelog
 
+## 07.03.2026 `0.4.0-dev`
+- Реализован `Domain: Lattice` в `src/core/domain/lattice.h`: конфиг решетки, хранение вокселей (`NeuronId` или пусто), плоский массив `Neuron` и `NeighborInfo`.
+- Добавлена детерминируемая генерация решетки: сенсорный слой `Z=0` заполняется полностью, обрабатывающий объем `Z=1..D-2` заполняется по плотности, выходной слой `Z=D-1` содержит ровно 10 нейронов с равномерным распределением.
+- Зафиксированы правила типов нейронов при размещении: сенсорный и выходной слои полностью `Excitatory`, в объеме используется распределение `80/20` (`Excitatory`/`Inhibitory`).
+- Добавлен поиск соседей `neighbors(NeuronId, radius)` наивным перебором куба и предвычисление соседей для базового радиуса в CSR-формате (`offsets + data`).
+- Добавлены GTest-тесты `tests/test_lattice.cpp`: размеры/плотность, корректность слоев, проверка соседей (центр и угол) и детерминированность генерации.
+- Тест `test_lattice` подключен в `CMakeLists.txt` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.3.2-dev`
 - `Makefile` переведен на проектные Conan-профили (`build/conan/profiles/host|build`) с автогенерацией по версии локального `g++`, что убирает warnings от `conan profile detect`.
 - В CI (`.github/workflows/ci.yml`) добавлен шаг подготовки тех же Conan-профилей и условное добавление `conancenter` remote, чтобы не получать warning `Remote ... already exists`.
@@ -34,9 +42,9 @@
 ## 07.03.2026 `0.0.5-dev`
 - Базовая инфраструктура проекта: CMake/Ninja, Conan, CI, Docker Compose.
 - Заглушки simulator/prometheus/grafana/visualizer и стартовый README bootstrap.
-- Добавлен `Makefile` с командами: `install`, `lint`, `build-debug`, `build-release`, `build-sanitize`, `build-saniryze`, `test`.
+- Добавлен `Makefile` с командами: `install`, `lint`, `build-debug`, `build-release`, `build-sanitize`, `test`.
 - Добавлены команды управления контейнерами: `make up`, `make down`, `make logs`.
 - В README добавлен блок с быстрыми `make`-командами.
 - Устранен конфликт дублирующихся CMake preset'ов при повторных вызовах `make build-*` через Conan.
-- Команды `build-debug`, `build-release`, `build-sanitize`, `build-saniryze`, `test`, `lint` теперь запускаются стабильно в одной и той же рабочей копии.
+- Команды `build-debug`, `build-release`, `build-sanitize`, `test`, `lint` теперь запускаются стабильно в одной и той же рабочей копии.
 - Для Conan-команд в `Makefile` добавлено отключение генерации `CMakeUserPresets.json`, чтобы избежать конфликта preset'ов при повторных сборках.

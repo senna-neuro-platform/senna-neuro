@@ -79,6 +79,20 @@ if(BUILD_TESTING)
     endif()
 
     gtest_discover_tests(test_synapse)
+
+    add_executable(test_lattice tests/test_lattice.cpp)
+    target_link_libraries(test_lattice PRIVATE senna_domain GTest::gtest_main)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_lattice PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_lattice PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_lattice PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    gtest_discover_tests(test_lattice)
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)
