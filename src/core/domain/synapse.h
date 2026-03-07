@@ -38,7 +38,13 @@ class SynapseStore final {
         return synapses_.at(static_cast<std::size_t>(id));
     }
 
+    [[nodiscard]] Synapse& at(const SynapseId id) {
+        return synapses_.at(static_cast<std::size_t>(id));
+    }
+
     [[nodiscard]] const std::vector<Synapse>& synapses() const noexcept { return synapses_; }
+
+    [[nodiscard]] std::vector<Synapse>& synapses() noexcept { return synapses_; }
 
     [[nodiscard]] const std::vector<SynapseId>& outgoing(const NeuronId neuron_id) const noexcept {
         static const std::vector<SynapseId> empty_index{};

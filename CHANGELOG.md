@@ -1,5 +1,14 @@
 # Changelog
 
+## 07.03.2026 `0.8.0-dev`
+- Добавлен интерфейс пластичности `IPlasticityRule` в `src/core/plasticity/iplasticity_rule.h` с событиями `on_pre_spike` и `on_post_spike`.
+- Реализован `STDPRule` в `src/core/plasticity/stdp.h`: каузальное/антикаузальное обновление весов по экспоненциальному окну, мягкое ограничение потенцирования и жесткий clamp по `w_max`.
+- Добавлен `Supervisor` в `src/core/plasticity/supervisor.h` для формирования корректирующего teacher-spike на правильный выходной нейрон при ошибке классификации.
+- В `SimulationEngine` добавлен observer-хук на спайк (`set_spike_observer`) для интеграции пластичности через событийную подписку.
+- В `SynapseStore` добавлен non-const доступ к синапсам (`at`/`synapses`) для модификации весов правилами пластичности.
+- Добавлены GTest-тесты `tests/test_stdp.cpp`: каузальная и антикаузальная пары, затухание эффекта при большом `delta_t`, ограничение `w_max` и рост веса к правильному выходу при супервизии.
+- Тест `test_stdp` подключен в `CMakeLists.txt` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.7.2-dev`
 - В `Makefile` добавлен таргет `data-mnist`: загрузка MNIST в `data/MNIST/raw` (идемпотентно, с проверкой уже существующих файлов), и подключение этого шага в `make install`.
 - В `.gitignore` добавлен `data/` для хранения локально скачанного датасета вне git.
