@@ -16,7 +16,7 @@ MNIST_FILES := train-images-idx3-ubyte train-labels-idx1-ubyte t10k-images-idx3-
 
 CPP_FILES := $(shell find src tests -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \) 2>/dev/null)
 
-.PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize test up down logs
+.PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize test up up-build down logs
 
 help:
 	@echo "Available targets:"
@@ -27,7 +27,8 @@ help:
 	@echo "  make build-release   - configure and build Release preset"
 	@echo "  make build-sanitize  - configure and build Sanitize preset"
 	@echo "  make test            - run tests (ctest debug)"
-	@echo "  make up              - docker compose up -d"
+	@echo "  make up              - docker compose up -d --force-recreate"
+	@echo "  make up-build        - docker compose build runtime images and recreate services"
 	@echo "  make down            - docker compose down"
 	@echo "  make logs            - docker compose logs"
 
@@ -102,7 +103,11 @@ lint: fmt
 	fi
 
 up:
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up -d --force-recreate --no-build
+
+up-build:
+	$(DOCKER_COMPOSE) build simulator artifact-uploader
+	$(DOCKER_COMPOSE) up -d --force-recreate --no-build
 
 down:
 	$(DOCKER_COMPOSE) down

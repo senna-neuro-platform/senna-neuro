@@ -1,5 +1,14 @@
 # Changelog
 
+## 07.03.2026 `0.16.6-dev`
+- В `Makefile` цель `make up` возвращена к сети-независимому `docker compose up -d --force-recreate --no-build`, а для явного пересбора runtime-контейнеров добавлена отдельная цель `make up-build`; это убирает падения из-за Docker Hub/TLS и сохраняет контролируемый rebuild по требованию.
+
+## 07.03.2026 `0.16.5-dev`
+- В `python/train.py` запись live snapshot и visualizer trace переведена с `tmp + replace()` на in-place update с `fsync`, потому что Docker bind-mounted `simulator` и `visualizer` контейнеры иначе продолжали видеть старый bootstrap inode и не получали живые обновления метрик/trace во время training-run.
+
+## 07.03.2026 `0.16.4-dev`
+- В `Makefile` цель `make up` переведена на `docker compose up -d --build --force-recreate`, чтобы acceptance и ручной runtime всегда поднимали актуальные `simulator`/`artifact-uploader` контейнеры и не держали старый exporter-код при изменениях в репозитории.
+
 ## 07.03.2026 `0.16.3-dev`
 - В `python/senna/training.py` добавлен mid-epoch progress callback для `train_epoch` и `evaluate`, чтобы long-running MNIST эпохи больше не выглядели как зависший процесс без stdout и метрик.
 - В `python/train.py` добавлены `training_bootstrap`, периодические строки `progress ...`, live snapshot для `data/artifacts/metrics/latest.json` и bootstrap/refresh trace для `data/artifacts/visualizer/latest.json`, чтобы Grafana и visualizer оживали до конца первой эпохи.

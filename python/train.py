@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -111,11 +112,12 @@ def metric_float(metrics: dict[str, float], key: str, default: float = 0.0) -> f
 
 def write_metrics_snapshot(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    temp_path.replace(path)
+    serialized = json.dumps(payload, ensure_ascii=False, indent=2)
+    with path.open("w", encoding="utf-8") as handle:
+        handle.write(serialized)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def first_sample(
