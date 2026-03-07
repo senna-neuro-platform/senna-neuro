@@ -11,3 +11,4 @@
 - [ADR-0009: Test Framework and CTest Discovery](./0009-test-framework-and-ctest-discovery.md) - Accepted
 - [ADR-0010: Metrics Contract and Export Path](./0010-metrics-contract-and-export-path.md) - Accepted
 - [ADR-0011: Python Bindings and Training Contract](./0011-python-bindings-and-training-contract.md) - Accepted
+- [ADR-0012: Training Target and Robustness Gates](./0012-training-target-and-robustness-gates.md) - Accepted

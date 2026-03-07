@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Callable, Iterable, Iterator
 
 import senna_core
 
@@ -82,6 +82,68 @@ class TrainingPipeline:
         load_config_path = pipeline.config_path if config_path is not None else ""
         pipeline.handle = senna_core.load_state(path, load_config_path)
         return pipeline
+
+
+def evaluate_from_state(
+    *,
+    state_path: str,
+    config_path: str | None,
+    samples: Iterable[Sample],
+    ticks_per_sample: int,
+    mutate: Callable[[object], None] | None = None,
+) -> dict[str, float]:
+    pipeline = TrainingPipeline.load_state(state_path, config_path=config_path)
+    if mutate is not None:
+        mutate(pipeline.handle)
+    return pipeline.evaluate(samples, ticks_per_sample=ticks_per_sample)
+
+
+def robustness_report(
+    *,
+    state_path: str,
+    config_path: str | None,
+    sample_factory: Callable[[], Iterable[Sample]],
+    ticks_per_sample: int,
+    remove_fraction: float = 0.1,
+    noise_sigma: float = 0.3,
+) -> dict[str, float]:
+    baseline = evaluate_from_state(
+        state_path=state_path,
+        config_path=config_path,
+        samples=sample_factory(),
+        ticks_per_sample=ticks_per_sample,
+    )
+    baseline_acc = baseline.get("eval_accuracy", 0.0)
+
+    pruned = evaluate_from_state(
+        state_path=state_path,
+        config_path=config_path,
+        samples=sample_factory(),
+        ticks_per_sample=ticks_per_sample,
+        mutate=lambda handle: handle.remove_neurons(remove_fraction),
+    )
+    pruned_acc = pruned.get("eval_accuracy", 0.0)
+
+    noised = evaluate_from_state(
+        state_path=state_path,
+        config_path=config_path,
+        samples=sample_factory(),
+        ticks_per_sample=ticks_per_sample,
+        mutate=lambda handle: handle.inject_noise(noise_sigma),
+    )
+    noised_acc = noised.get("eval_accuracy", 0.0)
+
+    prune_drop = max(0.0, baseline_acc - pruned_acc)
+    noise_drop = max(0.0, baseline_acc - noised_acc)
+    return {
+        "baseline_accuracy": baseline_acc,
+        "pruned_accuracy": pruned_acc,
+        "noise_accuracy": noised_acc,
+        "prune_drop": prune_drop,
+        "noise_drop": noise_drop,
+        "prune_pass": 1.0 if prune_drop < 0.05 else 0.0,
+        "noise_pass": 1.0 if noise_drop < 0.10 else 0.0,
+    }
 
 
 def iter_mnist_samples(

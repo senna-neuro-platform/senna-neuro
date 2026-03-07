@@ -4,7 +4,11 @@ from pathlib import Path
 
 import senna_core
 
-from senna.training import TrainingPipeline, make_synthetic_digit_samples
+from senna.training import (
+    TrainingPipeline,
+    make_synthetic_digit_samples,
+    robustness_report,
+)
 
 
 def test_bindings_full_cycle(tmp_path: Path) -> None:
@@ -60,3 +64,27 @@ def test_module_level_api(tmp_path: Path) -> None:
     senna_core.inject_noise(loaded, 0.1)
     senna_core.remove_neurons(loaded, 0.01)
     senna_core.step(loaded, 10)
+
+
+def test_robustness_report_smoke(tmp_path: Path) -> None:
+    pipeline = TrainingPipeline(config_path="configs/default.yaml")
+    train_samples = make_synthetic_digit_samples(8, seed=23)
+    pipeline.train_epoch(train_samples, ticks_per_sample=20)
+
+    state_path = tmp_path / "robust_state.h5"
+    pipeline.save_state(str(state_path))
+
+    report = robustness_report(
+        state_path=str(state_path),
+        config_path="configs/default.yaml",
+        sample_factory=lambda: make_synthetic_digit_samples(6, seed=31),
+        ticks_per_sample=20,
+        remove_fraction=0.1,
+        noise_sigma=0.3,
+    )
+
+    assert 0.0 <= report["baseline_accuracy"] <= 1.0
+    assert 0.0 <= report["pruned_accuracy"] <= 1.0
+    assert 0.0 <= report["noise_accuracy"] <= 1.0
+    assert report["prune_drop"] >= 0.0
+    assert report["noise_drop"] >= 0.0

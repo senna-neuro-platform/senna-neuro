@@ -32,6 +32,10 @@ struct BindingConfig {
     senna::core::engine::NetworkBuilderConfig network{};
     senna::core::domain::Time sample_duration_ms{50.0F};
     senna::core::domain::Weight supervision_spike_value{1.1F};
+    float max_rate_hz{120.0F};
+    senna::core::domain::Weight max_synapse_weight{1.5F};
+    senna::core::domain::Weight decoder_wta_weight{6.0F};
+    senna::core::domain::Weight supervision_learning_rate{0.02F};
     std::uint32_t seed{42U};
 };
 
@@ -83,6 +87,9 @@ void validate_config(const BindingConfig& config) {
     if (config.network.min_weight > config.network.max_weight) {
         throw std::invalid_argument("synapse.w_init_min must be <= synapse.w_init_max");
     }
+    if (config.max_synapse_weight < config.network.max_weight) {
+        throw std::invalid_argument("stdp.w_max must be >= synapse.w_init_max");
+    }
 
     if (config.network.dt <= 0.0F) {
         throw std::invalid_argument("encoder.dt must be > 0");
@@ -95,6 +102,15 @@ void validate_config(const BindingConfig& config) {
     }
     if (config.supervision_spike_value <= 0.0F) {
         throw std::invalid_argument("training.supervision_spike_value must be > 0");
+    }
+    if (config.max_rate_hz <= 0.0F) {
+        throw std::invalid_argument("encoder.max_rate must be > 0");
+    }
+    if (config.decoder_wta_weight <= 0.0F) {
+        throw std::invalid_argument("decoder.W_wta absolute value must be > 0");
+    }
+    if (config.supervision_learning_rate <= 0.0F) {
+        throw std::invalid_argument("training.learning_rate must be > 0");
     }
 }
 
@@ -151,6 +167,9 @@ BindingConfig load_binding_config(const std::string& path) {
     config.seed = yaml_required<std::uint32_t>(training, "seed", "training");
     config.supervision_spike_value = yaml_or<senna::core::domain::Weight>(
         training, "supervision_spike_value", config.network.input_spike_value);
+    config.supervision_learning_rate = yaml_or<senna::core::domain::Weight>(
+        training, "learning_rate", config.supervision_learning_rate);
+    const auto training_target_accuracy = yaml_or<float>(training, "target_accuracy", 0.85F);
 
     const auto neuron_v_rest = yaml_required<float>(neuron, "V_rest", "neuron");
     const auto neuron_tau_m = yaml_required<float>(neuron, "tau_m", "neuron");
@@ -171,6 +190,10 @@ BindingConfig load_binding_config(const std::string& path) {
     const auto encoder_max_rate = yaml_required<float>(encoder, "max_rate", "encoder");
     const auto decoder_w_wta = yaml_required<float>(decoder, "W_wta", "decoder");
     const auto training_epochs = yaml_required<std::uint32_t>(training, "epochs", "training");
+
+    config.max_synapse_weight = stdp_w_max;
+    config.max_rate_hz = encoder_max_rate;
+    config.decoder_wta_weight = std::abs(decoder_w_wta);
 
     if (neuron_tau_m <= 0.0F || neuron_theta_base <= 0.0F || neuron_t_ref < 0.0F ||
         !std::isfinite(neuron_v_rest)) {
@@ -200,6 +223,9 @@ BindingConfig load_binding_config(const std::string& path) {
     }
     if (training_epochs == 0U) {
         throw std::invalid_argument("training.epochs must be > 0");
+    }
+    if (training_target_accuracy < 0.0F || training_target_accuracy > 1.0F) {
+        throw std::invalid_argument("training.target_accuracy must be in [0, 1]");
     }
 
     validate_config(config);
@@ -253,7 +279,7 @@ class PyNetworkHandle final {
           output_neurons_(
               find_output_neurons(network_->neurons(), network_->lattice().config().depth - 1U)),
           output_set_(output_neurons_.begin(), output_neurons_.end()),
-          decoder_(output_neurons_),
+          decoder_(output_neurons_, config_.decoder_wta_weight),
           supervisor_({config_.supervision_spike_value}) {
         attach_observers();
         metrics_collector_.set_synapse_count(network_->synapse_count());
@@ -403,7 +429,12 @@ class PyNetworkHandle final {
             throw std::invalid_argument("expected_label must be in [0, 9]");
         }
 
+        const auto predicted_before = last_prediction_;
         const auto was_correct = (last_prediction_ == expected_label);
+        if (sample_is_train_) {
+            apply_supervised_weight_update(expected_label, predicted_before);
+        }
+
         const auto correction = supervisor_.correction_event(last_prediction_, expected_label,
                                                              output_neurons_, network_->elapsed());
         if (!correction.has_value()) {
@@ -415,6 +446,7 @@ class PyNetworkHandle final {
         static_cast<void>(network_->tick());
         const auto corrected = decoder_.decode(output_spikes_);
         last_prediction_ = corrected >= 0 ? corrected : expected_label;
+        emit_wta_for_prediction(last_prediction_, network_->elapsed());
         if (sample_is_train_ && sample_label_.has_value() && *sample_label_ == expected_label &&
             !was_correct && last_prediction_ == expected_label) {
             ++train_correct_;
@@ -425,6 +457,70 @@ class PyNetworkHandle final {
     }
 
    private:
+    [[nodiscard]] bool is_active_pixel(const std::uint8_t pixel) const noexcept {
+        return (static_cast<float>(pixel) / 255.0F) >= 0.08F;
+    }
+
+    [[nodiscard]] bool is_valid_output_label(const int label) const noexcept {
+        return label >= 0 && static_cast<std::size_t>(label) < output_neurons_.size();
+    }
+
+    [[nodiscard]] senna::core::domain::NeuronId output_neuron_for_label(const int label) const {
+        if (!is_valid_output_label(label)) {
+            throw std::out_of_range("Output label is out of range");
+        }
+        return output_neurons_[static_cast<std::size_t>(label)];
+    }
+
+    void apply_supervised_weight_update(const int expected_label, const int predicted_label) {
+        if (!is_valid_output_label(expected_label)) {
+            return;
+        }
+
+        const auto expected_output = output_neuron_for_label(expected_label);
+        const auto has_predicted =
+            is_valid_output_label(predicted_label) && predicted_label != expected_label;
+        const auto predicted_output =
+            has_predicted ? output_neuron_for_label(predicted_label) : expected_output;
+
+        auto& synapses = network_->synapses();
+        const auto learning_rate = std::max(0.0001F, config_.supervision_learning_rate);
+
+        for (std::size_t index = 0U; index < sample_image_.size(); ++index) {
+            const auto pixel = sample_image_[index];
+            if (!is_active_pixel(pixel)) {
+                continue;
+            }
+
+            const auto activity = static_cast<float>(pixel) / 255.0F;
+            const auto delta = static_cast<senna::core::domain::Weight>(learning_rate * activity);
+            const auto sensor_id = sensor_map_[index];
+
+            for (const auto synapse_id : synapses.outgoing(sensor_id)) {
+                auto& synapse = synapses.at(synapse_id);
+                if (synapse.post_id == expected_output) {
+                    synapse.weight = std::clamp(synapse.weight + delta, config_.network.min_weight,
+                                                config_.max_synapse_weight);
+                } else if (has_predicted && synapse.post_id == predicted_output) {
+                    synapse.weight = std::clamp(synapse.weight - delta, config_.network.min_weight,
+                                                config_.max_synapse_weight);
+                }
+            }
+        }
+    }
+
+    void emit_wta_for_prediction(const int prediction, const senna::core::domain::Time t_now) {
+        if (!is_valid_output_label(prediction)) {
+            return;
+        }
+
+        const auto winner = output_neuron_for_label(prediction);
+        const auto inhibitory = decoder_.winner_take_all_events(winner, t_now);
+        for (const auto& event : inhibitory) {
+            network_->inject_event(event);
+        }
+    }
+
     void attach_observers() {
         network_->add_spike_observer([this](const senna::core::domain::SpikeEvent& spike) {
             metrics_collector_.on_spike(spike);
@@ -447,9 +543,13 @@ class PyNetworkHandle final {
         const auto base_time = network_->elapsed();
         const auto dt = std::max(0.01F, config_.network.dt);
         const auto sample_window = std::max(dt, config_.sample_duration_ms);
-        constexpr std::size_t kMaxSpikesPerPixel = 3U;
+        const auto max_spikes_per_pixel = std::clamp<std::size_t>(
+            static_cast<std::size_t>(std::round(
+                (static_cast<double>(config_.max_rate_hz) * static_cast<double>(sample_window)) /
+                1000.0)),
+            1U, 20U);
         const auto pulse_stride =
-            sample_window / static_cast<senna::core::domain::Time>(kMaxSpikesPerPixel);
+            sample_window / static_cast<senna::core::domain::Time>(max_spikes_per_pixel);
 
         for (std::size_t index = 0U; index < sample_image_.size(); ++index) {
             const auto pixel = sample_image_[index];
@@ -458,13 +558,14 @@ class PyNetworkHandle final {
             }
 
             const auto normalized = static_cast<float>(pixel) / 255.0F;
-            if (normalized < 0.08F) {
+            if (!is_active_pixel(pixel)) {
                 continue;
             }
 
             const auto pulse_count = std::clamp<std::size_t>(
-                static_cast<std::size_t>(std::ceil(normalized * kMaxSpikesPerPixel)), 1U,
-                kMaxSpikesPerPixel);
+                static_cast<std::size_t>(
+                    std::ceil(normalized * static_cast<float>(max_spikes_per_pixel))),
+                1U, max_spikes_per_pixel);
             const auto value = static_cast<senna::core::domain::Weight>(
                 config_.network.input_spike_value * normalized);
 
@@ -492,6 +593,7 @@ class PyNetworkHandle final {
 
     void finalize_prediction() {
         last_prediction_ = decoder_.decode(output_spikes_);
+        emit_wta_for_prediction(last_prediction_, network_->elapsed());
 
         if (sample_is_train_) {
             ++train_seen_;

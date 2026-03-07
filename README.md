@@ -111,7 +111,7 @@ docker compose down
   `core/persistence/epoch_artifact_pipeline.h` (`EpochArtifactPipeline`), writing
   `data/artifacts/outbox/epoch_XXXXXXXXX.h5` and the main experiment file in one call.
 
-## Python Bindings + Training (Step 14)
+## Python Bindings + Training (Steps 14-15)
 
 - `senna_core` pybind11 module is built by CMake (`src/bindings/python_module.cpp`).
 - Python integration tests are discovered by CTest when `pytest` is available.
@@ -125,9 +125,14 @@ make test
 Run training entrypoint:
 
 ```bash
-PYTHONPATH=build/debug:python python3 python/train.py --config configs/default.yaml --dataset mnist --train-limit 2000 --test-limit 1000
+PYTHONPATH=build/debug:python python3 python/train.py --config configs/default.yaml --dataset mnist --train-limit 60000 --test-limit 10000 --epochs 5
 ```
 
 Notes:
 - For real MNIST in `train.py`, install `torchvision` in your Python env.
 - If `torchvision` is unavailable, `train.py` falls back to synthetic samples.
+- `train.py` writes per-epoch checkpoints to `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.
+- Training and robustness metrics are appended as JSONL to `data/artifacts/training/metrics.jsonl`.
+- Step 15 robustness checks are executed after training:
+  - `remove_neurons(0.1)` with expected drop `<5%`
+  - `inject_noise(0.3)` with expected drop `<10%`

@@ -1,5 +1,14 @@
 # Changelog
 
+## 07.03.2026 `0.15.0-dev`
+- В `src/bindings/python_module.cpp` усилен training-контур шага 15: `supervise()` теперь выполняет детерминированное обновление весов сенсорных входов к правильному/ошибочному выходу с clamp по `stdp.w_max`.
+- В биндингах подключено применение `encoder.max_rate` для плотности входных спайков и `decoder.W_wta` для латерального торможения (WTA) через инъекцию inhibitory-событий.
+- В `python/senna/training.py` добавлены helper-функции `evaluate_from_state` и `robustness_report` для воспроизводимой оценки сохранённых состояний и робастности.
+- `python/train.py` расширен до сценария шага 15: epoch-checkpoints `epoch_XXXXXXXXX.h5`, early-stop по `target_accuracy`, JSONL-лог (`data/artifacts/training/metrics.jsonl`), диагностические подсказки и post-training проверки `remove_neurons(0.1)`/`inject_noise(0.3)`.
+- Обновлён `configs/default.yaml` с зафиксированными гиперпараметрами шага 15 (включая `training.target_accuracy`, `training.learning_rate`, `encoder.max_rate`, обновлённый `w_init_range`).
+- Расширены Python integration tests (`python/tests/test_integration.py`) smoke-проверкой `robustness_report`.
+- Добавлен ADR-0012 `docs/adr/0012-training-target-and-robustness-gates.md` с фиксацией целевых quality gates шага 15.
+
 ## 07.03.2026 `0.14.0-dev`
 - Добавлен pybind11-модуль `senna_core` в `src/bindings/python_module.cpp` с контрактом шага 14: `create_network`, `load_sample`, `step`, `get_prediction`, `get_metrics`, `save_state`, `load_state`, `inject_noise`, `remove_neurons`, `supervise`.
 - В C++ биндингах реализована строгая YAML-валидация `configs/default.yaml` через `yaml-cpp` (обязательные секции и диапазоны параметров), без дублирования в Python-слое.
