@@ -2,6 +2,10 @@ services:
   simulator:
     build:
       context: ./infra/simulator
+    environment:
+      METRICS_SNAPSHOT_PATH: /artifacts/metrics/latest.json
+    volumes:
+      - ./data/artifacts:/artifacts
     ports:
       - "8000:8000"
 

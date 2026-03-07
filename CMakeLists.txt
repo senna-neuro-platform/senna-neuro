@@ -37,6 +37,7 @@ if(BUILD_TESTING)
     list(PREPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}")
     find_package(GTest REQUIRED MODULE)
     find_package(HDF5 REQUIRED MODULE)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     include(GoogleTest)
 
     add_executable(test_types tests/test_types.cpp)
@@ -192,6 +193,25 @@ if(BUILD_TESTING)
     endif()
 
     gtest_discover_tests(test_persistence)
+
+    add_executable(test_metrics tests/test_metrics.cpp)
+    target_link_libraries(test_metrics PRIVATE senna_domain GTest::gtest_main)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_metrics PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_metrics PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_metrics PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    gtest_discover_tests(test_metrics)
+
+    add_test(
+        NAME test_prometheus_exporter_format
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/infra/simulator/test_simulator_server.py
+    )
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)

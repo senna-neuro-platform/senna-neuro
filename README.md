@@ -56,9 +56,27 @@ docker compose down
 
 - Grafana: http://localhost:3000
 - Prometheus: http://localhost:9090
+- Prometheus Exporter: http://localhost:8000/metrics
 - Visualizer: http://localhost:8080
 - MinIO API: http://localhost:9000
 - MinIO Console: http://localhost:9001
+
+## Metrics and Dashboards
+
+- C++ core metrics collector: `src/core/metrics/metrics_collector.h`.
+- Prometheus exporter: `infra/simulator/simulator_server.py`.
+- Exported metrics include:
+  - `senna_active_neurons_ratio`
+  - `senna_spikes_per_tick`
+  - `senna_e_rate_hz`, `senna_i_rate_hz`, `senna_ei_balance`
+  - `senna_train_accuracy`, `senna_test_accuracy`
+  - `senna_synapse_count`
+  - `senna_stdp_updates_total`, `senna_pruned_total`, `senna_sprouted_total`
+  - `senna_tick_duration_seconds` (histogram)
+- Provisioned Grafana dashboards:
+  - `SENNA Activity`
+  - `SENNA Training`
+  - `SENNA Performance`
 
 ## Artifact Upload (MinIO, Batch/Background)
 

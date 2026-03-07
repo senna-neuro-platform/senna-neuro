@@ -9,3 +9,4 @@
 - [ADR-0007: Quality Gates and Determinism](./0007-quality-gates-and-determinism.md) - Accepted
 - [ADR-0008: Template Usage Policy](./0008-template-usage-policy.md) - Accepted
 - [ADR-0009: Test Framework and CTest Discovery](./0009-test-framework-and-ctest-discovery.md) - Accepted
+- [ADR-0010: Metrics Contract and Export Path](./0010-metrics-contract-and-export-path.md) - Accepted

@@ -1,5 +1,16 @@
 # Changelog
 
+## 07.03.2026 `0.12.0-dev`
+- Добавлен `MetricsCollector` в `src/core/metrics/metrics_collector.h`: сбор метрик по событиям `SimulationEngine` (спайки/тик), расчёт доли активных нейронов, `spikes_per_tick`, средних частот E/I, `ei_balance`, счётчиков STDP и структурной пластичности.
+- В `MetricsCollector` добавлен экспорт снапшота в карту метрик (`as_metric_map`) с Prometheus-совместимыми именами (`senna_*`) для дальнейшей передачи в Python exporter.
+- Добавлен GTest `tests/test_metrics.cpp`: проверка корректности метрик после 100 детерминированных тактов и проверка экспортируемых ключей/значений.
+- В `CMakeLists.txt` подключён `test_metrics` и добавлен CTest `test_prometheus_exporter_format` для валидации Prometheus-формата Python exporter.
+- Переписан `infra/simulator/simulator_server.py` в Prometheus exporter с полным набором метрик шага 12 (`active ratio`, `spikes/tick`, `E/I`, `train/test accuracy`, `synapse count`, `pruned/sprouted`, `tick_duration_seconds` histogram, `stdp_updates_total`).
+- Добавлен Python-тест `infra/simulator/test_simulator_server.py` на валидность Prometheus payload и загрузку snapshot-метрик из JSON-файла.
+- В `docker-compose.yml` для сервиса `simulator` добавлены `METRICS_SNAPSHOT_PATH` и volume `./data/artifacts:/artifacts` для автоматического чтения runtime-снапшотов метрик.
+- Добавлены три провиженных Grafana dashboard JSON: `SENNA Activity`, `SENNA Training`, `SENNA Performance`; удалён placeholder-дашборд.
+- В `README.md` добавлена документация по метрикам/дашбордам и endpoint exporter `http://localhost:8000/metrics`.
+
 ## 07.03.2026 `0.11.3-dev`
 - В `EpochArtifactPipeline` (`src/core/persistence/epoch_artifact_pipeline.h`) формат outbox-файла эпохи расширен до 9 цифр: `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.
 - В `tests/test_persistence.cpp` добавлена явная проверка имени outbox-файла (`epoch_000000002.h5`) для фиксации нового формата.
