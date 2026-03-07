@@ -65,6 +65,20 @@ if(BUILD_TESTING)
     endif()
 
     gtest_discover_tests(test_neuron)
+
+    add_executable(test_synapse tests/test_synapse.cpp)
+    target_link_libraries(test_synapse PRIVATE senna_domain GTest::gtest_main)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_synapse PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_synapse PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_synapse PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    gtest_discover_tests(test_synapse)
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)

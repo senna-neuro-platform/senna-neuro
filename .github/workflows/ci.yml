@@ -27,13 +27,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install conan ruff
 
-      - name: Configure Conan profile
+      - name: Prepare Conan profiles
         run: |
-          conan profile detect --force
-          conan remote add conancenter https://center2.conan.io --force
+          mkdir -p build/conan/profiles
+          compiler_version=$(g++ -dumpfullversion -dumpversion | cut -d. -f1)
+          cat > build/conan/profiles/host <<EOF
+          [settings]
+          os=Linux
+          arch=x86_64
+          compiler=gcc
+          compiler.version=${compiler_version}
+          compiler.libcxx=libstdc++11
+          compiler.cppstd=gnu23
+          EOF
+          cat > build/conan/profiles/build <<EOF
+          [settings]
+          os=Linux
+          arch=x86_64
+          build_type=Release
+          compiler=gcc
+          compiler.version=${compiler_version}
+          compiler.libcxx=libstdc++11
+          compiler.cppstd=gnu17
+          EOF
+          if ! conan remote list | grep -q '^conancenter:'; then
+            conan remote add conancenter https://center2.conan.io
+          fi
 
       - name: Conan install (Debug)
-        run: conan install . --output-folder=build/debug --build=missing -s compiler.cppstd=gnu23 -s build_type=Debug
+        run: conan install . --output-folder=build/debug --build=missing --profile:host=build/conan/profiles/host --profile:build=build/conan/profiles/build -s:h build_type=Debug -c tools.cmake.cmaketoolchain:user_presets= -cc core:skip_warnings='["deprecated"]'
 
       - name: Configure (Debug)
         run: cmake --preset debug
@@ -52,7 +74,7 @@ jobs:
 
       - name: Conan install (Sanitize)
         if: github.event_name == 'pull_request'
-        run: conan install . --output-folder=build/sanitize --build=missing -s compiler.cppstd=gnu23 -s build_type=Debug
+        run: conan install . --output-folder=build/sanitize --build=missing --profile:host=build/conan/profiles/host --profile:build=build/conan/profiles/build -s:h build_type=Debug -c tools.cmake.cmaketoolchain:user_presets= -cc core:skip_warnings='["deprecated"]'
 
       - name: Configure (Sanitize)
         if: github.event_name == 'pull_request'

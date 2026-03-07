@@ -1,5 +1,14 @@
 # Changelog
 
+## 07.03.2026 `0.3.2-dev`
+- `Makefile` переведен на проектные Conan-профили (`build/conan/profiles/host|build`) с автогенерацией по версии локального `g++`, что убирает warnings от `conan profile detect`.
+- В CI (`.github/workflows/ci.yml`) добавлен шаг подготовки тех же Conan-профилей и условное добавление `conancenter` remote, чтобы не получать warning `Remote ... already exists`.
+- Для Conan-команд в `Makefile` и GitHub Actions добавлено подавление известных upstream deprecated-warning (`core:skip_warnings=["deprecated"]`) от рецепта `hdf5`.
+- Реализован `Domain: Synapse` в `src/core/domain/synapse.h`: `Synapse` (`pre_id`, `post_id`, `weight`, `delay`, `sign`) и `SynapseStore` с хранением в плоском массиве.
+- В `SynapseStore` добавлены индексы `outgoing`/`incoming`, методы `add`, `connect`, `connect_random`, `rebuild_indices`, а также вычисление `delay = distance * c_base` и знака по типу пресинаптического нейрона.
+- Добавлен набор GTest-тестов `tests/test_synapse.cpp`: задержка по расстоянию, знак E/I, диапазон случайного веса, корректность индексов и проверка масштаба `~300k` синапсов.
+- Тест `test_synapse` подключен в CMake и запускается через `ctest`.
+
 ## 07.03.2026 `0.2.2-dev`
 - Зафиксирован ADR-0009: стандарт C++ тестов на GoogleTest и регистрация кейсов в CTest через `gtest_discover_tests`.
 - Индекс ADR обновлен: добавлен ADR-0009.
