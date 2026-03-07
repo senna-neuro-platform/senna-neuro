@@ -1,5 +1,12 @@
 # Changelog
 
+## 07.03.2026 `0.5.0-dev`
+- Реализован `Engine: EventQueue` в `src/core/engine/event_queue.h`: очередь событий на `std::priority_queue` с минимальным `arrival` наверху, методы `push` и `drain_tick([t_start, t_end))`.
+- Реализован `Engine: TimeManager` в `src/core/engine/time_manager.h`: хранение виртуального времени, шага `dt` (по умолчанию `0.5 ms`), методы `advance`, `elapsed`, `reset`.
+- Реализован `Engine: SimulationEngine` в `src/core/engine/simulation_engine.h`: `tick()` доставляет события нейронам, обрабатывает спайки и планирует новые события по исходящим синапсам (`arrival = spike_time + delay`, `value = weight * sign`).
+- Добавлены GTest-тесты `tests/test_event_queue.cpp`: порядок извлечения по времени, квантование по интервалу такта, цепочка распространения `A→B→C` с задержками и проверка пустого такта.
+- Тест `test_event_queue` подключен в `CMakeLists.txt` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.4.0-dev`
 - Реализован `Domain: Lattice` в `src/core/domain/lattice.h`: конфиг решетки, хранение вокселей (`NeuronId` или пусто), плоский массив `Neuron` и `NeighborInfo`.
 - Добавлена детерминируемая генерация решетки: сенсорный слой `Z=0` заполняется полностью, обрабатывающий объем `Z=1..D-2` заполняется по плотности, выходной слой `Z=D-1` содержит ровно 10 нейронов с равномерным распределением.
