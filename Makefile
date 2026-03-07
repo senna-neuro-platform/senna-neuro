@@ -6,7 +6,7 @@ CTEST ?= ctest
 DOCKER_COMPOSE ?= docker compose
 CONAN_INSTALL_FLAGS := --build=missing -c tools.cmake.cmaketoolchain:user_presets=
 
-CPP_FILES := $(shell find src -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \))
+CPP_FILES := $(shell find src tests -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \) 2>/dev/null)
 
 .PHONY: help install fmt lint build-debug build-release build-sanitize build-saniryze test up down logs
 

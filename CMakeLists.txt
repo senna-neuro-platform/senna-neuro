@@ -17,7 +17,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SENNA_ENABLE_SANITIZERS "Enable ASan and UBSan for Debug builds" OFF)
 
+add_library(senna_domain INTERFACE)
+target_include_directories(senna_domain INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
 add_executable(senna_simulator src/main.cpp)
+target_link_libraries(senna_simulator PRIVATE senna_domain)
 target_compile_definitions(senna_simulator PRIVATE SENNA_VERSION="${SENNA_VERSION_FULL}")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -27,6 +31,22 @@ endif()
 if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(senna_simulator PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(senna_simulator PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+endif()
+
+if(BUILD_TESTING)
+    add_executable(test_types tests/test_types.cpp)
+    target_link_libraries(test_types PRIVATE senna_domain)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_types PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_types PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_types PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    add_test(NAME test_types COMMAND test_types)
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)
