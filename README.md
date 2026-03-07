@@ -58,8 +58,23 @@ docker compose down
 - Prometheus: http://localhost:9090
 - Prometheus Exporter: http://localhost:8000/metrics
 - Visualizer: http://localhost:8080
+- Visualizer WebSocket: ws://localhost:8080/ws
 - MinIO API: http://localhost:9000
 - MinIO Console: http://localhost:9001
+
+## Visualizer (Step 13)
+
+- Runtime stream:
+  - `GET /lattice` returns static lattice geometry.
+  - `WS /ws` streams active neurons only in the format:
+    - `{ tick, neurons: [{ id, x, y, z, type, fired }], activeCount, totalNeurons }`
+- UI controls:
+  - pause/resume,
+  - `Next Tick` frame-by-frame mode,
+  - playback speed slider,
+  - neuron type filters (E/I/Output),
+  - `Z` layer slice slider,
+  - heatmap mode (activity over recent ticks).
 
 ## Metrics and Dashboards
 
