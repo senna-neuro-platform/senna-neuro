@@ -33,7 +33,7 @@ jobs:
           conan remote add conancenter https://center2.conan.io --force
 
       - name: Conan install (Debug)
-        run: conan install . --output-folder=build/debug --build=missing -s build_type=Debug
+        run: conan install . --output-folder=build/debug --build=missing -s compiler.cppstd=gnu23 -s build_type=Debug
 
       - name: Configure (Debug)
         run: cmake --preset debug
@@ -52,7 +52,7 @@ jobs:
 
       - name: Conan install (Sanitize)
         if: github.event_name == 'pull_request'
-        run: conan install . --output-folder=build/sanitize --build=missing -s build_type=Debug
+        run: conan install . --output-folder=build/sanitize --build=missing -s compiler.cppstd=gnu23 -s build_type=Debug
 
       - name: Configure (Sanitize)
         if: github.event_name == 'pull_request'

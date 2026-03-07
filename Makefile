@@ -4,7 +4,7 @@ CONAN ?= conan
 CMAKE ?= cmake
 CTEST ?= ctest
 DOCKER_COMPOSE ?= docker compose
-CONAN_INSTALL_FLAGS := --build=missing -c tools.cmake.cmaketoolchain:user_presets=
+CONAN_INSTALL_FLAGS := --build=missing -c tools.cmake.cmaketoolchain:user_presets= -s compiler.cppstd=gnu23
 
 CPP_FILES := $(shell find src tests -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \) 2>/dev/null)
 

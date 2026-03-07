@@ -1,6 +1,8 @@
 # Changelog
 
-## 07.03.2026 `0.1.3-dev`
+## 07.03.2026 `0.1.4-dev`
+- В CI (`.github/workflows/ci.yml`) Conan install теперь запускается с `-s compiler.cppstd=gnu23`.
+- В `Makefile` для `install`, `build-release`, `build-sanitize` зафиксирован Conan-флаг `-s compiler.cppstd=gnu23`.
 - Зафиксирован ADR-0008 по политике использования шаблонов в C++ ядре.
 - В `Domain` добавлено обоснованное применение templates: обобщенный `Coord3<T>` (с alias `Coord3D`) и `ArrivalEarlier<EventT>`.
 - Добавлены тесты для шаблонных сценариев (`Coord3<uint16_t>`/`Coord3<int>` и шаблонный компаратор событий).
