@@ -29,7 +29,7 @@ docs/acceptance/scripts/run_acceptance.sh
 2. `make lint`
 3. `make build-sanitize` + `ctest --preset sanitize`
 4. `make up` + health-check endpoints
-5. паузу на ручное открытие Grafana/Visualizer и затем полный train-run на реальном MNIST 60k/10k без synthetic fallback
+5. полный train-run на реальном MNIST 60k/10k без synthetic fallback
 6. проверку метрик DoD (`accuracy`, `robustness`, `max_active_ratio`)
 7. проверку pipeline inference (`MNIST image -> class 0..9`)
 8. проверку sparsity по WebSocket (`activeCount/totalNeurons < 0.05`) на реальном visualizer trace
@@ -211,8 +211,7 @@ docs/acceptance/scripts/run_acceptance.sh \
   --ticks 100
 ```
 
-Скрипт остановится после `make up` и `print_observe_stack_memo`, чтобы можно было открыть Grafana и visualizer в браузере.
-Для полностью неинтерактивного прогона используйте `--no-observe-pause`.
+Скрипт печатает `Observation memo` после `make up`, но training-run стартует сразу без интерактивной паузы.
 
 2. Подними runtime отдельно, если нужен ручной осмотр:
 
@@ -292,7 +291,6 @@ docs/acceptance/scripts/run_acceptance.sh \
 - `--skip-docker`
 - `--skip-training`
 - `--skip-ws-sparsity`
-- `--no-observe-pause`
 - `--dataset mnist`
 - `--max-active-ratio`, `--max-prune-drop`, `--max-noise-drop`
 - `--metrics-path <path>`

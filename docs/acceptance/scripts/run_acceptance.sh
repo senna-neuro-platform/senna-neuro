@@ -36,7 +36,6 @@ SKIP_SANITIZE=false
 SKIP_DOCKER=false
 SKIP_TRAINING=false
 SKIP_WS_SPARSITY=false
-SKIP_OBSERVE_PAUSE=false
 
 print_usage() {
   cat <<'EOF'
@@ -67,7 +66,6 @@ Options:
   --skip-docker
   --skip-training
   --skip-ws-sparsity
-  --no-observe-pause
   --help
 EOF
 }
@@ -140,26 +138,6 @@ wait_http_ok() {
 
   echo "[FAIL] ${name} is not reachable: ${url}"
   return 1
-}
-
-wait_for_observe_confirmation() {
-  if [[ "${SKIP_OBSERVE_PAUSE}" == true ]]; then
-    return 0
-  fi
-
-  if [[ ! -t 0 ]]; then
-    echo "[FAIL] observation pause requires an interactive terminal; use --no-observe-pause to skip it"
-    return 1
-  fi
-
-  local answer=""
-  while true; do
-    read -r -p "[PAUSE] Open Grafana and Visualizer in browser, then type 'continue' to start training: " answer
-    if [[ "${answer}" == "continue" ]]; then
-      return 0
-    fi
-    echo "[WAIT] type 'continue' when you are ready"
-  done
 }
 
 print_observe_stack_memo() {
@@ -284,10 +262,6 @@ while [[ $# -gt 0 ]]; do
       SKIP_WS_SPARSITY=true
       shift
       ;;
-    --no-observe-pause)
-      SKIP_OBSERVE_PAUSE=true
-      shift
-      ;;
     --help|-h)
       print_usage
       exit 0
@@ -363,9 +337,6 @@ if [[ "${SKIP_DOCKER}" == false ]]; then
   wait_http_ok "grafana health" "${GRAFANA_HEALTH_URL}"
   log "Observation memo (Docker/Grafana/Visualizer)"
   print_observe_stack_memo
-  if [[ "${SKIP_TRAINING}" == false ]]; then
-    wait_for_observe_confirmation
-  fi
 fi
 if [[ "${SKIP_TRAINING}" == false ]]; then
   log "Training run (Step 15/16 prerequisites)"

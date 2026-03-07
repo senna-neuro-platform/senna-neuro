@@ -1,5 +1,9 @@
 # Changelog
 
+## 07.03.2026 `0.16.7-dev`
+- В `docs/acceptance/scripts/run_acceptance.sh` убрана интерактивная пауза с вводом `continue`: после `make up` и `Observation memo` training-run теперь стартует сразу.
+- В `docs/acceptance/README.md` синхронизирован runbook шага 16: удалены упоминания `--no-observe-pause` и ручной остановки acceptance-скрипта перед началом обучения.
+
 ## 07.03.2026 `0.16.6-dev`
 - В `Makefile` цель `make up` возвращена к сети-независимому `docker compose up -d --force-recreate --no-build`, а для явного пересбора runtime-контейнеров добавлена отдельная цель `make up-build`; это убирает падения из-за Docker Hub/TLS и сохраняет контролируемый rebuild по требованию.
 
