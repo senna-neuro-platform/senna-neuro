@@ -1,0 +1,9 @@
+Checks: >
+  bugprone-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -modernize-use-trailing-return-type
+HeaderFilterRegex: 'src/.*'
+FormatStyle: none

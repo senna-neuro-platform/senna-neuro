@@ -1,41 +1,27 @@
-# Prerequisites
-*.d
+# Build artifacts
+build/
+out/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# Conan
+conan.lock
+conanbuild*
+conanrun*
 
-# Precompiled Headers
-*.gch
-*.pch
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+CMakeUserPresets.json
 
-# Linker files
-*.ilk
+# Python
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
 
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# debug information files
-*.dwo
+# Editors and OS files
+.vscode/
+.idea/
+.DS_Store

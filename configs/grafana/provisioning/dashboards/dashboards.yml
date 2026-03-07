@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: SENNA
+    orgId: 1
+    folder: SENNA
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

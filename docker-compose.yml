@@ -1,0 +1,38 @@
+services:
+  simulator:
+    build:
+      context: ./infra/simulator
+    ports:
+      - "8000:8000"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - simulator
+
+  grafana:
+    image: grafana/grafana-oss:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  visualizer:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./visualizer:/app:ro
+    command: ["node", "server.js"]
+    ports:
+      - "8080:8080"
