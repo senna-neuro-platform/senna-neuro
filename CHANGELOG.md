@@ -1,5 +1,13 @@
 # Changelog
 
+## 07.03.2026 `0.6.0-dev`
+- Реализован `NetworkBuilder` и агрегирующий `Network` в `src/core/engine/network_builder.h`: сборка `Lattice -> SynapseStore -> EventQueue -> TimeManager -> SimulationEngine` с детерминируемым seed.
+- В `Network` добавлены методы `inject_spike(NeuronId, Time)`, `tick()` и `simulate(duration_ms)` для первого сквозного прогона волны через сеть.
+- В `SimulationEngine` добавлен счетчик `emitted_last_tick` для фиксации числа сгенерированных спайков на такте.
+- В `Lattice` добавлен non-const доступ к вектору нейронов для интеграции с `SimulationEngine` внутри агрегирующего `Network`.
+- Добавлены интеграционные GTest-тесты `tests/test_network_builder.cpp`: тишина без стимула, распространение волны от одного стимула, сравнение `1 vs 10` стимулов и детерминированность трассы.
+- Тест `test_network_builder` подключен в `CMakeLists.txt` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.5.0-dev`
 - Реализован `Engine: EventQueue` в `src/core/engine/event_queue.h`: очередь событий на `std::priority_queue` с минимальным `arrival` наверху, методы `push` и `drain_tick([t_start, t_end))`.
 - Реализован `Engine: TimeManager` в `src/core/engine/time_manager.h`: хранение виртуального времени, шага `dt` (по умолчанию `0.5 ms`), методы `advance`, `elapsed`, `reset`.

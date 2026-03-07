@@ -74,6 +74,8 @@ class Lattice final {
         return neuron_count() - sensor_neuron_count_ - output_neuron_count_;
     }
 
+    [[nodiscard]] std::vector<Neuron>& neurons() noexcept { return neurons_; }
+
     [[nodiscard]] const std::vector<Neuron>& neurons() const noexcept { return neurons_; }
 
     [[nodiscard]] std::optional<NeuronId> neuron_id_at(const Coord3D position) const noexcept {

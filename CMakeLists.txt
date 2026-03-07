@@ -107,6 +107,20 @@ if(BUILD_TESTING)
     endif()
 
     gtest_discover_tests(test_event_queue)
+
+    add_executable(test_network_builder tests/test_network_builder.cpp)
+    target_link_libraries(test_network_builder PRIVATE senna_domain GTest::gtest_main)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_network_builder PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_network_builder PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_network_builder PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    gtest_discover_tests(test_network_builder)
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)
