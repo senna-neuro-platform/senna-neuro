@@ -25,6 +25,7 @@ class SimulationEngine final {
         const auto t_end = t_start + time_.dt();
         const auto events = queue_.drain_tick(t_start, t_end);
         emitted_last_tick_ = 0U;
+        emitted_events_last_tick_.clear();
 
         for (const auto& event : events) {
             const auto target = static_cast<std::size_t>(event.target);
@@ -37,6 +38,7 @@ class SimulationEngine final {
                 continue;
             }
             ++emitted_last_tick_;
+            emitted_events_last_tick_.push_back(*maybe_spike);
 
             const auto pre = maybe_spike->source;
             for (const auto synapse_id : synapses_.outgoing(pre)) {
@@ -56,12 +58,18 @@ class SimulationEngine final {
 
     [[nodiscard]] std::size_t emitted_last_tick() const noexcept { return emitted_last_tick_; }
 
+    [[nodiscard]] const std::vector<senna::core::domain::SpikeEvent>& emitted_events_last_tick()
+        const noexcept {
+        return emitted_events_last_tick_;
+    }
+
    private:
     std::vector<senna::core::domain::Neuron>& neurons_;
     const senna::core::domain::SynapseStore& synapses_;
     EventQueue& queue_;
     TimeManager& time_;
     std::size_t emitted_last_tick_{0U};
+    std::vector<senna::core::domain::SpikeEvent> emitted_events_last_tick_{};
 };
 
 }  // namespace senna::core::engine

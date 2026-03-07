@@ -58,6 +58,11 @@ class Network final {
         return engine_.emitted_last_tick();
     }
 
+    [[nodiscard]] const std::vector<senna::core::domain::SpikeEvent>& emitted_spikes_last_tick()
+        const noexcept {
+        return engine_.emitted_events_last_tick();
+    }
+
     [[nodiscard]] std::vector<std::size_t> simulate(const senna::core::domain::Time duration_ms) {
         std::vector<std::size_t> spike_trace{};
         if (duration_ms <= 0.0F) {

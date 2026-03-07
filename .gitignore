@@ -21,6 +21,9 @@ __pycache__/
 .ruff_cache/
 *.pyc
 
+# Data
+data/
+
 # Editors and OS files
 .vscode/
 .idea/

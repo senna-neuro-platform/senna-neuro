@@ -1,5 +1,17 @@
 # Changelog
 
+## 07.03.2026 `0.7.2-dev`
+- В `Makefile` добавлен таргет `data-mnist`: загрузка MNIST в `data/MNIST/raw` (идемпотентно, с проверкой уже существующих файлов), и подключение этого шага в `make install`.
+- В `.gitignore` добавлен `data/` для хранения локально скачанного датасета вне git.
+- Переименованы заголовочные файлы IO-интерфейсов без символа `_`: `src/core/io/i_encoder.h -> src/core/io/iencoder.h` и `src/core/io/i_decoder.h -> src/core/io/idecoder.h`; обновлены include-ссылки.
+- Добавлены IO-интерфейсы `IEncoder` и `IDecoder` в `src/core/io/iencoder.h` и `src/core/io/idecoder.h`.
+- Реализован `RateEncoder` в `src/core/io/rate_encoder.h`: кодирование `MNIST 28x28` в поток `SpikeEvent` по правилу `rate = pixel/255 * max_rate` и вероятности спайка `rate * dt / 1000`.
+- Реализован `FirstSpikeDecoder` в `src/core/io/first_spike_decoder.h`: декодирование по первому выходному спайку и генерация латерального торможения (WTA) для остальных выходных нейронов.
+- В `SimulationEngine` добавлен экспорт спайков текущего такта (`emitted_events_last_tick`) для сбора выходной активности в end-to-end пайплайне.
+- В `Network` добавлен доступ к спайкам последнего такта (`emitted_spikes_last_tick`) для интеграции с декодером.
+- Добавлены GTest-тесты `tests/test_io.cpp`: проверка `RateEncoder` (black/medium/white), `FirstSpikeDecoder` (первый спайк, tie-break, WTA) и сквозного пути `encode -> simulate -> decode`.
+- Тест `test_io` подключен в `CMakeLists.txt` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.6.0-dev`
 - Реализован `NetworkBuilder` и агрегирующий `Network` в `src/core/engine/network_builder.h`: сборка `Lattice -> SynapseStore -> EventQueue -> TimeManager -> SimulationEngine` с детерминируемым seed.
 - В `Network` добавлены методы `inject_spike(NeuronId, Time)`, `tick()` и `simulate(duration_ms)` для первого сквозного прогона волны через сеть.
