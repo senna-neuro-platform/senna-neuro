@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -56,15 +57,9 @@ class Neuron final {
             return std::nullopt;
         }
 
-        const Time previous_spike = t_spike_;
         V_ = config_.v_reset;
         t_spike_ = effective_now;
         in_refractory_ = true;
-
-        if (std::isfinite(previous_spike) && (effective_now > previous_spike)) {
-            const auto instant_rate_hz = 1000.0F / (effective_now - previous_spike);
-            r_avg_ = ((1.0F - kRateEmaAlpha) * r_avg_) + (kRateEmaAlpha * instant_rate_hz);
-        }
 
         return SpikeEvent{id_, id_, effective_now, spike_value()};
     }
@@ -80,12 +75,19 @@ class Neuron final {
     [[nodiscard]] bool in_refractory() const noexcept { return in_refractory_; }
     [[nodiscard]] const NeuronConfig& config() const noexcept { return config_; }
 
+    void set_threshold(const Voltage threshold) noexcept { theta_ = threshold; }
+
+    void adjust_threshold(const Voltage delta, const Voltage theta_min,
+                          const Voltage theta_max) noexcept {
+        theta_ = std::clamp(theta_ + delta, theta_min, theta_max);
+    }
+
+    void set_average_rate(const float rate_hz) noexcept { r_avg_ = std::max(0.0F, rate_hz); }
+
    private:
     [[nodiscard]] Weight spike_value() const noexcept {
         return type_ == NeuronType::Excitatory ? 1.0F : -1.0F;
     }
-
-    static constexpr float kRateEmaAlpha = 0.05F;
 
     NeuronId id_{};
     Coord3D position_{};

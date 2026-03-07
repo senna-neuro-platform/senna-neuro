@@ -1,5 +1,13 @@
 # Changelog
 
+## 07.03.2026 `0.9.0-dev`
+- Реализован `Homeostasis` в `src/core/plasticity/homeostasis.h`: EMA-оценка `r_avg`, корректировка порога к `r_target`, clamp в диапазоне `[theta_min, theta_max]`, обновление по окну `N` тактов.
+- В `Neuron` (`src/core/domain/neuron.h`) добавлены методы управления гомеостазом: `set_average_rate`, `set_threshold`, `adjust_threshold`.
+- В `SimulationEngine` расширен Observer API: поддержаны подписки на спайки и завершение такта (`set_*`/`add_*` observers), что позволяет подключать медленные контуры обучения без зашивания логики в `tick()`.
+- В `Network` (`src/core/engine/network_builder.h`) добавлены прокси-методы для observer-подписок и non-const доступ к `neurons`/`synapses` для правил пластичности.
+- Добавлены GTest-тесты `tests/test_homeostasis.cpp`: рост порога у гиперактивного нейрона, снижение порога у молчащего, соблюдение `theta`-границ и сходимость `r_avg` к целевой частоте при длительном прогоне.
+- Тест `test_homeostasis` подключен в `CMakeLists.txt` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.8.0-dev`
 - Добавлен интерфейс пластичности `IPlasticityRule` в `src/core/plasticity/iplasticity_rule.h` с событиями `on_pre_spike` и `on_post_spike`.
 - Реализован `STDPRule` в `src/core/plasticity/stdp.h`: каузальное/антикаузальное обновление весов по экспоненциальному окну, мягкое ограничение потенцирования и жесткий clamp по `w_max`.

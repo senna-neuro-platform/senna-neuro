@@ -63,6 +63,22 @@ class Network final {
         return engine_.emitted_events_last_tick();
     }
 
+    void set_spike_observer(SimulationEngine::SpikeObserver observer) {
+        engine_.set_spike_observer(std::move(observer));
+    }
+
+    void add_spike_observer(SimulationEngine::SpikeObserver observer) {
+        engine_.add_spike_observer(std::move(observer));
+    }
+
+    void set_tick_observer(SimulationEngine::TickObserver observer) {
+        engine_.set_tick_observer(std::move(observer));
+    }
+
+    void add_tick_observer(SimulationEngine::TickObserver observer) {
+        engine_.add_tick_observer(std::move(observer));
+    }
+
     [[nodiscard]] std::vector<std::size_t> simulate(const senna::core::domain::Time duration_ms) {
         std::vector<std::size_t> spike_trace{};
         if (duration_ms <= 0.0F) {
@@ -83,6 +99,12 @@ class Network final {
 
     [[nodiscard]] const senna::core::domain::SynapseStore& synapses() const noexcept {
         return synapses_;
+    }
+
+    [[nodiscard]] senna::core::domain::SynapseStore& synapses() noexcept { return synapses_; }
+
+    [[nodiscard]] std::vector<senna::core::domain::Neuron>& neurons() noexcept {
+        return lattice_.neurons();
     }
 
    private:

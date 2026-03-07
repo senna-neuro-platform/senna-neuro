@@ -16,13 +16,38 @@ namespace senna::core::engine {
 class SimulationEngine final {
    public:
     using SpikeObserver = std::function<void(const senna::core::domain::SpikeEvent&)>;
+    using TickObserver = std::function<void(senna::core::domain::Time, senna::core::domain::Time)>;
 
     SimulationEngine(std::vector<senna::core::domain::Neuron>& neurons,
                      const senna::core::domain::SynapseStore& synapses, EventQueue& queue,
                      TimeManager& time) noexcept
         : neurons_(neurons), synapses_(synapses), queue_(queue), time_(time) {}
 
-    void set_spike_observer(SpikeObserver observer) { spike_observer_ = std::move(observer); }
+    void set_spike_observer(SpikeObserver observer) {
+        spike_observers_.clear();
+        if (observer) {
+            spike_observers_.push_back(std::move(observer));
+        }
+    }
+
+    void add_spike_observer(SpikeObserver observer) {
+        if (observer) {
+            spike_observers_.push_back(std::move(observer));
+        }
+    }
+
+    void set_tick_observer(TickObserver observer) {
+        tick_observers_.clear();
+        if (observer) {
+            tick_observers_.push_back(std::move(observer));
+        }
+    }
+
+    void add_tick_observer(TickObserver observer) {
+        if (observer) {
+            tick_observers_.push_back(std::move(observer));
+        }
+    }
 
     void inject_event(const senna::core::domain::SpikeEvent event) { queue_.push(event); }
 
@@ -45,8 +70,8 @@ class SimulationEngine final {
             }
             ++emitted_last_tick_;
             emitted_events_last_tick_.push_back(*maybe_spike);
-            if (spike_observer_) {
-                spike_observer_(*maybe_spike);
+            for (auto& observer : spike_observers_) {
+                observer(*maybe_spike);
             }
 
             const auto pre = maybe_spike->source;
@@ -59,6 +84,10 @@ class SimulationEngine final {
                     synapse.effective_weight(),
                 });
             }
+        }
+
+        for (auto& observer : tick_observers_) {
+            observer(t_start, t_end);
         }
 
         time_.advance();
@@ -79,7 +108,8 @@ class SimulationEngine final {
     TimeManager& time_;
     std::size_t emitted_last_tick_{0U};
     std::vector<senna::core::domain::SpikeEvent> emitted_events_last_tick_{};
-    SpikeObserver spike_observer_{};
+    std::vector<SpikeObserver> spike_observers_{};
+    std::vector<TickObserver> tick_observers_{};
 };
 
 }  // namespace senna::core::engine
