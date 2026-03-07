@@ -3,8 +3,6 @@
 ## 07.03.2026 `0.15.3-dev`
 - В `docs/step16-acceptance/README.md` добавлен явный раздел `Как запускать training-run` с двумя сценариями: через `run_acceptance.sh` (training-only режим) и напрямую через `python/train.py`.
 - В runbook зафиксированы обязательные выходные артефакты training-run: `metrics.jsonl`, `epoch_XXXXXXXXX.h5`, `final_state.h5`.
-
-## 07.03.2026 `0.15.2-dev`
 - В `docs/step16-acceptance/README.md` добавлены промежуточные памятки наблюдения между шагами приёмки: где смотреть Docker-состояние, Grafana-дашборды, exporter и визуализатор.
 - В `docs/step16-acceptance/scripts/run_acceptance.sh` добавлены автоматические блоки `Observation memo` после `make up`/health-check и после training-run с командами для live-наблюдения (`docker compose ps`, `make logs`, `tail metrics.jsonl`, probe exporter).
 - Добавлен runbook финальной приёмки MVP: `docs/step16-acceptance/README.md` с пошаговым сценарием от развёртывания до DoD-гейтов шага 16.
