@@ -1,6 +1,17 @@
 # Changelog
 
-## 07.03.2026 `0.15.0-dev`
+## 07.03.2026 `0.15.3-dev`
+- В `docs/step16-acceptance/README.md` добавлен явный раздел `Как запускать training-run` с двумя сценариями: через `run_acceptance.sh` (training-only режим) и напрямую через `python/train.py`.
+- В runbook зафиксированы обязательные выходные артефакты training-run: `metrics.jsonl`, `epoch_XXXXXXXXX.h5`, `final_state.h5`.
+
+## 07.03.2026 `0.15.2-dev`
+- В `docs/step16-acceptance/README.md` добавлены промежуточные памятки наблюдения между шагами приёмки: где смотреть Docker-состояние, Grafana-дашборды, exporter и визуализатор.
+- В `docs/step16-acceptance/scripts/run_acceptance.sh` добавлены автоматические блоки `Observation memo` после `make up`/health-check и после training-run с командами для live-наблюдения (`docker compose ps`, `make logs`, `tail metrics.jsonl`, probe exporter).
+- Добавлен runbook финальной приёмки MVP: `docs/step16-acceptance/README.md` с пошаговым сценарием от развёртывания до DoD-гейтов шага 16.
+- Добавлен orchestration-скрипт `docs/step16-acceptance/scripts/run_acceptance.sh` для автоматического прогона build/test/lint/sanitize, docker health-check, train-run и DoD-проверок.
+- Добавлен скрипт `docs/step16-acceptance/scripts/check_dod_metrics.py` для валидации числовых DoD-гейтов по `metrics.jsonl` (`accuracy`, `active_ratio`, `prune_drop`, `noise_drop`).
+- Добавлен скрипт `docs/step16-acceptance/scripts/check_inference_pipeline.py` для проверки пути `state + sample -> prediction [0..9]` через Python bindings.
+- Добавлен скрипт `docs/step16-acceptance/scripts/check_ws_sparsity.py` для проверки разреженности кадров визуализатора по WebSocket (`activeCount/totalNeurons < 5%`) без внешних зависимостей.
 - В `src/bindings/python_module.cpp` усилен training-контур шага 15: `supervise()` теперь выполняет детерминированное обновление весов сенсорных входов к правильному/ошибочному выходу с clamp по `stdp.w_max`.
 - В биндингах подключено применение `encoder.max_rate` для плотности входных спайков и `decoder.W_wta` для латерального торможения (WTA) через инъекцию inhibitory-событий.
 - В `python/senna/training.py` добавлены helper-функции `evaluate_from_state` и `robustness_report` для воспроизводимой оценки сохранённых состояний и робастности.
