@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Literal
 
 from senna.training import (
+    ProgressUpdate,
     TrainingPipeline,
     capture_trace_from_state,
     iter_mnist_samples,
@@ -142,62 +144,77 @@ def first_sample(
 
 def exporter_snapshot_payload(
     *,
+    snapshot_source: str,
     dataset_mode: Literal["mnist", "synthetic"],
     epoch: int,
     train_limit: int,
     test_limit: int,
     ticks: int,
-    checkpoint_path: Path,
-    train_metrics: dict[str, float],
-    eval_metrics: dict[str, float],
+    checkpoint_path: Path | None,
+    runtime_metrics: dict[str, float],
+    train_accuracy: float,
+    test_accuracy: float,
+    progress_stage: str | None = None,
+    progress_completed: int | None = None,
+    progress_total: int | None = None,
 ) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "ts_utc": datetime.now(timezone.utc).isoformat(),
-        "snapshot_source": "training_epoch_end",
+        "snapshot_source": snapshot_source,
         "dataset_mode": dataset_mode,
         "epoch": epoch,
         "train_limit": train_limit,
         "test_limit": test_limit,
         "ticks": ticks,
-        "checkpoint_path": str(checkpoint_path),
+        "checkpoint_path": str(checkpoint_path) if checkpoint_path is not None else "",
         "active_neurons_ratio": metric_float(
-            eval_metrics, "senna_active_neurons_ratio"
+            runtime_metrics, "senna_active_neurons_ratio"
         ),
         "max_active_neurons_ratio": metric_float(
-            eval_metrics,
+            runtime_metrics,
             "senna_max_active_neurons_ratio",
-            metric_float(eval_metrics, "senna_active_neurons_ratio"),
+            metric_float(runtime_metrics, "senna_active_neurons_ratio"),
         ),
-        "spikes_per_tick": metric_float(eval_metrics, "senna_spikes_per_tick"),
-        "e_rate_hz": metric_float(eval_metrics, "senna_e_rate_hz"),
-        "i_rate_hz": metric_float(eval_metrics, "senna_i_rate_hz"),
-        "ei_balance": metric_float(eval_metrics, "senna_ei_balance"),
-        "train_accuracy": metric_float(train_metrics, "epoch_accuracy"),
-        "test_accuracy": metric_float(eval_metrics, "eval_accuracy"),
-        "synapse_count": metric_float(eval_metrics, "senna_synapse_count"),
-        "pruned_total": metric_float(eval_metrics, "senna_pruned_total"),
-        "sprouted_total": metric_float(eval_metrics, "senna_sprouted_total"),
-        "stdp_updates_total": metric_float(eval_metrics, "senna_stdp_updates_total"),
+        "spikes_per_tick": metric_float(runtime_metrics, "senna_spikes_per_tick"),
+        "e_rate_hz": metric_float(runtime_metrics, "senna_e_rate_hz"),
+        "i_rate_hz": metric_float(runtime_metrics, "senna_i_rate_hz"),
+        "ei_balance": metric_float(runtime_metrics, "senna_ei_balance"),
+        "train_accuracy": float(train_accuracy),
+        "test_accuracy": float(test_accuracy),
+        "synapse_count": metric_float(runtime_metrics, "senna_synapse_count"),
+        "pruned_total": metric_float(runtime_metrics, "senna_pruned_total"),
+        "sprouted_total": metric_float(runtime_metrics, "senna_sprouted_total"),
+        "stdp_updates_total": metric_float(runtime_metrics, "senna_stdp_updates_total"),
         "tick_duration_seconds": metric_float(
-            eval_metrics, "senna_tick_duration_seconds"
+            runtime_metrics, "senna_tick_duration_seconds"
         ),
     }
+
+    if progress_stage is not None:
+        payload["progress_stage"] = progress_stage
+    if progress_completed is not None:
+        payload["progress_completed"] = progress_completed
+    if progress_total is not None:
+        payload["progress_total"] = progress_total
+
+    return payload
 
 
 def visualizer_trace_payload(
     *,
+    trace_source: str,
     dataset_mode: Literal["mnist", "synthetic"],
     epoch: int,
-    checkpoint_path: Path,
+    checkpoint_path: Path | None,
     sample,
     trace: dict[str, object],
 ) -> dict[str, object]:
     return {
         "ts_utc": datetime.now(timezone.utc).isoformat(),
-        "trace_source": "training_epoch_end",
+        "trace_source": trace_source,
         "dataset_mode": dataset_mode,
         "epoch": epoch,
-        "checkpoint_path": str(checkpoint_path),
+        "checkpoint_path": str(checkpoint_path) if checkpoint_path is not None else "",
         "label": sample.label,
         "prediction": trace["prediction"],
         "ticks": trace["ticks"],
@@ -292,6 +309,18 @@ def main() -> int:
         action="store_true",
         help="Skip post-training robustness checks",
     )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=50,
+        help="Print progress and refresh live metrics every N samples per stage",
+    )
+    parser.add_argument(
+        "--live-trace-every",
+        type=int,
+        default=250,
+        help="Refresh visualizer trace every N train samples (0 disables mid-epoch trace refresh)",
+    )
     args = parser.parse_args()
 
     pipeline = TrainingPipeline(config_path=args.config)
@@ -304,11 +333,88 @@ def main() -> int:
     metrics_path = Path(args.metrics_out)
     metrics_snapshot_path = Path(args.metrics_snapshot_path)
     visualizer_trace_path = Path(args.visualizer_trace_path)
+    live_dir = checkpoint_dir.parent / "_live"
+    live_dir.mkdir(parents=True, exist_ok=True)
+    live_state_path = live_dir / "progress_state.h5"
     prediction_history: list[int] = []
+    last_train_accuracy = 0.0
     last_eval_accuracy = 0.0
     last_checkpoint_path: Path | None = None
 
+    visualizer_sample = first_sample(
+        dataset_mode=dataset_mode,
+        data_root=args.data_root,
+        train=False,
+        epoch_seed=7_000,
+        download=False,
+    )
+
+    def write_live_snapshot(
+        *,
+        snapshot_source: str,
+        epoch: int,
+        runtime_metrics: dict[str, float],
+        train_accuracy: float,
+        test_accuracy: float,
+        progress_stage: str | None = None,
+        progress_completed: int | None = None,
+        progress_total: int | None = None,
+    ) -> None:
+        write_metrics_snapshot(
+            metrics_snapshot_path,
+            exporter_snapshot_payload(
+                snapshot_source=snapshot_source,
+                dataset_mode=dataset_mode,
+                epoch=epoch,
+                train_limit=args.train_limit,
+                test_limit=args.test_limit,
+                ticks=args.ticks,
+                checkpoint_path=None,
+                runtime_metrics=runtime_metrics,
+                train_accuracy=train_accuracy,
+                test_accuracy=test_accuracy,
+                progress_stage=progress_stage,
+                progress_completed=progress_completed,
+                progress_total=progress_total,
+            ),
+        )
+
+    def write_live_trace(*, epoch: int, trace_source: str) -> None:
+        pipeline.save_state(str(live_state_path))
+        trace = capture_trace_from_state(
+            state_path=str(live_state_path),
+            config_path=args.config,
+            sample=visualizer_sample,
+            ticks_per_sample=args.ticks,
+        )
+        write_metrics_snapshot(
+            visualizer_trace_path,
+            visualizer_trace_payload(
+                trace_source=trace_source,
+                dataset_mode=dataset_mode,
+                epoch=epoch,
+                checkpoint_path=None,
+                sample=visualizer_sample,
+                trace=trace,
+            ),
+        )
+
+    write_live_snapshot(
+        snapshot_source="training_bootstrap",
+        epoch=0,
+        runtime_metrics=dict(pipeline.handle.get_metrics()),
+        train_accuracy=0.0,
+        test_accuracy=0.0,
+    )
+    write_live_trace(epoch=0, trace_source="training_bootstrap")
+    print(
+        f"training_bootstrap metrics_snapshot={metrics_snapshot_path} "
+        f"visualizer_trace={visualizer_trace_path}",
+        flush=True,
+    )
+
     for epoch in range(args.epochs):
+        epoch_index = epoch + 1
         train_samples = make_samples(
             dataset_mode=dataset_mode,
             data_root=args.data_root,
@@ -326,8 +432,103 @@ def main() -> int:
             download=False,
         )
 
-        train_metrics = pipeline.train_epoch(train_samples, ticks_per_sample=args.ticks)
-        eval_metrics = pipeline.evaluate(eval_samples, ticks_per_sample=args.ticks)
+        train_stage_started_at = time.perf_counter()
+        last_train_progress_print = 0
+        last_live_trace_emit = 0
+
+        def handle_progress(update: ProgressUpdate) -> None:
+            nonlocal last_train_accuracy
+            nonlocal last_train_progress_print
+            nonlocal last_live_trace_emit
+            nonlocal last_eval_accuracy
+
+            should_print = (
+                args.progress_every > 0
+                and update.completed >= last_train_progress_print + args.progress_every
+            ) or (update.expected_total is not None and update.completed == update.expected_total)
+
+            if should_print:
+                elapsed = max(0.001, time.perf_counter() - train_stage_started_at)
+                samples_per_sec = update.completed / elapsed
+                eta_seconds = None
+                if update.expected_total is not None and samples_per_sec > 0.0:
+                    eta_seconds = max(
+                        0.0, (update.expected_total - update.completed) / samples_per_sec
+                    )
+                eta_text = (
+                    f" eta_sec={eta_seconds:.1f}"
+                    if eta_seconds is not None
+                    else ""
+                )
+                total_text = (
+                    str(update.expected_total)
+                    if update.expected_total is not None
+                    else "?"
+                )
+                print(
+                    f"progress stage={update.stage} epoch={epoch_index} "
+                    f"samples={update.completed}/{total_text} "
+                    f"accuracy={update.accuracy:.4f} "
+                    f"spikes_per_tick={metric_float(update.metrics, 'senna_spikes_per_tick'):.4f} "
+                    f"active_ratio={metric_float(update.metrics, 'senna_active_neurons_ratio'):.4f} "
+                    f"samples_per_sec={samples_per_sec:.2f}{eta_text}",
+                    flush=True,
+                )
+                last_train_progress_print = update.completed
+
+            if update.stage == "train":
+                last_train_accuracy = update.accuracy
+
+            write_live_snapshot(
+                snapshot_source=f"{update.stage}_progress",
+                epoch=epoch_index,
+                runtime_metrics=update.metrics,
+                train_accuracy=last_train_accuracy,
+                test_accuracy=last_eval_accuracy,
+                progress_stage=update.stage,
+                progress_completed=update.completed,
+                progress_total=update.expected_total,
+            )
+
+            should_refresh_trace = (
+                update.stage == "train"
+                and args.live_trace_every > 0
+                and update.completed >= last_live_trace_emit + args.live_trace_every
+            ) or (
+                update.stage == "train"
+                and update.expected_total is not None
+                and update.completed == update.expected_total
+            )
+            if should_refresh_trace:
+                write_live_trace(epoch=epoch_index, trace_source="train_progress")
+                print(
+                    f"live_trace_refreshed epoch={epoch_index} samples={update.completed}",
+                    flush=True,
+                )
+                last_live_trace_emit = update.completed
+
+        train_metrics = pipeline.train_epoch(
+            train_samples,
+            ticks_per_sample=args.ticks,
+            expected_total=args.train_limit,
+            progress_every=min(
+                value for value in (args.progress_every, args.live_trace_every) if value > 0
+            )
+            if any(value > 0 for value in (args.progress_every, args.live_trace_every))
+            else 0,
+            progress_callback=handle_progress,
+        )
+        last_train_accuracy = train_metrics.get("epoch_accuracy", 0.0)
+        eval_stage_started_at = time.perf_counter()
+        last_train_progress_print = 0
+        train_stage_started_at = eval_stage_started_at
+        eval_metrics = pipeline.evaluate(
+            eval_samples,
+            ticks_per_sample=args.ticks,
+            expected_total=args.test_limit,
+            progress_every=args.progress_every,
+            progress_callback=handle_progress,
+        )
         last_eval_accuracy = eval_metrics.get("eval_accuracy", 0.0)
         prediction_history.append(int(eval_metrics.get("prediction", -1.0)))
 
@@ -363,22 +564,17 @@ def main() -> int:
         write_metrics_snapshot(
             metrics_snapshot_path,
             exporter_snapshot_payload(
+                snapshot_source="training_epoch_end",
                 dataset_mode=dataset_mode,
-                epoch=epoch + 1,
+                epoch=epoch_index,
                 train_limit=args.train_limit,
                 test_limit=args.test_limit,
                 ticks=args.ticks,
                 checkpoint_path=checkpoint_path,
-                train_metrics=train_metrics,
-                eval_metrics=eval_metrics,
+                runtime_metrics=eval_metrics,
+                train_accuracy=train_metrics.get("epoch_accuracy", 0.0),
+                test_accuracy=eval_metrics.get("eval_accuracy", 0.0),
             ),
-        )
-        visualizer_sample = first_sample(
-            dataset_mode=dataset_mode,
-            data_root=args.data_root,
-            train=False,
-            epoch_seed=7_000 + epoch,
-            download=False,
         )
         visualizer_trace = capture_trace_from_state(
             state_path=str(checkpoint_path),
@@ -389,8 +585,9 @@ def main() -> int:
         write_metrics_snapshot(
             visualizer_trace_path,
             visualizer_trace_payload(
+                trace_source="training_epoch_end",
                 dataset_mode=dataset_mode,
-                epoch=epoch + 1,
+                epoch=epoch_index,
                 checkpoint_path=checkpoint_path,
                 sample=visualizer_sample,
                 trace=visualizer_trace,

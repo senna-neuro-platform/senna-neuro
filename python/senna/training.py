@@ -28,13 +28,28 @@ class Sample:
     label: int
 
 
+@dataclass(frozen=True)
+class ProgressUpdate:
+    stage: str
+    completed: int
+    expected_total: int | None
+    accuracy: float
+    metrics: dict[str, float]
+
+
 class TrainingPipeline:
     def __init__(self, config_path: str | None = None) -> None:
         self.config_path = str(resolve_config_path(config_path))
         self.handle = senna_core.create_network(self.config_path)
 
     def train_epoch(
-        self, samples: Iterable[Sample], ticks_per_sample: int = 100
+        self,
+        samples: Iterable[Sample],
+        ticks_per_sample: int = 100,
+        *,
+        expected_total: int | None = None,
+        progress_every: int = 0,
+        progress_callback: Callable[[ProgressUpdate], None] | None = None,
     ) -> dict[str, float]:
         total = 0
         correct = 0
@@ -51,14 +66,41 @@ class TrainingPipeline:
             if prediction == sample.label:
                 correct += 1
 
+            if progress_callback is not None and progress_every > 0 and total % progress_every == 0:
+                progress_callback(
+                    ProgressUpdate(
+                        stage="train",
+                        completed=total,
+                        expected_total=expected_total,
+                        accuracy=(correct / total) if total else 0.0,
+                        metrics=dict(self.handle.get_metrics()),
+                    )
+                )
+
         accuracy = (correct / total) if total else 0.0
         metrics = dict(self.handle.get_metrics())
         metrics["epoch_accuracy"] = accuracy
         metrics["epoch_samples"] = float(total)
+        if progress_callback is not None and total > 0:
+            progress_callback(
+                ProgressUpdate(
+                    stage="train",
+                    completed=total,
+                    expected_total=expected_total,
+                    accuracy=accuracy,
+                    metrics=dict(metrics),
+                )
+            )
         return metrics
 
     def evaluate(
-        self, samples: Iterable[Sample], ticks_per_sample: int = 100
+        self,
+        samples: Iterable[Sample],
+        ticks_per_sample: int = 100,
+        *,
+        expected_total: int | None = None,
+        progress_every: int = 0,
+        progress_callback: Callable[[ProgressUpdate], None] | None = None,
     ) -> dict[str, float]:
         total = 0
         correct = 0
@@ -72,10 +114,31 @@ class TrainingPipeline:
             if prediction == sample.label:
                 correct += 1
 
+            if progress_callback is not None and progress_every > 0 and total % progress_every == 0:
+                progress_callback(
+                    ProgressUpdate(
+                        stage="eval",
+                        completed=total,
+                        expected_total=expected_total,
+                        accuracy=(correct / total) if total else 0.0,
+                        metrics=dict(self.handle.get_metrics()),
+                    )
+                )
+
         accuracy = (correct / total) if total else 0.0
         metrics = dict(self.handle.get_metrics())
         metrics["eval_accuracy"] = accuracy
         metrics["eval_samples"] = float(total)
+        if progress_callback is not None and total > 0:
+            progress_callback(
+                ProgressUpdate(
+                    stage="eval",
+                    completed=total,
+                    expected_total=expected_total,
+                    accuracy=accuracy,
+                    metrics=dict(metrics),
+                )
+            )
         return metrics
 
     def capture_trace(

@@ -134,6 +134,7 @@ Notes:
 - Real MNIST is read locally from `data/MNIST/raw`; MinIO is not used as dataset storage.
 - `train.py --dataset mnist` больше не делает automatic fallback: при недоступном MNIST/`torchvision` запуск завершается ошибкой.
 - `--dataset synthetic` остаётся только для явных smoke/dev сценариев, но не для acceptance.
+- `train.py` печатает mid-epoch progress и обновляет live metrics snapshot во время длинной эпохи; visualizer получает bootstrap trace в начале run и refresh без synthetic данных.
 - `train.py` writes per-epoch checkpoints to `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.
 - Training and robustness metrics are appended as JSONL to `data/artifacts/training/metrics.jsonl`.
 - A real exporter snapshot is written to `data/artifacts/metrics/latest.json`; until this file exists, exporter `/metrics` stays unavailable instead of fabricating values.

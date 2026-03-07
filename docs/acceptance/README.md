@@ -33,6 +33,7 @@ docs/acceptance/scripts/run_acceptance.sh
 6. проверку метрик DoD (`accuracy`, `robustness`, `max_active_ratio`)
 7. проверку pipeline inference (`MNIST image -> class 0..9`)
 8. проверку sparsity по WebSocket (`activeCount/totalNeurons < 0.05`) на реальном visualizer trace
+9. mid-epoch progress в stdout, live metrics snapshot для Grafana и bootstrap/live trace для visualizer до конца первой эпохи
 
 ## Предварительные условия
 
@@ -64,11 +65,12 @@ python3 -m pip install torch torchvision
 1. После `make up`: проверь состояние контейнеров через `docker compose ps`, логи через `make logs`, и что открываются `http://localhost:3000`, `http://localhost:8080/health`, `http://localhost:8000/health`.
 2. После `make up`: проверь MinIO через `http://localhost:9000/minio/health/live` и `http://localhost:9001`; он нужен только для фоновой выгрузки epoch/state артефактов, но не для чтения MNIST.
 3. Во время training-run: смотри `tail -f data/artifacts/training/metrics.jsonl`; параллельно в Grafana открой `SENNA Training` и `SENNA Activity`.
-4. После начала training-run проверь `data/artifacts/metrics/latest.json` и `http://localhost:8000/metrics`: exporter должен отдавать реальные метрики только после появления свежего snapshot.
-5. После начала training-run проверь `data/artifacts/visualizer/latest.json` и `http://localhost:8080/lattice`: visualizer должен читать только реальный trace и до его появления честно ждать данные.
-6. После начала training-run проверь `docker compose logs -f artifact-uploader`: uploader должен забирать `epoch_XXXXXXXXX.h5` и `final_state.h5` из `data/artifacts/outbox` в MinIO батчами.
-7. После проверки DoD-метрик: сверяй `eval_accuracy`, `senna_max_active_neurons_ratio`, `prune_drop`, `noise_drop` в JSONL с графиками Grafana, чтобы подтвердить совпадение телеметрии.
-8. После WS-проверки sparsity: открой `http://localhost:8080`, включи heatmap и покадровый режим `Next Tick`, визуально проверь волну и разреженность на реальном trace.
+4. Сразу после старта training-run проверь stdout: должны идти строки `training_bootstrap`, `progress ...`, `live_trace_refreshed ...`; это основной признак, что long-running epoch не зависла.
+5. После начала training-run проверь `data/artifacts/metrics/latest.json` и `http://localhost:8000/metrics`: exporter должен отдавать реальные метрики уже в середине эпохи по live snapshot, а не только в `epoch_end`.
+6. После начала training-run проверь `data/artifacts/visualizer/latest.json` и `http://localhost:8080/lattice`: visualizer должен получить bootstrap trace в начале run и далее обновляться без synthetic данных.
+7. После начала training-run проверь `docker compose logs -f artifact-uploader`: uploader должен забирать `epoch_XXXXXXXXX.h5` и `final_state.h5` из `data/artifacts/outbox` в MinIO батчами.
+8. После проверки DoD-метрик: сверяй `eval_accuracy`, `senna_max_active_neurons_ratio`, `prune_drop`, `noise_drop` в JSONL с графиками Grafana, чтобы подтвердить совпадение телеметрии.
+9. После WS-проверки sparsity: открой `http://localhost:8080`, включи heatmap и покадровый режим `Next Tick`, визуально проверь волну и разреженность на реальном trace.
 
 ## Как Запускать Training-Run
 
@@ -104,6 +106,8 @@ PYTHONPATH=build/release:python python3 python/train.py \
   --test-limit 10000 \
   --ticks 100 \
   --target-accuracy 0.85 \
+  --progress-every 50 \
+  --live-trace-every 250 \
   --checkpoint-dir data/artifacts/outbox \
   --state-out data/artifacts/outbox/final_state.h5 \
   --metrics-out data/artifacts/training/metrics.jsonl \
@@ -116,8 +120,8 @@ PYTHONPATH=build/release:python python3 python/train.py \
 1. `data/artifacts/training/metrics.jsonl` (epoch + robustness записи)
 2. `data/artifacts/outbox/epoch_XXXXXXXXX.h5` (checkpoint каждой эпохи)
 3. `data/artifacts/outbox/final_state.h5` (финальное состояние)
-4. `data/artifacts/metrics/latest.json` (реальный snapshot для exporter/Grafana)
-5. `data/artifacts/visualizer/latest.json` (реальный lattice + per-tick trace для visualizer/WebSocket)
+4. `data/artifacts/metrics/latest.json` (реальный live snapshot для exporter/Grafana, обновляется и mid-epoch)
+5. `data/artifacts/visualizer/latest.json` (реальный bootstrap/live lattice + per-tick trace для visualizer/WebSocket)
 
 ## Закрытие Шага 15
 

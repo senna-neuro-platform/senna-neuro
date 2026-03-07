@@ -1,5 +1,10 @@
 # Changelog
 
+## 07.03.2026 `0.16.3-dev`
+- В `python/senna/training.py` добавлен mid-epoch progress callback для `train_epoch` и `evaluate`, чтобы long-running MNIST эпохи больше не выглядели как зависший процесс без stdout и метрик.
+- В `python/train.py` добавлены `training_bootstrap`, периодические строки `progress ...`, live snapshot для `data/artifacts/metrics/latest.json` и bootstrap/refresh trace для `data/artifacts/visualizer/latest.json`, чтобы Grafana и visualizer оживали до конца первой эпохи.
+- В `docs/acceptance/README.md` и `README.md` зафиксирован новый наблюдаемый runtime-контракт: при длинном training-run должны появляться progress-логи, mid-epoch exporter snapshot и bootstrap/live trace visualizer.
+
 ## 07.03.2026 `0.16.2-dev`
 - В `docker-compose.yml` старт MinIO сделан устойчивым: добавлен HTTP healthcheck, `minio-init` ждёт `service_healthy` и `mc ready`, а `artifact-uploader` больше не стартует по гонке раньше MinIO.
 - В `docs/acceptance/scripts/run_acceptance.sh` добавлен ранний preflight для реального MNIST: проверяются host Python-модули `torch` и `torchvision`, наличие `data/MNIST/raw/*`, health endpoint MinIO и явная памятка, что MinIO используется только для артефактов, а не для dataset input.
