@@ -21,6 +21,25 @@ class EventQueue final {
 
     void push(Event event) { queue_.push(std::move(event)); }
 
+    [[nodiscard]] std::vector<Event> snapshot() const {
+        std::vector<Event> events{};
+        events.reserve(queue_.size());
+
+        auto copy = queue_;
+        while (!copy.empty()) {
+            events.push_back(copy.top());
+            copy.pop();
+        }
+        return events;
+    }
+
+    void restore(const std::vector<Event>& events) {
+        clear();
+        for (const auto& event : events) {
+            push(event);
+        }
+    }
+
     [[nodiscard]] std::vector<Event> drain_tick(const senna::core::domain::Time t_start,
                                                 const senna::core::domain::Time t_end) {
         std::vector<Event> drained{};

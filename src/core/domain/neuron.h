@@ -17,6 +17,19 @@ struct NeuronConfig {
     Voltage theta_base{1.0F};
 };
 
+struct NeuronSnapshot {
+    NeuronId id{};
+    Coord3D position{};
+    NeuronType type{NeuronType::Excitatory};
+    NeuronConfig config{};
+    Voltage potential{0.0F};
+    Voltage threshold{1.0F};
+    Time last_update_time{0.0F};
+    Time last_spike_time{-std::numeric_limits<Time>::infinity()};
+    float average_rate{0.0F};
+    bool in_refractory{false};
+};
+
 class Neuron final {
    public:
     explicit Neuron(NeuronId id, Coord3D position, NeuronType type,
@@ -74,6 +87,39 @@ class Neuron final {
     [[nodiscard]] float average_rate() const noexcept { return r_avg_; }
     [[nodiscard]] bool in_refractory() const noexcept { return in_refractory_; }
     [[nodiscard]] const NeuronConfig& config() const noexcept { return config_; }
+    [[nodiscard]] NeuronSnapshot snapshot() const noexcept {
+        return NeuronSnapshot{
+            id_,
+            position_,
+            type_,
+            config_,
+            V_,
+            theta_,
+            t_last_,
+            t_spike_,
+            r_avg_,
+            in_refractory_,
+        };
+    }
+
+    [[nodiscard]] static Neuron from_snapshot(const NeuronSnapshot& state) noexcept {
+        Neuron neuron{state.id, state.position, state.type, state.config};
+        neuron.restore_from_snapshot(state);
+        return neuron;
+    }
+
+    void restore_from_snapshot(const NeuronSnapshot& state) noexcept {
+        id_ = state.id;
+        position_ = state.position;
+        type_ = state.type;
+        config_ = state.config;
+        V_ = state.potential;
+        theta_ = state.threshold;
+        t_last_ = state.last_update_time;
+        t_spike_ = state.last_spike_time;
+        r_avg_ = state.average_rate;
+        in_refractory_ = state.in_refractory;
+    }
 
     void set_threshold(const Voltage threshold) noexcept { theta_ = threshold; }
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## 07.03.2026 `0.11.3-dev`
+- В `EpochArtifactPipeline` (`src/core/persistence/epoch_artifact_pipeline.h`) формат outbox-файла эпохи расширен до 9 цифр: `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.
+- В `tests/test_persistence.cpp` добавлена явная проверка имени outbox-файла (`epoch_000000002.h5`) для фиксации нового формата.
+- В `README.md` обновлены примеры и описание outbox-пути под 9-значный индекс эпохи.
+- Добавлен `EpochArtifactPipeline` в `src/core/persistence/epoch_artifact_pipeline.h`: одним вызовом пишет данные эпохи в основной experiment HDF5 и автоматически формирует outbox-файл `data/artifacts/outbox/epoch_XXXXXX.h5` для фонового uploader.
+- В `EpochArtifactPipeline` реализован атомарный паттерн записи outbox-файла (`.tmp` -> rename), чтобы uploader не подхватывал частично записанные epoch-артефакты.
+- Добавлена возможность сохранять в outbox и снимок состояния (`/state`) через интеграцию со `StateSerializer`, чтобы восстановление было доступно прямо из epoch-файла.
+- В `tests/test_persistence.cpp` добавлен тест `EpochArtifactPipelineTest.WritesEpochFileToOutboxAutomatically` с проверкой генерации outbox-файла и корректного чтения сохраненного `/state`.
+- В `README.md` добавлена документация по автоматическому формированию epoch-файлов из C++ persistence (`EpochArtifactPipeline`) для работы MinIO uploader без ручных шагов.
+- В `docker-compose.yml` добавлены сервисы `minio`, `minio-init` и `artifact-uploader` для S3-совместимого хранения артефактов и фоновой выгрузки.
+- Добавлен контейнерный uploader (`infra/artifact-uploader/Dockerfile`, `infra/artifact-uploader/uploader.py`) с политикой batched-upload: порог по числу эпох (`UPLOAD_BATCH_EPOCHS`) + принудительный flush по таймеру (`UPLOAD_FLUSH_INTERVAL_SEC`), с ограничением размера батча.
+- Для uploader добавлена конфигурация `configs/storage/artifact_uploader.env` (S3 endpoint/credentials/bucket/prefix и параметры пакетной фоновой отправки).
+- В `README.md` добавлены endpoints MinIO и описание потока артефактов через `data/artifacts/outbox` с фоновым батч-выгрузчиком.
+- Добавлен модуль Persistence в `src/core/persistence/hdf5_writer.h`: запись/чтение `spike_trace`, `snapshot` (нейроны+синапсы) и `metrics` в HDF5 с группировкой по эпохам.
+- Добавлен `StateSerializer` в `src/core/persistence/state_serializer.h`: сохранение/загрузка полного состояния симуляции (нейроны, синапсы, pending events, `elapsed`, `dt`, `rng_state`) и восстановление runtime-структур.
+- В `Neuron` (`src/core/domain/neuron.h`) добавлен сериализуемый снимок `NeuronSnapshot` и API `snapshot()/from_snapshot()/restore_from_snapshot()` для round-trip восстановления состояния.
+- В `EventQueue` (`src/core/engine/event_queue.h`) добавлены `snapshot()/restore()` для сериализации очереди отложенных событий.
+- Добавлены GTest-тесты `tests/test_persistence.cpp`: bitwise round-trip `spike_trace`, round-trip снапшота, round-trip метрик и проверка детерминированного продолжения симуляции после `save/load`.
+- Тест `test_persistence` подключен в `CMakeLists.txt` с линковкой `HDF5::HDF5` и зарегистрирован в `CTest` через `gtest_discover_tests`.
+
 ## 07.03.2026 `0.10.0-dev`
 - Реализован `StructuralPlasticity` в `src/core/plasticity/structural_plasticity.h`: прунинг слабых связей по порогу `w_min`, спрутинг новых связей для тихих нейронов (`r_avg < r_target * quiet_ratio`) и периодический запуск раз в `N` тактов.
 - В `StructuralPlasticity` добавлен цикл `prune + sprout + rebuild_indices` с метриками `pruned/sprouted` за шаг и накопительными счетчиками.

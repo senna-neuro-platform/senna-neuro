@@ -36,6 +36,7 @@ endif()
 if(BUILD_TESTING)
     list(PREPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}")
     find_package(GTest REQUIRED MODULE)
+    find_package(HDF5 REQUIRED MODULE)
     include(GoogleTest)
 
     add_executable(test_types tests/test_types.cpp)
@@ -177,6 +178,20 @@ if(BUILD_TESTING)
     endif()
 
     gtest_discover_tests(test_structural_plasticity)
+
+    add_executable(test_persistence tests/test_persistence.cpp)
+    target_link_libraries(test_persistence PRIVATE senna_domain GTest::gtest_main HDF5::HDF5)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_persistence PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_persistence PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_persistence PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    gtest_discover_tests(test_persistence)
 endif()
 
 install(TARGETS senna_simulator RUNTIME DESTINATION bin)

@@ -1,15 +1,6 @@
-# senna-neuro
+# SENNA Neuro
 
 Spatial-Event Neuromorphic Network Architecture.
-
-## Versioning
-
-- Единый источник версии: `VERSION`
-- Формат: `A.B.C-dev`
-- `A`: до релиза всегда `0`
-- `B`: номер шага MVP из плана (при реализации нового шага увеличение на +1, а значение С сбрасывается на 0)
-- `C`: каждое изменение кода внутри шага увеличивает на `+1`
-- Краткий журнал изменений: `CHANGELOG.md` (группировка по шагу `B`)
 
 ## Dev commands
 
@@ -66,3 +57,23 @@ docker compose down
 - Grafana: http://localhost:3000
 - Prometheus: http://localhost:9090
 - Visualizer: http://localhost:8080
+- MinIO API: http://localhost:9000
+- MinIO Console: http://localhost:9001
+
+## Artifact Upload (MinIO, Batch/Background)
+
+- `docker compose up -d` now starts:
+  - `minio` (S3-compatible storage),
+  - `minio-init` (creates bucket `senna-artifacts`),
+  - `artifact-uploader` (background batch uploader).
+- Put epoch artifacts into `data/artifacts/outbox`, for example:
+  - `data/artifacts/outbox/epoch_000000001.h5`
+  - `data/artifacts/outbox/epoch_000000002.h5`
+- Background uploader policy is configurable via `configs/storage/artifact_uploader.env`:
+  - `UPLOAD_BATCH_EPOCHS`: upload when at least N epoch-files accumulated.
+  - `UPLOAD_FLUSH_INTERVAL_SEC`: force upload old pending files even if batch not full.
+  - `UPLOAD_MAX_BATCH_FILES`: hard cap per upload batch.
+  - `UPLOAD_MIN_FILE_AGE_SEC`: skip very new files to avoid partial uploads.
+- C++ persistence can now form outbox epoch artifacts automatically via
+  `core/persistence/epoch_artifact_pipeline.h` (`EpochArtifactPipeline`), writing
+  `data/artifacts/outbox/epoch_XXXXXXXXX.h5` and the main experiment file in one call.
