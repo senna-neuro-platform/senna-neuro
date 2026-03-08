@@ -5,19 +5,19 @@
 
 ## Context
 
-Шаг 15 требует перейти от smoke-training к полноценному прогону MNIST с целевой точностью и проверками робастности.
+Requires moving from smoke training to a full MNIST run with a target accuracy and explicit robustness checks.
 
 ## Decision
 
-1. Python entrypoint `python/train.py` выполняет epoch-training, eval на тестовом наборе и пишет JSONL-метрики.
-2. Для каждой эпохи сохраняется checkpoint в формате `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.
-3. Целевой критерий обучения фиксируется как `target_accuracy = 0.85` (early-stop по достижению).
-4. После обучения выполняются робастность-проверки на сохраненном состоянии:
-   - `remove_neurons(0.1)` с допустимой деградацией `< 5%`;
-   - `inject_noise(0.3)` с допустимой деградацией `< 10%`.
-5. Диагностические эвристики шага 15 (silent/epileptic/dominance) выводятся в лог по runtime-метрикам.
+1. The Python entrypoint `python/train.py` performs epoch training, evaluation on the test set, and writes JSONL metrics.
+2. A checkpoint is stored for every epoch in `data/artifacts/outbox/epoch_XXXXXXXXX.h5`.
+3. The target training criterion is fixed as `target_accuracy = 0.85` with early stop once it is reached.
+4. After training, robustness checks are executed on the saved state:
+   - `remove_neurons(0.1)` with allowed degradation `< 5%`;
+   - `inject_noise(0.3)` with allowed degradation `< 10%`.
+5. Diagnostic heuristics (`silent`, `epileptic`, `dominance`) are emitted into the log from runtime metrics.
 
 ## Consequences
 
-- Пороговые критерии DoD шага 15 становятся воспроизводимыми и проверяемыми скриптом.
-- Экспериментальные артефакты и метрики готовы для последующего анализа и фоновой выгрузки.
+- DoD thresholds become reproducible and script-verifiable.
+- Experiment artifacts and metrics are ready for later analysis and background upload.

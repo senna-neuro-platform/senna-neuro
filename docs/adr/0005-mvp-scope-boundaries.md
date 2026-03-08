@@ -5,15 +5,15 @@ Date: 2026-03-07
 
 ## Context
 
-Нужно зафиксировать, что входит и что не входит в MVP, чтобы не размывать приоритеты реализации.
+The MVP must have explicit scope boundaries so that implementation priorities do not drift.
 
 ## Decision
 
-1. В MVP входят: ядро симуляции, базовая пластичность (STDP/homeostasis/structural), базовый IO, сериализация, метрики, визуализатор и pipeline обучения.
-2. В MVP не входят: глия, нейрогенез, режим сна, фрактальная топология, R-STDP и другие расширения post-MVP.
-3. Новые механизмы добавляются после прохождения MVP-критериев.
+1. The MVP includes: simulation core, baseline plasticity (STDP/homeostasis/structural), baseline IO, serialization, metrics, visualizer, and training pipeline.
+2. The MVP excludes: glia, neurogenesis, sleep mode, fractal topology, R-STDP, and other post-MVP extensions.
+3. New mechanisms are added only after MVP criteria have been passed.
 
 ## Consequences
 
-- Снижен риск срыва сроков из-за раннего внедрения сложных подсистем.
-- Есть четкая граница между MVP и roadmap.
+- The risk of schedule slip from early adoption of complex subsystems is reduced.
+- The boundary between MVP and the roadmap stays explicit.

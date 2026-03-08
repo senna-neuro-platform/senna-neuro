@@ -447,7 +447,10 @@ def main() -> int:
             should_print = (
                 args.progress_every > 0
                 and update.completed >= last_train_progress_print + args.progress_every
-            ) or (update.expected_total is not None and update.completed == update.expected_total)
+            ) or (
+                update.expected_total is not None
+                and update.completed == update.expected_total
+            )
 
             if should_print:
                 elapsed = max(0.001, time.perf_counter() - train_stage_started_at)
@@ -455,12 +458,11 @@ def main() -> int:
                 eta_seconds = None
                 if update.expected_total is not None and samples_per_sec > 0.0:
                     eta_seconds = max(
-                        0.0, (update.expected_total - update.completed) / samples_per_sec
+                        0.0,
+                        (update.expected_total - update.completed) / samples_per_sec,
                     )
                 eta_text = (
-                    f" eta_sec={eta_seconds:.1f}"
-                    if eta_seconds is not None
-                    else ""
+                    f" eta_sec={eta_seconds:.1f}" if eta_seconds is not None else ""
                 )
                 total_text = (
                     str(update.expected_total)
@@ -514,7 +516,9 @@ def main() -> int:
             ticks_per_sample=args.ticks,
             expected_total=args.train_limit,
             progress_every=min(
-                value for value in (args.progress_every, args.live_trace_every) if value > 0
+                value
+                for value in (args.progress_every, args.live_trace_every)
+                if value > 0
             )
             if any(value > 0 for value in (args.progress_every, args.live_trace_every))
             else 0,

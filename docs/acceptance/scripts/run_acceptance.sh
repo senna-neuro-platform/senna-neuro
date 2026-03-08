@@ -339,7 +339,7 @@ if [[ "${SKIP_DOCKER}" == false ]]; then
   print_observe_stack_memo
 fi
 if [[ "${SKIP_TRAINING}" == false ]]; then
-  log "Training run (Step 15/16 prerequisites)"
+  log "Training run"
   run_cmd env \
     PYTHONPATH="${RUNTIME_PYTHONPATH}${PYTHONPATH:+:${PYTHONPATH}}" \
     "${PYTHON_BIN}" python/train.py \

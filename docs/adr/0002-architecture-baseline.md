@@ -5,16 +5,16 @@ Date: 2026-03-07
 
 ## Context
 
-Нужно зафиксировать базовую архитектурную форму MVP, чтобы избегать смешивания доменной логики и инфраструктуры.
+The MVP needs a fixed architectural baseline so that domain logic does not get mixed with infrastructure concerns.
 
 ## Decision
 
-1. Используем слоистую архитектуру с направлением зависимостей внутрь.
-2. `Domain` содержит только предметные сущности и не зависит от IO/инфраструктуры.
-3. `Engine`, `Plasticity`, `IO`, `Persistence`, `Metrics` подключаются как отдельные слои вокруг домена.
-4. Оркестрация выполнения концентрируется в `SimulationEngine`.
+1. Use a layered architecture with dependencies pointing inward.
+2. `Domain` contains only business entities and does not depend on IO or infrastructure.
+3. `Engine`, `Plasticity`, `IO`, `Persistence`, and `Metrics` are separate layers around the domain.
+4. Execution orchestration is concentrated in `SimulationEngine`.
 
 ## Consequences
 
-- Доменный код остается переиспользуемым и тестируемым.
-- Инфраструктурные изменения минимально затрагивают ядро.
+- Domain code remains reusable and testable.
+- Infrastructure changes affect the core as little as possible.

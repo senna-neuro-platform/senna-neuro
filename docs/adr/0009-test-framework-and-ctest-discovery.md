@@ -5,20 +5,20 @@ Date: 2026-03-07
 
 ## Context
 
-В MVP нужны единообразные и расширяемые C++-тесты, которые:
-- легко читать и поддерживать;
-- интегрируются в CI через стандартный `ctest`;
-- дают детализированную отчётность по каждому тест-кейсу.
+The MVP needs consistent and extensible C++ tests that:
+- are easy to read and maintain;
+- integrate into CI through standard `ctest`;
+- provide detailed reporting for each test case.
 
 ## Decision
 
-1. Юнит-тесты C++ в проекте пишутся на GoogleTest (`TEST`, `ASSERT_*`, `EXPECT_*`).
-2. Ручные тестовые раннеры с собственным `main` и `return code`-проверками для новых тестов не используются.
-3. Тестовые бинарники регистрируются в CTest через `gtest_discover_tests(...)`, чтобы каждый кейс отображался как отдельный тест.
-4. Базовой точкой запуска тестов остаётся `ctest` (локально и в CI).
+1. C++ unit tests in the project are written with GoogleTest (`TEST`, `ASSERT_*`, `EXPECT_*`).
+2. Manual test runners with a custom `main` and return-code checks are not used for new tests.
+3. Test binaries are registered in CTest through `gtest_discover_tests(...)` so each case appears as a separate test.
+4. The base test entrypoint remains `ctest` locally and in CI.
 
 ## Consequences
 
-- Тесты становятся однородными и проще масштабируются на следующие шаги MVP.
-- Диагностика падений улучшается за счёт покейсной отчётности в `ctest`.
-- CI получает стабильный и предсказуемый тестовый контур без самописных раннеров.
+- Tests become uniform and scale more easily to the next MVP steps.
+- Failure diagnostics improve through per-case reporting in `ctest`.
+- CI gets a stable and predictable test loop without hand-written runners.

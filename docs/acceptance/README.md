@@ -1,21 +1,21 @@
 # Acceptance Runbook
 
-Цель: пройти проверку DoD MVP от развёртывания до итогового PASS/FAIL.
+Goal: validate the MVP DoD from environment bring-up through the final PASS/FAIL decision.
 
-## Что входит
+## Scope
 
-- Пошаговый сценарий запуска.
-- Автоматизация ключевых проверок.
-- Явные критерии PASS/FAIL.
+- Step-by-step execution scenario.
+- Automation for the key checks.
+- Explicit PASS/FAIL criteria.
 
-## Файлы
+## Files
 
 - `docs/acceptance/scripts/run_acceptance.sh`
 - `docs/acceptance/scripts/check_dod_metrics.py`
 - `docs/acceptance/scripts/check_inference_pipeline.py`
 - `docs/acceptance/scripts/check_ws_sparsity.py`
 
-## Быстрый старт
+## Quick start
 
 ```bash
 cd senna-neuro
@@ -23,30 +23,30 @@ chmod +x docs/acceptance/scripts/run_acceptance.sh
 docs/acceptance/scripts/run_acceptance.sh
 ```
 
-Скрипт выполнит:
+The script will execute:
 
 1. `make install`, `make build-release`, `ctest --preset release`
 2. `make lint`
 3. `make build-sanitize` + `ctest --preset sanitize`
-4. `make up` + health-check endpoints
-5. полный train-run на реальном MNIST 60k/10k без synthetic fallback
-6. проверку метрик DoD (`accuracy`, `robustness`, `max_active_ratio`)
-7. проверку pipeline inference (`MNIST image -> class 0..9`)
-8. проверку sparsity по WebSocket (`activeCount/totalNeurons < 0.05`) на реальном visualizer trace
-9. mid-epoch progress в stdout, live metrics snapshot для Grafana и bootstrap/live trace для visualizer до конца первой эпохи
+4. `make up` + endpoint health checks
+5. a full training run on real MNIST 60k/10k without synthetic fallback
+6. DoD metric checks (`accuracy`, `robustness`, `max_active_ratio`)
+7. inference pipeline validation (`MNIST image -> class 0..9`)
+8. WebSocket sparsity validation (`activeCount/totalNeurons < 0.05`) on the real visualizer trace
+9. mid-epoch progress in stdout, live metrics snapshots for Grafana, and bootstrap/live trace output for the visualizer before the first epoch finishes
 
-## Предварительные условия
+## Preconditions
 
-Перед шагами 15 и 16 должны быть выполнены:
+Before steps 15 and 16, the following must be available:
 
 1. `python3`, `conan`, `cmake`, `ninja`, `clang-tidy`, `docker compose`, `ruff`, `pytest`
-2. доступен `g++` с `libasan.so`
-3. в `data/MNIST/raw` лежат 4 файла MNIST (`make install` скачивает их автоматически)
-4. установлены `torch` и `torchvision` в текущем Python env
-5. локально открыт доступ к портам `3000`, `8000`, `8080`
-6. MinIO в этом сценарии используется только для выгрузки артефактов из `data/artifacts/outbox`; training-run читает MNIST локально из `data/MNIST/raw`, а не из S3/MinIO
+2. `g++` with `libasan.so`
+3. the 4 MNIST raw files in `data/MNIST/raw` (`make install` downloads them automatically)
+4. `torch` and `torchvision` installed in the current Python environment
+5. local access to ports `3000`, `8000`, and `8080`
+6. MinIO is used in this scenario only for uploading artifacts from `data/artifacts/outbox`; the training run reads MNIST locally from `data/MNIST/raw`, not from S3/MinIO
 
-Базовая подготовка:
+Baseline preparation:
 
 ```bash
 make install
@@ -54,27 +54,27 @@ make build-release
 ctest --preset release
 ```
 
-Установка Python-зависимостей для реального MNIST:
+Install Python dependencies for real MNIST:
 
 ```bash
 python3 -m pip install torch torchvision
 ```
 
-## Памятки Наблюдения Между Шагами
+## Observation notes between steps
 
-1. После `make up`: проверь состояние контейнеров через `docker compose ps`, логи через `make logs`, и что открываются `http://localhost:3000`, `http://localhost:8080/health`, `http://localhost:8000/health`.
-2. После `make up`: проверь MinIO через `http://localhost:9000/minio/health/live` и `http://localhost:9001`; он нужен только для фоновой выгрузки epoch/state артефактов, но не для чтения MNIST.
-3. Во время training-run: смотри `tail -f data/artifacts/training/metrics.jsonl`; параллельно в Grafana открой `SENNA Training` и `SENNA Activity`.
-4. Сразу после старта training-run проверь stdout: должны идти строки `training_bootstrap`, `progress ...`, `live_trace_refreshed ...`; это основной признак, что long-running epoch не зависла.
-5. После начала training-run проверь `data/artifacts/metrics/latest.json` и `http://localhost:8000/metrics`: exporter должен отдавать реальные метрики уже в середине эпохи по live snapshot, а не только в `epoch_end`.
-6. После начала training-run проверь `data/artifacts/visualizer/latest.json` и `http://localhost:8080/lattice`: visualizer должен получить bootstrap trace в начале run и далее обновляться без synthetic данных.
-7. После начала training-run проверь `docker compose logs -f artifact-uploader`: uploader должен забирать `epoch_XXXXXXXXX.h5` и `final_state.h5` из `data/artifacts/outbox` в MinIO батчами.
-8. После проверки DoD-метрик: сверяй `eval_accuracy`, `senna_max_active_neurons_ratio`, `prune_drop`, `noise_drop` в JSONL с графиками Grafana, чтобы подтвердить совпадение телеметрии.
-9. После WS-проверки sparsity: открой `http://localhost:8080`, включи heatmap и покадровый режим `Next Tick`, визуально проверь волну и разреженность на реальном trace.
+1. After `make up`, check container status with `docker compose ps`, logs with `make logs`, and verify that `http://localhost:3000`, `http://localhost:8080/health`, and `http://localhost:8000/health` are reachable.
+2. After `make up`, verify MinIO via `http://localhost:9000/minio/health/live` and `http://localhost:9001`; it is needed only for background artifact upload, not for reading MNIST.
+3. During the training run, follow `tail -f data/artifacts/training/metrics.jsonl`; in parallel, open `SENNA Training` and `SENNA Activity` in Grafana.
+4. Right after the training run starts, check stdout: it must show `training_bootstrap`, `progress ...`, and `live_trace_refreshed ...`; this is the main sign that a long-running epoch is not stuck.
+5. After the training run starts, check `data/artifacts/metrics/latest.json` and `http://localhost:8000/metrics`: the exporter must publish real metrics already in the middle of the epoch from the live snapshot, not only at `epoch_end`.
+6. After the training run starts, check `data/artifacts/visualizer/latest.json` and `http://localhost:8080/lattice`: the visualizer must receive a bootstrap trace at the beginning of the run and then update without synthetic data.
+7. After the training run starts, check `docker compose logs -f artifact-uploader`: the uploader should pick up `epoch_XXXXXXXXX.h5` and `final_state.h5` from `data/artifacts/outbox` and send them to MinIO in batches.
+8. After the DoD metric checks, compare `eval_accuracy`, `senna_max_active_neurons_ratio`, `prune_drop`, and `noise_drop` in JSONL with the Grafana graphs to confirm that the telemetry matches.
+9. After the WebSocket sparsity check, open `http://localhost:8080`, enable heatmap and frame-by-frame `Next Tick` mode, and visually verify the wave pattern and sparsity on the real trace.
 
-## Как Запускать Training-Run
+## How to run the training run
 
-Вариант A: через orchestrator (рекомендуется)
+Option A: through the orchestrator (recommended)
 
 ```bash
 docs/acceptance/scripts/run_acceptance.sh \
@@ -91,7 +91,7 @@ docs/acceptance/scripts/run_acceptance.sh \
   --ticks 100
 ```
 
-Вариант B: напрямую `python/train.py`
+Option B: directly through `python/train.py`
 
 ```bash
 make install
@@ -115,19 +115,19 @@ PYTHONPATH=build/release:python python3 python/train.py \
   --visualizer-trace-path data/artifacts/visualizer/latest.json
 ```
 
-После запуска training-run проверяй:
+After the training run starts, verify:
 
-1. `data/artifacts/training/metrics.jsonl` (epoch + robustness записи)
-2. `data/artifacts/outbox/epoch_XXXXXXXXX.h5` (checkpoint каждой эпохи)
-3. `data/artifacts/outbox/final_state.h5` (финальное состояние)
-4. `data/artifacts/metrics/latest.json` (реальный live snapshot для exporter/Grafana, обновляется и mid-epoch)
-5. `data/artifacts/visualizer/latest.json` (реальный bootstrap/live lattice + per-tick trace для visualizer/WebSocket)
+1. `data/artifacts/training/metrics.jsonl` (epoch and robustness records)
+2. `data/artifacts/outbox/epoch_XXXXXXXXX.h5` (checkpoint for each epoch)
+3. `data/artifacts/outbox/final_state.h5` (final state)
+4. `data/artifacts/metrics/latest.json` (real live snapshot for exporter/Grafana, also refreshed mid-epoch)
+5. `data/artifacts/visualizer/latest.json` (real bootstrap/live lattice and per-tick trace for the visualizer/WebSocket)
 
-## Закрытие Шага 15
+## Closing dev steps
 
-Шаг 15 закрывается только после полного training-run на реальном MNIST и фиксации артефактов.
+Steps is closed only after a full training run on real MNIST and the resulting artifacts are recorded.
 
-1. Подготовь данные и release-сборку:
+1. Prepare data and the release build:
 
 ```bash
 make install
@@ -135,7 +135,7 @@ make build-release
 ctest --preset release
 ```
 
-2. Запусти baseline training-run:
+2. Run the baseline training:
 
 ```bash
 PYTHONPATH=build/release:python python3 python/train.py \
@@ -154,7 +154,7 @@ PYTHONPATH=build/release:python python3 python/train.py \
   --visualizer-trace-path data/artifacts/visualizer/latest.json
 ```
 
-3. По ходу run наблюдай:
+3. While the run is in progress, observe:
    - `tail -f data/artifacts/training/metrics.jsonl`
    - `ls data/artifacts/outbox/epoch_*.h5`
    - `cat data/artifacts/metrics/latest.json`
@@ -163,14 +163,14 @@ PYTHONPATH=build/release:python python3 python/train.py \
    - `curl -fsS http://localhost:8000/metrics`
    - `curl -fsS http://localhost:8080/lattice`
 
-4. После завершения зафиксируй evidence:
+4. After completion, record the evidence:
    - `data/artifacts/training/metrics.jsonl`
    - `data/artifacts/outbox/final_state.h5`
-   - минимум один `epoch_XXXXXXXXX.h5`
+   - at least one `epoch_XXXXXXXXX.h5`
    - `data/artifacts/metrics/latest.json`
    - `data/artifacts/visualizer/latest.json`
 
-5. Проверь DoD пункты шага 15:
+5. Check DoD items:
 
 ```bash
 python3 docs/acceptance/scripts/check_dod_metrics.py \
@@ -187,20 +187,20 @@ python3 docs/acceptance/scripts/check_inference_pipeline.py \
   --dataset mnist
 ```
 
-Шаг 15 считаем закрытым, если:
+Considered closed if:
 
-1. inference pipeline возвращает класс `0..9`
+1. the inference pipeline returns a class in `0..9`
 2. `eval_accuracy >= 0.85`
 3. `senna_max_active_neurons_ratio <= 0.05`
 4. `prune_drop <= 0.05`
 5. `noise_drop <= 0.10`
-6. epoch checkpoints, `final_state.h5`, `data/artifacts/metrics/latest.json` и `data/artifacts/visualizer/latest.json` созданы без ошибок
+6. epoch checkpoints, `final_state.h5`, `data/artifacts/metrics/latest.json`, and `data/artifacts/visualizer/latest.json` are created without errors
 
-## Закрытие Шага 16
+## Closing steps
 
-Шаг 16 закрывает эксплуатационные и quality-gate требования поверх шага 15.
+Closes the operational and quality-gate requirements on top of final steps.
 
-1. Полный автоматический прогон:
+1. Full automated run:
 
 ```bash
 docs/acceptance/scripts/run_acceptance.sh \
@@ -211,9 +211,9 @@ docs/acceptance/scripts/run_acceptance.sh \
   --ticks 100
 ```
 
-Скрипт печатает `Observation memo` после `make up`, но training-run стартует сразу без интерактивной паузы.
+The script prints `Observation memo` after `make up`, but the training run starts immediately without an interactive pause.
 
-2. Подними runtime отдельно, если нужен ручной осмотр:
+2. Bring up the runtime separately if manual inspection is needed:
 
 ```bash
 make up
@@ -224,33 +224,33 @@ curl -fsS http://localhost:8080/health
 curl -fsS http://localhost:8000/health
 ```
 
-3. После training-run проверь exporter:
+3. After the training run, verify the exporter:
    - `cat data/artifacts/metrics/latest.json`
    - `curl -fsS http://localhost:8000/metrics`
-   - до появления snapshot exporter не должен отдавать synthetic/искусственные метрики
+   - before the snapshot appears, the exporter must not return synthetic or fabricated metrics
 
-4. После training-run проверь MinIO/upload path:
+4. After the training run, verify the MinIO/upload path:
    - `docker compose logs -f artifact-uploader`
-   - `data/artifacts/outbox/epoch_XXXXXXXXX.h5` и `final_state.h5` должны уходить в bucket `senna-artifacts`
-   - MinIO не участвует в чтении MNIST; dataset остаётся локальным в `data/MNIST/raw`
+   - `data/artifacts/outbox/epoch_XXXXXXXXX.h5` and `final_state.h5` must be uploaded into bucket `senna-artifacts`
+   - MinIO is not part of MNIST input; the dataset remains local in `data/MNIST/raw`
 
-5. После training-run проверь visualizer trace:
+5. After the training run, verify the visualizer trace:
    - `cat data/artifacts/visualizer/latest.json`
    - `curl -fsS http://localhost:8080/lattice`
-   - до появления trace visualizer не должен подменять lattice или websocket synthetic-данными
+   - before the trace appears, the visualizer must not replace lattice geometry or WebSocket frames with synthetic data
 
-6. Проверь Grafana:
+6. Verify Grafana:
    - `http://localhost:3000`
-   - дашборды `SENNA Training`, `SENNA Activity`, `SENNA Performance`
-   - метрики `senna_test_accuracy`, `senna_active_neurons_ratio`, `senna_spikes_per_tick`
+   - dashboards `SENNA Training`, `SENNA Activity`, `SENNA Performance`
+   - metrics `senna_test_accuracy`, `senna_active_neurons_ratio`, `senna_spikes_per_tick`
 
-7. Проверь visualizer:
+7. Verify the visualizer:
    - `http://localhost:8080`
-   - режим `Next Tick`
+   - `Next Tick` mode
    - heatmap
-   - фильтрацию по типам нейронов
+   - neuron type filters
 
-8. Проверь WebSocket sparsity:
+8. Verify WebSocket sparsity:
 
 ```bash
 python3 docs/acceptance/scripts/check_ws_sparsity.py \
@@ -258,21 +258,21 @@ python3 docs/acceptance/scripts/check_ws_sparsity.py \
   --max-ratio 0.05
 ```
 
-9. Для пункта 6 DoD вручную собери evidence по интерференционным картинам:
-   - screen/video visualizer для нескольких классов
-   - метрики/correlation report, если делается внешний анализ
-   - фиксируй, что наблюдаемый паттерн не вырождается в равномерный шум
+9. For DoD item 6, collect manual evidence for interference patterns:
+   - screenshot or video from the visualizer for several classes
+   - metrics or a correlation report if external analysis is used
+   - record that the observed pattern does not collapse into uniform noise
 
-Шаг 16 считаем закрытым, если:
+Step is considered closed if:
 
-1. acceptance orchestration проходит без FAIL
-2. Docker stack поднимается одной командой `make up`
-3. MinIO и artifact-uploader доступны, epoch/state артефакты уходят в bucket, но dataset остаётся локальным
-4. Grafana, exporter и visualizer доступны, exporter не подменяет данные synthetic fallback, visualizer не подменяет lattice/frames synthetic trace
-5. WebSocket-проверка sparsity проходит
-6. все quality gates 13 и 14 зелёные
+1. the acceptance orchestration finishes without FAIL
+2. the Docker stack comes up with one command, `make up`
+3. MinIO and `artifact-uploader` are available, epoch/state artifacts are uploaded into the bucket, and the dataset remains local
+4. Grafana, exporter, and the visualizer are available; the exporter does not fabricate metrics with synthetic fallback, and the visualizer does not fabricate lattice geometry or frames with a synthetic trace
+5. the WebSocket sparsity check passes
+6. all quality gates 13 and 14 are green
 
-## Пример с параметрами
+## Example with parameters
 
 ```bash
 docs/acceptance/scripts/run_acceptance.sh \
@@ -283,7 +283,7 @@ docs/acceptance/scripts/run_acceptance.sh \
   --ticks 100
 ```
 
-## Полезные флаги
+## Useful flags
 
 - `--skip-build`
 - `--skip-lint`
@@ -298,66 +298,66 @@ docs/acceptance/scripts/run_acceptance.sh \
 - `--visualizer-trace-path <path>`
 - `--state-path <path>`
 - `--config <path>`, `--checkpoint-dir <path>`, `--data-root <path>`
-- `PYTHON_BIN=python3.12 .../run_acceptance.sh` (если нужен другой Python)
+- `PYTHON_BIN=python3.12 .../run_acceptance.sh` (if a different Python executable is needed)
 
 ## DoD 13: clang-tidy clean
 
-Команда закрытия:
+Command to close it:
 
 ```bash
 make lint
 ```
 
-Что именно проверяется:
+What is checked:
 
-1. `clang-format` для `src/` и `tests/`
+1. `clang-format` for `src/` and `tests/`
 2. `scripts/run_clang_tidy.py --build-dir build/debug`
 3. `ruff check .`
 
-Важно:
+Important details:
 
-1. `clang-tidy` идёт не по одному `src/main.cpp`, а по всем `.cpp` из `build/debug/compile_commands.json`
-2. любой warning трактуется как ошибка через `--warnings-as-errors=*`
-3. тот же full-project прогон выполняется в GitHub Actions
+1. `clang-tidy` runs over all `.cpp` files from `build/debug/compile_commands.json`, not only `src/main.cpp`
+2. every warning is treated as an error through `--warnings-as-errors=*`
+3. the same full-project run is executed in GitHub Actions
 
 ## DoD 14: ASan/UBSan clean
 
-Команда закрытия:
+Command to close it:
 
 ```bash
 make build-sanitize
 ctest --preset sanitize
 ```
 
-Что важно понимать:
+What is important here:
 
-1. sanitize-прогон включает C++ GTest/CTest и Python integration test
-2. для pybind11-модуля `senna_core` `CTest` автоматически прокидывает `LD_PRELOAD=<libasan.so>`
-3. `ASAN_OPTIONS=detect_leaks=0` задан намеренно: CPython как хост-процесс даёт leak-шум, который не относится к утечкам внутри `senna_core`
-4. `UBSAN_OPTIONS=print_stacktrace=1` оставлен для диагностики UB-регрессий
+1. the sanitize run includes C++ GTest/CTest and the Python integration test
+2. for the pybind11 module `senna_core`, `CTest` automatically injects `LD_PRELOAD=<libasan.so>`
+3. `ASAN_OPTIONS=detect_leaks=0` is intentional: CPython as the host process produces leak noise that is not related to leaks inside `senna_core`
+4. `UBSAN_OPTIONS=print_stacktrace=1` is kept for undefined-behavior diagnostics
 
-Если `ctest --preset sanitize` зелёный, шаг 14 закрыт.
+If `ctest --preset sanitize` is green, step is closed.
 
-## Соответствие DoD пунктам
+## Mapping to DoD items
 
-1. Pipeline MNIST -> class: `check_inference_pipeline.py`
-2. Точность >85%: `check_dod_metrics.py` (`eval_accuracy`)
-3. Разреженность <5%: `check_ws_sparsity.py` + `senna_max_active_neurons_ratio` по всем `epoch_end`
-4. remove_neurons(0.1) loss <5%: `check_dod_metrics.py`
-5. inject_noise(0.3) loss <10%: `check_dod_metrics.py`
-6. Интерференционные картины (визуально + корреляция): ручная валидация
-7. Grafana dashboards: health-check + ручной просмотр
-8. 3D visualizer: health-check + ручной просмотр
-9. Docker Compose одной командой: `make up`
-10. CI зелёный: проверка в GitHub Actions
-11. Детерминизм: запуск train 2 раза с одним seed и сравнение артефактов
-12. HDF5 воспроизводимость: покрывается `make test` (`test_persistence`)
-13. clang-tidy без warning: `make lint`
+1. Pipeline `MNIST -> class`: `check_inference_pipeline.py`
+2. Accuracy `>85%`: `check_dod_metrics.py` (`eval_accuracy`)
+3. Sparsity `<5%`: `check_ws_sparsity.py` + `senna_max_active_neurons_ratio` across all `epoch_end`
+4. `remove_neurons(0.1)` loss `<5%`: `check_dod_metrics.py`
+5. `inject_noise(0.3)` loss `<10%`: `check_dod_metrics.py`
+6. Interference patterns (visual + correlation): manual validation
+7. Grafana dashboards: health checks + manual review
+8. 3D visualizer: health checks + manual review
+9. Docker Compose with one command: `make up`
+10. CI green: verify in GitHub Actions
+11. Determinism: run training twice with the same seed and compare artifacts
+12. HDF5 reproducibility: covered by `make test` (`test_persistence`)
+13. clang-tidy without warnings: `make lint`
 14. ASan/UBSan clean: `make build-sanitize` + `ctest --preset sanitize`
 
-## Важно про пункт 6
+## Important note for item 6
 
-Количественная корреляция картин по классам (0-9) требует отдельного экспорта
-воксельных карт активности по меткам. В текущем runbook автоматизирована только
-инфраструктура и базовые DoD-гейты; пункт 6 закрывается вручную/дополнительным
-экспортом.
+Quantitative correlation of class patterns (0-9) requires separate export of
+voxel activity maps per label. The current runbook automates only the
+infrastructure and the baseline DoD gates; item 6 is closed through manual or
+additional export-based analysis.

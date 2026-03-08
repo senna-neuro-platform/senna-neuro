@@ -5,15 +5,15 @@ Date: 2026-03-07
 
 ## Context
 
-Нужно установить минимальные инженерные критерии качества для каждого изменения.
+Minimum engineering quality criteria are needed for every change.
 
 ## Decision
 
-1. Обязательные проверки: сборка, `ctest`, статический анализ (`clang-tidy`), Python lint (`ruff`) в CI.
-2. PR дополнительно проверяются в sanitize-конфигурации.
-3. Эксперименты и тесты должны поддерживать детерминированный режим при фиксированном seed.
+1. Mandatory checks in CI: build, `ctest`, static analysis (`clang-tidy`), and Python lint (`ruff`).
+2. Pull requests are additionally checked in a sanitize configuration.
+3. Experiments and tests must support deterministic mode with a fixed seed.
 
 ## Consequences
 
-- Снижается риск скрытых регрессий и nondeterministic-ошибок.
-- Стабилизируется инженерный контур для следующих шагов MVP.
+- The risk of hidden regressions and nondeterministic failures is reduced.
+- The engineering loop is stabilized for the next MVP steps.

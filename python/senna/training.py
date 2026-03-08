@@ -66,7 +66,11 @@ class TrainingPipeline:
             if prediction == sample.label:
                 correct += 1
 
-            if progress_callback is not None and progress_every > 0 and total % progress_every == 0:
+            if (
+                progress_callback is not None
+                and progress_every > 0
+                and total % progress_every == 0
+            ):
                 progress_callback(
                     ProgressUpdate(
                         stage="train",
@@ -114,7 +118,11 @@ class TrainingPipeline:
             if prediction == sample.label:
                 correct += 1
 
-            if progress_callback is not None and progress_every > 0 and total % progress_every == 0:
+            if (
+                progress_callback is not None
+                and progress_every > 0
+                and total % progress_every == 0
+            ):
                 progress_callback(
                     ProgressUpdate(
                         stage="eval",
@@ -258,7 +266,9 @@ def iter_mnist_samples(
 
     raw_dir = Path(root) / "MNIST" / "raw"
     if not download:
-        missing_files = [name for name in MNIST_RAW_FILES if not (raw_dir / name).exists()]
+        missing_files = [
+            name for name in MNIST_RAW_FILES if not (raw_dir / name).exists()
+        ]
         if missing_files:
             missing_list = ", ".join(missing_files)
             raise RuntimeError(

@@ -204,7 +204,7 @@ def fail(message: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate visualizer websocket active ratio (Step 16 DoD sparsity gate)."
+        description="Validate visualizer websocket active ratio (DoD sparsity gate)."
     )
     parser.add_argument(
         "--ws-url",

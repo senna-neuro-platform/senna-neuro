@@ -80,9 +80,7 @@ def fail(message: str) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Validate Step 16 inference pipeline from saved state."
-    )
+    parser = argparse.ArgumentParser(description="Inference pipeline from saved state.")
     parser.add_argument(
         "--state-path",
         default="data/artifacts/outbox/final_state.h5",

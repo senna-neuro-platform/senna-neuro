@@ -70,7 +70,7 @@ def fail(message: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate Step 16 DoD numeric gates from training metrics JSONL."
+        description="Validate DoD numeric gates from training metrics JSONL."
     )
     parser.add_argument(
         "--metrics-path",
@@ -183,12 +183,12 @@ def main() -> int:
     )
 
     if failures:
-        print("[FAIL] Step 16 numeric DoD gates failed:")
+        print("[FAIL] Numeric DoD gates failed:")
         for issue in failures:
             print(f"  - {issue}")
         return 1
 
-    print("[PASS] Step 16 numeric DoD gates passed.")
+    print("[PASS] Numeric DoD gates passed.")
     return 0
 
 

@@ -5,16 +5,16 @@ Date: 2026-03-07
 
 ## Context
 
-Нужно зафиксировать технологический стек MVP и разделение ответственности между языками.
+The MVP technology stack and the responsibility split between languages need to be fixed explicitly.
 
 ## Decision
 
-1. Ядро симулятора реализуется на C++23.
-2. Высокоуровневый API и training pipeline реализуются на Python.
-3. Связка C++/Python выполняется через pybind11.
-4. Конфигурация хранится в YAML.
+1. The simulator core is implemented in C++23.
+2. The high-level API and training pipeline are implemented in Python.
+3. The C++/Python bridge is implemented with pybind11.
+4. Configuration is stored in YAML.
 
 ## Consequences
 
-- Горячий путь остается производительным.
-- Эксперименты и оркестрация остаются быстрыми в разработке.
+- The hot path stays performant.
+- Experiments and orchestration remain fast to iterate on during development.

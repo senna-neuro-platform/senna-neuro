@@ -5,16 +5,16 @@ Date: 2026-03-07
 
 ## Context
 
-Нужно единообразно определить вычислительную модель MVP, чтобы совместимо реализовывать Domain/Engine.
+The MVP needs one consistent computational model so that `Domain` and `Engine` are implemented compatibly.
 
 ## Decision
 
-1. Базовая модель: 3D-решетка и событийная (spike-based) обработка.
-2. Доставка событий выполняется через очередь по времени прибытия.
-3. Используется квантование виртуального времени (`dt = 0.5 ms`).
-4. Нейронная модель MVP: LIF с E/I типами и локальными связями.
+1. The base model is a 3D lattice with event-driven (spike-based) processing.
+2. Events are delivered through a queue ordered by arrival time.
+3. Virtual time is quantized (`dt = 0.5 ms`).
+4. The MVP neuron model is LIF with excitatory/inhibitory types and local connectivity.
 
 ## Consequences
 
-- Симулятор детерминируем при фиксированном seed и конфигурации.
-- Архитектура готова к дальнейшему расширению правил пластичности.
+- The simulator is deterministic for a fixed seed and configuration.
+- The architecture is ready for later expansion of plasticity rules.
