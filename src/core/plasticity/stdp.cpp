@@ -9,7 +9,7 @@ void STDPRule::on_pre_spike(const senna::core::domain::NeuronId pre,
                             senna::core::domain::SynapseStore& synapses) {
     last_pre_spike_[pre] = t_pre;
 
-    for (const auto synapse_id : synapses.outgoing(pre)) {
+    for (const auto synapse_id : synapses.outgoing_span(pre)) {
         auto& synapse = synapses.at(synapse_id);
         const auto last_post = last_post_spike_.find(synapse.post_id);
         if (last_post == last_post_spike_.end()) {
@@ -26,7 +26,7 @@ void STDPRule::on_post_spike(const senna::core::domain::NeuronId post,
                              senna::core::domain::SynapseStore& synapses) {
     last_post_spike_[post] = t_post;
 
-    for (const auto synapse_id : synapses.incoming(post)) {
+    for (const auto synapse_id : synapses.incoming_span(post)) {
         auto& synapse = synapses.at(synapse_id);
         const auto last_pre = last_pre_spike_.find(synapse.pre_id);
         if (last_pre == last_pre_spike_.end()) {

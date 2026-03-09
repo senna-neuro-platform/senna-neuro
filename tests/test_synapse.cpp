@@ -86,6 +86,15 @@ TEST(SynapseStoreTest, BuildsOutgoingAndIncomingIndexes) {
     EXPECT_EQ(store.incoming(2U), std::vector<senna::core::domain::SynapseId>({id1, id2}));
     EXPECT_EQ(store.outgoing(3U), std::vector<senna::core::domain::SynapseId>({id2}));
     EXPECT_EQ(store.incoming(1U), std::vector<senna::core::domain::SynapseId>({id0}));
+
+    const auto outgoing_span = store.outgoing_span(0U);
+    const auto incoming_span = store.incoming_span(2U);
+    EXPECT_EQ(
+        std::vector<senna::core::domain::SynapseId>(outgoing_span.begin(), outgoing_span.end()),
+        std::vector<senna::core::domain::SynapseId>({id0, id1}));
+    EXPECT_EQ(
+        std::vector<senna::core::domain::SynapseId>(incoming_span.begin(), incoming_span.end()),
+        std::vector<senna::core::domain::SynapseId>({id1, id2}));
 }
 
 TEST(SynapseStoreTest, SupportsMvpScaleIndexing) {
@@ -110,4 +119,8 @@ TEST(SynapseStoreTest, SupportsMvpScaleIndexing) {
     EXPECT_EQ(store.outgoing(9999U).size(), kOutgoingPerNeuron);
     EXPECT_EQ(store.incoming(0U).size(), kOutgoingPerNeuron);
     EXPECT_EQ(store.incoming(9999U).size(), kOutgoingPerNeuron);
+    EXPECT_EQ(store.outgoing_span(0U).size(), kOutgoingPerNeuron);
+    EXPECT_EQ(store.outgoing_span(9999U).size(), kOutgoingPerNeuron);
+    EXPECT_EQ(store.incoming_span(0U).size(), kOutgoingPerNeuron);
+    EXPECT_EQ(store.incoming_span(9999U).size(), kOutgoingPerNeuron);
 }

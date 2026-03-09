@@ -1,9 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <random>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
@@ -27,7 +29,7 @@ class SynapseStore final {
    public:
     explicit SynapseStore(std::size_t neuron_count = 0);
 
-    [[nodiscard]] std::size_t neuron_capacity() const noexcept { return outgoing_.size(); }
+    [[nodiscard]] std::size_t neuron_capacity() const noexcept { return outgoing_lists_.size(); }
 
     [[nodiscard]] std::size_t size() const noexcept { return synapses_.size(); }
 
@@ -44,6 +46,10 @@ class SynapseStore final {
     [[nodiscard]] const std::vector<SynapseId>& outgoing(NeuronId neuron_id) const noexcept;
 
     [[nodiscard]] const std::vector<SynapseId>& incoming(NeuronId neuron_id) const noexcept;
+
+    [[nodiscard]] std::span<const SynapseId> outgoing_span(NeuronId neuron_id) const;
+
+    [[nodiscard]] std::span<const SynapseId> incoming_span(NeuronId neuron_id) const;
 
     SynapseId add(const Synapse& synapse);
 
@@ -66,10 +72,16 @@ class SynapseStore final {
 
    private:
     void ensure_neuron_capacity(NeuronId neuron_count);
+    void ensure_compact_indices() const;
 
     std::vector<Synapse> synapses_{};
-    std::vector<std::vector<SynapseId>> outgoing_{};
-    std::vector<std::vector<SynapseId>> incoming_{};
+    std::vector<std::vector<SynapseId>> outgoing_lists_{};
+    std::vector<std::vector<SynapseId>> incoming_lists_{};
+    mutable std::vector<SynapseId> outgoing_flat_{};
+    mutable std::vector<SynapseId> incoming_flat_{};
+    mutable std::vector<std::size_t> outgoing_offsets_{};
+    mutable std::vector<std::size_t> incoming_offsets_{};
+    mutable bool compact_indices_dirty_{true};
 };
 
 }  // namespace senna::core::domain

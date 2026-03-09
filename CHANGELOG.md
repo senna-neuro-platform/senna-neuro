@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.17.7-dev`
+- In [src/core/domain/synapse.h](src/core/domain/synapse.h) and [src/core/domain/synapse.cpp](src/core/domain/synapse.cpp), `SynapseStore` now maintains compact CSR-style flat adjacency arrays with offsets in addition to the compatibility list indexes, exposing new `outgoing_span(...)` / `incoming_span(...)` accessors for cache-friendly iteration in hot paths.
+- In [src/core/engine/simulation_engine.cpp](src/core/engine/simulation_engine.cpp), [src/core/plasticity/stdp.cpp](src/core/plasticity/stdp.cpp), [src/core/plasticity/supervisor.cpp](src/core/plasticity/supervisor.cpp), and [src/core/plasticity/structural_plasticity.cpp](src/core/plasticity/structural_plasticity.cpp), hot synapse traversal was switched from per-neuron `vector<vector<...>>` access to contiguous span-based iteration over the compact indices.
+- In [tests/test_synapse.cpp](tests/test_synapse.cpp), direct coverage was added for the new span-based index accessors alongside the legacy vector-based API.
+
 ## `0.17.6-dev`
 - In [src/bindings/python_module.cpp](src/bindings/python_module.cpp) and [python/senna/training.py](python/senna/training.py), the training and evaluation batch path now has a fast array-based boundary: Python can pass contiguous `uint8[N, 784]` images and `int32[N]` labels into dedicated `batch_train_array(...)` / `batch_evaluate_array(...)` bindings instead of rebuilding nested Python lists for every batch.
 - In [src/bindings/python_module.cpp](src/bindings/python_module.cpp), MNIST input encoding is now cached as precomputed pulse plans keyed by the flattened sample image, so repeated epochs reuse the same `sensor_id + local_offset + value` schedule and only shift it by the current base time before injecting events.

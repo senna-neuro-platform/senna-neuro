@@ -52,7 +52,7 @@ void StructuralPlasticity::reset() noexcept {
 bool StructuralPlasticity::has_connection(const senna::core::domain::SynapseStore& synapses,
                                           const senna::core::domain::NeuronId pre_id,
                                           const senna::core::domain::NeuronId post_id) {
-    for (const auto synapse_id : synapses.outgoing(pre_id)) {
+    for (const auto synapse_id : synapses.outgoing_span(pre_id)) {
         if (synapses.at(synapse_id).post_id == post_id) {
             return true;
         }

@@ -75,7 +75,7 @@ std::size_t Supervisor::adjust_output_weights(const senna::core::domain::NeuronI
                                               const senna::core::domain::Weight max_weight) const {
     std::size_t updated = 0U;
 
-    for (const auto synapse_id : synapses.incoming(output_id)) {
+    for (const auto synapse_id : synapses.incoming_span(output_id)) {
         auto& synapse = synapses.at(synapse_id);
         const auto pre_index = static_cast<std::size_t>(synapse.pre_id);
         if (pre_index >= pre_spike_counts.size()) {

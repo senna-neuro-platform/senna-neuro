@@ -62,7 +62,7 @@ std::size_t SimulationEngine::tick() {
         }
 
         const auto pre = emitted_spike.source;
-        for (const auto synapse_id : synapses_.outgoing(pre)) {
+        for (const auto synapse_id : synapses_.outgoing_span(pre)) {
             const auto& synapse = synapses_.at(synapse_id);
             queue_.push(senna::core::domain::SpikeEvent{
                 pre,
