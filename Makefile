@@ -15,9 +15,9 @@ MNIST_URL_BASE := https://storage.googleapis.com/cvdf-datasets/mnist
 MNIST_FILES := train-images-idx3-ubyte train-labels-idx1-ubyte t10k-images-idx3-ubyte t10k-labels-idx1-ubyte
 
 CPP_FILES := $(shell find src tests -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \) 2>/dev/null)
-PYTHON_LINT_TARGETS := python/senna python/train.py infra scripts
+PYTHON_LINT_TARGETS := python/senna python/train.py infra scripts docs/acceptance/scripts
 
-.PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize test up up-build down logs
+.PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize test up up-build down logs e2e-smoke
 
 help:
 	@echo "Available targets:"
@@ -32,6 +32,7 @@ help:
 	@echo "  make up-build        - docker compose build runtime images and recreate services"
 	@echo "  make down            - docker compose down"
 	@echo "  make logs            - docker compose logs"
+	@echo "  make e2e-smoke       - run lightweight deployment-to-training smoke validation"
 
 conan-setup:
 	@mkdir -p $(CONAN_PROFILE_DIR)
@@ -115,3 +116,6 @@ down:
 
 logs:
 	$(DOCKER_COMPOSE) logs
+
+e2e-smoke:
+	bash docs/acceptance/scripts/run_e2e_smoke.sh

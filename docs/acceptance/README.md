@@ -11,6 +11,8 @@ Goal: validate the MVP DoD from environment bring-up through the final PASS/FAIL
 ## Files
 
 - `docs/acceptance/scripts/run_acceptance.sh`
+- `docs/acceptance/scripts/run_e2e_smoke.sh`
+- `docs/acceptance/scripts/check_e2e_smoke.py`
 - `docs/acceptance/scripts/check_dod_metrics.py`
 - `docs/acceptance/scripts/check_inference_pipeline.py`
 - `docs/acceptance/scripts/check_ws_sparsity.py`
@@ -22,6 +24,16 @@ cd senna-neuro
 chmod +x docs/acceptance/scripts/run_acceptance.sh
 docs/acceptance/scripts/run_acceptance.sh
 ```
+
+For a faster deployment-to-training validation, use the smoke path:
+
+```bash
+cd senna-neuro
+chmod +x docs/acceptance/scripts/run_e2e_smoke.sh
+docs/acceptance/scripts/run_e2e_smoke.sh
+```
+
+The smoke path uses a very small dataset slice by default (`synthetic`, `epochs=5`, `train-limit=8`, `test-limit=4`, `ticks=16`) and ends with a JSON verdict containing key metrics, endpoint checks, artifact counts, and uploader progress.
 
 The script will execute:
 
@@ -73,6 +85,45 @@ python3 -m pip install torch torchvision
 9. After the WebSocket sparsity check, open `http://localhost:8080`, enable heatmap and frame-by-frame `Next Tick` mode, and visually verify the wave pattern and sparsity on the real trace.
 
 ## How to run the training run
+
+### Lightweight E2E smoke
+
+This path validates the full operational chain with a tiny workload:
+
+1. release build for the host Python runtime
+2. `docker compose` bring-up for simulator, Prometheus, Grafana, visualizer, MinIO, and artifact uploader
+3. small training run on a synthetic dataset
+4. checkpoint and final state export into the outbox
+5. live metrics snapshot for the exporter and trace snapshot for the visualizer
+6. uploader state growth after HDF5 artifacts are flushed to MinIO
+7. state-load inference validation from the saved `final_state.h5`
+8. final `PASS` or `FAIL` verdict with key metrics
+
+Run it with:
+
+```bash
+make e2e-smoke
+```
+
+Or directly:
+
+```bash
+docs/acceptance/scripts/run_e2e_smoke.sh \
+  --epochs 5 \
+  --train-limit 8 \
+  --test-limit 4 \
+  --ticks 16
+```
+
+Smoke artifacts are written into:
+
+1. `data/artifacts/e2e-smoke/<run-id>/metrics.jsonl`
+2. `data/artifacts/e2e-smoke/<run-id>/train.log`
+3. `data/artifacts/e2e-smoke/<run-id>/verdict.json`
+4. `data/artifacts/outbox/<run-id>/epoch_*.h5`
+5. `data/artifacts/outbox/<run-id>/final_state.h5`
+
+`data/artifacts/metrics/latest.json`, `data/artifacts/visualizer/latest.json`, and `data/artifacts/uploader_state.json` remain the shared live contract for exporter, visualizer, and uploader checks.
 
 Option A: through the orchestrator (recommended)
 

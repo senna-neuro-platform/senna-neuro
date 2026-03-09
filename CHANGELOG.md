@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.17.9-dev`
+- In [docs/acceptance/scripts/run_e2e_smoke.sh](docs/acceptance/scripts/run_e2e_smoke.sh) and [docs/acceptance/scripts/check_e2e_smoke.py](docs/acceptance/scripts/check_e2e_smoke.py), a lightweight deployment-to-training E2E smoke path was added: it brings up the runtime stack, runs a very small synthetic training job, waits for HDF5 artifact uploads, reloads the saved state for inference, and emits a final `PASS` or `FAIL` verdict with key runtime metrics.
+- In [Makefile](Makefile), `make e2e-smoke` was added and Python lint coverage was extended to include `docs/acceptance/scripts`, so the new acceptance automation is part of the normal quality gate.
+- In [docs/acceptance/README.md](docs/acceptance/README.md), the new smoke workflow and its artifact/verdict contract were documented alongside the heavier full-MNIST acceptance runbook.
+
 ## `0.17.8-dev`
 - In [src/core/engine/simulation_engine.h](src/core/engine/simulation_engine.h) and [src/core/engine/simulation_engine.cpp](src/core/engine/simulation_engine.cpp), the simulation hot path now uses a near-SoA cache for mutable neuron runtime state (`potential`, `last_update_time`, `last_spike_time`, refractory flag, and immutable config scalars), reducing repeated AoS reads inside event processing while keeping `Neuron` as the public domain object.
 - In [src/core/domain/neuron.h](src/core/domain/neuron.h) and [src/core/domain/neuron.cpp](src/core/domain/neuron.cpp), a small `set_runtime_state(...)` sync hook was added so the engine can flush only dirty neuron state back into domain objects at observer and tick boundaries.
