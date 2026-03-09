@@ -672,6 +672,12 @@ class PyNetworkHandle final {
             record_sample_activity(spike);
             if (output_set_.contains(spike.source)) {
                 output_spikes_.push_back(spike);
+                // Real-time WTA: first output spike inhibits all other output neurons
+                const auto inhibitory =
+                    decoder_.winner_take_all_events(spike.source, spike.arrival);
+                for (const auto& event : inhibitory) {
+                    network_->inject_event(event);
+                }
             }
         });
 
@@ -762,7 +768,6 @@ class PyNetworkHandle final {
 
     void finalize_prediction() {
         last_prediction_ = decoder_.decode(output_spikes_);
-        emit_wta_for_prediction(last_prediction_);
 
         if (sample_is_train_) {
             ++train_seen_;
