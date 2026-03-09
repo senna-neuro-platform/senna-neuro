@@ -33,6 +33,8 @@ class SimulationEngine final {
 
     void inject_event(senna::core::domain::SpikeEvent event);
 
+    void reset_state() noexcept;
+
     [[nodiscard]] std::size_t tick();
 
     [[nodiscard]] std::size_t emitted_last_tick() const noexcept { return emitted_last_tick_; }

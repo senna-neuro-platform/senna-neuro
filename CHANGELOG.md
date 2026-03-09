@@ -1,5 +1,11 @@
 # Changelog
 
+## `0.18.0-dev`
+- In [src/core/engine/simulation_engine.h](src/core/engine/simulation_engine.h) and [src/core/engine/simulation_engine.cpp](src/core/engine/simulation_engine.cpp), added `SimulationEngine::reset_state()` which resets timing, refractory states, and dirty-neuron bookkeeping between samples while preserving membrane potentials so they decay naturally through `tau_m`.
+- In [src/core/engine/network_builder.h](src/core/engine/network_builder.h) and [src/core/engine/network_builder.cpp](src/core/engine/network_builder.cpp), added `Network::reset_between_samples()` which clears the event queue, resets global simulation time to zero, and calls `engine_.reset_state()`, eliminating cross-sample contamination from residual spikes and stale timing.
+- In [src/bindings/python_module.cpp](src/bindings/python_module.cpp), `load_sample_view()` now calls `network_->reset_between_samples()` before injecting a new encoded sample, so each MNIST image is processed from a clean temporal baseline without corrupting the first-spike decoder with absolute time offsets from prior samples.
+- In [src/core/engine/network_builder.cpp](src/core/engine/network_builder.cpp), added global projections from the processing volume to output neurons: each output neuron now receives random synaptic input from `√(processing_count)` processing neurons (clamped to `[count/10, count]`), so output neurons integrate spatial information across the entire 28×28 receptive field instead of only a local `radius=2` neighborhood patch.
+
 ## `0.17.15-dev`
 - In [CMakeLists.txt](CMakeLists.txt), Release and RelWithDebInfo builds now use `-O3 -march=native -mtune=native` with safe fast-math flags (`-funsafe-math-optimizations`, `-fno-math-errno`, `-fno-signed-zeros`, `-fno-trapping-math`, `-freciprocal-math`) and link-time optimization (LTO via `CMAKE_INTERPROCEDURAL_OPTIMIZATION`), without `-ffinite-math-only` to preserve infinity semantics used by neuron state initialization.
 - In [src/core/metrics/metrics_collector.cpp](src/core/metrics/metrics_collector.cpp), `as_metric_map()` now exports five additional metrics previously collected but not exposed: `senna_mean_active_neurons_ratio`, `senna_mean_spikes_per_tick`, `senna_ticks_total`, `senna_spikes_total`, and the already-collected `senna_max_active_neurons_ratio`.

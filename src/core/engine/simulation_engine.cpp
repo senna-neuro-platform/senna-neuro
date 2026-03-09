@@ -1,6 +1,7 @@
 #include "core/engine/simulation_engine.h"
 
 #include <cmath>
+#include <limits>
 
 namespace senna::core::engine {
 
@@ -66,6 +67,25 @@ void SimulationEngine::add_tick_observer(TickObserver observer) {
 
 void SimulationEngine::inject_event(const senna::core::domain::SpikeEvent event) {
     queue_.push(event);
+}
+
+void SimulationEngine::reset_state() noexcept {
+    constexpr auto kNoSpike = -std::numeric_limits<senna::core::domain::Time>::infinity();
+
+    for (std::size_t index = 0U; index < neurons_.size(); ++index) {
+        // Keep potential_[index] — let it decay naturally via tau_m
+        last_update_time_[index] = 0.0F;
+        last_spike_time_[index] = kNoSpike;
+        in_refractory_[index] = 0U;
+        dirty_bitmap_[index] = 0U;
+    }
+    dirty_neurons_.clear();
+    emitted_last_tick_ = 0U;
+    emitted_events_last_tick_.clear();
+
+    for (std::size_t index = 0U; index < neurons_.size(); ++index) {
+        neurons_[index].set_runtime_state(potential_[index], 0.0F, kNoSpike, false);
+    }
 }
 
 std::size_t SimulationEngine::tick() {

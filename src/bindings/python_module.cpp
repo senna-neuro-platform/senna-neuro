@@ -615,6 +615,7 @@ class PyNetworkHandle final {
         sample_is_train_ = is_train && !eval_mode_;
         sample_loaded_ = true;
 
+        network_->reset_between_samples();
         reset_sample_activity();
         inject_encoded_sample();
     }

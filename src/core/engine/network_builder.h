@@ -39,6 +39,8 @@ class Network final {
 
     void inject_event(const senna::core::domain::SpikeEvent& event);
 
+    void reset_between_samples();
+
     [[nodiscard]] std::size_t tick();
 
     [[nodiscard]] const std::vector<senna::core::domain::SpikeEvent>& emitted_spikes_last_tick()
