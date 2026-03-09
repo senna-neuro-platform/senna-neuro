@@ -3,8 +3,6 @@
 ## `0.17.2-dev`
 - In `CMakeLists.txt` and the `src/core/**` runtime modules, `senna_domain` was converted from an `INTERFACE` target to a real `STATIC` library with dedicated translation units for domain, engine, IO, metrics, and plasticity code, so production `clang-tidy` now covers substantially more of the core implementation instead of only `src/main.cpp` and `src/bindings/python_module.cpp`.
 - In `src/core/engine/network_builder.cpp`, `src/core/io/*.cpp`, `src/core/metrics/metrics_collector.cpp`, and `src/core/plasticity/*.cpp`, non-template runtime logic was moved out of headers into `.cpp` files without changing the external API, reducing header-only sprawl and making future profiling, linting, and parallel C++ work easier to isolate.
-
-## `0.17.1-dev`
 - In `tests/test_support/require_value.h` and the GTest suite, `std::optional` handling was unified around a shared `require_value(...)` helper so tests use one consistent unwrap pattern instead of duplicating local templates or mixing direct dereference styles.
 - Added ADR-0013 `Performance and C++23 Parallelism Policy`, and strengthened ADR-0007/ADR-0001 so code handoff now explicitly requires `make fmt`, `make lint`, relevant tests, and mandatory `VERSION`/`CHANGELOG` updates in the same change set.
 - In `src/bindings/python_module.cpp` and `python/senna/training.py`, the training path was optimized with batched C++ execution (`batch_train` / `batch_evaluate`), reducing Python-to-C++ crossings while preserving the existing API as a fallback.
