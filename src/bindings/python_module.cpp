@@ -24,6 +24,9 @@
 #include "core/io/first_spike_decoder.h"
 #include "core/metrics/metrics_collector.h"
 #include "core/persistence/state_serializer.h"
+#include "core/plasticity/homeostasis.h"
+#include "core/plasticity/stdp.h"
+#include "core/plasticity/structural_plasticity.h"
 #include "core/plasticity/supervisor.h"
 
 namespace py = pybind11;
@@ -41,6 +44,10 @@ struct BindingConfig {
     senna::core::domain::Weight decoder_wta_weight{6.0F};
     senna::core::domain::Weight supervision_learning_rate{0.02F};
     std::uint32_t seed{42U};
+
+    senna::core::plasticity::STDPConfig stdp{};
+    senna::core::plasticity::HomeostasisConfig homeostasis{};
+    senna::core::plasticity::StructuralPlasticityConfig structural{};
 };
 
 struct BatchExecutionStats {
@@ -237,9 +244,18 @@ BindingConfig load_binding_config(const std::string& path) {
     const auto homeo_eta = yaml_required<float>(homeostasis, "eta_homeo", "homeostasis");
     const auto homeo_theta_min = yaml_required<float>(homeostasis, "theta_min", "homeostasis");
     const auto homeo_theta_max = yaml_required<float>(homeostasis, "theta_max", "homeostasis");
+    const auto homeo_alpha = yaml_or<float>(homeostasis, "alpha", 0.999F);
+    const auto homeo_update_interval =
+        yaml_or<std::uint32_t>(homeostasis, "update_interval_ticks", 100U);
     const auto structural_w_min = yaml_required<float>(structural, "w_min", "structural");
     const auto structural_n_prune =
         yaml_required<std::uint32_t>(structural, "N_prune", "structural");
+    const auto structural_sprout_weight =
+        yaml_or<float>(structural, "sprout_weight", 0.01F);
+    const auto structural_max_sprouts =
+        yaml_or<std::uint32_t>(structural, "max_sprouts_per_neuron", 1U);
+    const auto structural_update_interval =
+        yaml_or<std::uint32_t>(structural, "update_interval_ticks", 10000U);
     const auto encoder_max_rate = yaml_required<float>(encoder, "max_rate", "encoder");
     const auto decoder_w_wta = yaml_required<float>(decoder, "W_wta", "decoder");
     const auto training_epochs = yaml_required<std::uint32_t>(training, "epochs", "training");
@@ -247,6 +263,28 @@ BindingConfig load_binding_config(const std::string& path) {
     config.max_synapse_weight = stdp_w_max;
     config.max_rate_hz = encoder_max_rate;
     config.decoder_wta_weight = std::abs(decoder_w_wta);
+
+    config.stdp = senna::core::plasticity::STDPConfig{
+        stdp_a_plus, stdp_a_minus, stdp_tau_plus, stdp_tau_minus, stdp_w_max,
+    };
+    config.homeostasis = senna::core::plasticity::HomeostasisConfig{
+        .alpha = homeo_alpha,
+        .r_target_hz = homeo_r_target,
+        .eta_homeo = homeo_eta,
+        .theta_min = homeo_theta_min,
+        .theta_max = homeo_theta_max,
+        .update_interval_ticks = static_cast<std::size_t>(homeo_update_interval),
+    };
+    config.structural = senna::core::plasticity::StructuralPlasticityConfig{
+        .w_min = structural_w_min,
+        .update_interval_ticks = static_cast<std::size_t>(structural_update_interval),
+        .r_target_hz = homeo_r_target,
+        .quiet_ratio = 0.5F,
+        .sprout_radius = config.network.lattice.neighbor_radius,
+        .sprout_weight = structural_sprout_weight,
+        .c_base = config.network.c_base,
+        .max_sprouts_per_neuron = static_cast<std::size_t>(structural_max_sprouts),
+    };
 
     if (neuron_tau_m <= 0.0F || neuron_theta_base <= 0.0F || neuron_t_ref < 0.0F ||
         !std::isfinite(neuron_v_rest)) {
@@ -356,7 +394,10 @@ class PyNetworkHandle final {
               find_output_neurons(network_->neurons(), network_->lattice().config().depth - 1U)),
           output_set_(output_neurons_.begin(), output_neurons_.end()),
           decoder_(output_neurons_, config_.decoder_wta_weight),
-          supervisor_({config_.supervision_spike_value}) {
+          supervisor_({config_.supervision_spike_value}),
+          stdp_(config_.stdp),
+          homeostasis_(config_.homeostasis),
+          structural_(config_.structural) {
         attach_observers();
         metrics_collector_.set_synapse_count(network_->synapse_count());
         rng_state_ = seed_to_state(config_.seed);
@@ -588,9 +629,8 @@ class PyNetworkHandle final {
         output_spikes_.clear();
         network_->inject_event(*correction);
         static_cast<void>(network_->tick());
-        const auto corrected = decoder_.decode(output_spikes_);
+        const auto corrected = decode_by_spike_count();
         last_prediction_ = corrected >= 0 ? corrected : expected_label;
-        emit_wta_for_prediction(last_prediction_);
         if (sample_is_train_ && sample_label_.has_value() && *sample_label_ == expected_label &&
             !was_correct && last_prediction_ == expected_label) {
             ++train_correct_;
@@ -616,6 +656,7 @@ class PyNetworkHandle final {
         sample_loaded_ = true;
 
         network_->reset_between_samples();
+        stdp_.reset_traces();
         reset_sample_activity();
         inject_encoded_sample();
     }
@@ -672,18 +713,28 @@ class PyNetworkHandle final {
             record_sample_activity(spike);
             if (output_set_.contains(spike.source)) {
                 output_spikes_.push_back(spike);
-                // Real-time WTA: first output spike inhibits all other output neurons
-                const auto inhibitory =
-                    decoder_.winner_take_all_events(spike.source, spike.arrival);
-                for (const auto& event : inhibitory) {
-                    network_->inject_event(event);
-                }
+            }
+
+            if (!eval_mode_) {
+                const auto fired_id = spike.source;
+                stdp_.on_pre_spike(fired_id, spike.arrival, network_->synapses());
+                stdp_.on_post_spike(fired_id, spike.arrival, network_->synapses());
+                homeostasis_.on_spike(spike);
             }
         });
 
         network_->add_tick_observer(
             [this](const senna::core::domain::Time t_start, const senna::core::domain::Time t_end) {
                 metrics_collector_.on_tick(t_start, t_end);
+
+                if (!eval_mode_) {
+                    homeostasis_.on_tick(network_->neurons(), t_end - t_start);
+                    const auto sp_stats = structural_.on_tick(
+                        network_->lattice(), network_->neurons(), network_->synapses());
+                    if (sp_stats.pruned > 0U || sp_stats.sprouted > 0U) {
+                        metrics_collector_.set_synapse_count(network_->synapse_count());
+                    }
+                }
             });
     }
 
@@ -766,8 +817,39 @@ class PyNetworkHandle final {
         output_spikes_.clear();
     }
 
+    [[nodiscard]] int decode_by_spike_count() const {
+        if (output_spikes_.empty()) {
+            return -1;
+        }
+
+        std::vector<std::size_t> counts(output_neurons_.size(), 0U);
+        for (const auto& spike : output_spikes_) {
+            const auto it = output_set_.find(spike.source);
+            if (it == output_set_.end()) {
+                continue;
+            }
+            for (std::size_t i = 0U; i < output_neurons_.size(); ++i) {
+                if (output_neurons_[i] == spike.source) {
+                    ++counts[i];
+                    break;
+                }
+            }
+        }
+
+        std::size_t best_index = 0U;
+        std::size_t best_count = 0U;
+        for (std::size_t i = 0U; i < counts.size(); ++i) {
+            if (counts[i] > best_count) {
+                best_count = counts[i];
+                best_index = i;
+            }
+        }
+
+        return best_count > 0U ? static_cast<int>(best_index) : -1;
+    }
+
     void finalize_prediction() {
-        last_prediction_ = decoder_.decode(output_spikes_);
+        last_prediction_ = decode_by_spike_count();
 
         if (sample_is_train_) {
             ++train_seen_;
@@ -939,6 +1021,9 @@ class PyNetworkHandle final {
     std::unordered_set<senna::core::domain::NeuronId> output_set_{};
     senna::core::io::FirstSpikeDecoder decoder_;
     senna::core::plasticity::Supervisor supervisor_;
+    senna::core::plasticity::STDPRule stdp_;
+    senna::core::plasticity::Homeostasis homeostasis_;
+    senna::core::plasticity::StructuralPlasticity structural_;
 
     std::shared_ptr<const EncodedSamplePlan> current_sample_plan_{};
     std::unordered_map<SampleCacheKey, std::shared_ptr<const EncodedSamplePlan>, SampleCacheKeyHash>

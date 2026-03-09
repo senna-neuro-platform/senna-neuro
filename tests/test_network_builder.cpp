@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <numeric>
 #include <vector>
 
@@ -123,4 +125,39 @@ TEST(NetworkBuilderTest, ProducesDeterministicTraceForSameSeed) {
 
     EXPECT_EQ(network_a.synapse_count(), network_b.synapse_count());
     EXPECT_EQ(trace_a, trace_b);
+}
+
+TEST(NetworkBuilderTest, ResetBetweenSamplesClearsTransientNeuronStateOnly) {
+    using senna::core::domain::SpikeEvent;
+    using senna::core::engine::NetworkBuilder;
+
+    const NetworkBuilder builder{make_wave_config()};
+    auto network = builder.build(17U);
+
+    auto& neurons = network.neurons();
+    ASSERT_FALSE(neurons.empty());
+
+    neurons.front().set_threshold(1.7F);
+    neurons.front().set_average_rate(12.0F);
+
+    network.inject_event(SpikeEvent{
+        neurons.front().id(),
+        neurons.front().id(),
+        0.25F,
+        0.5F,
+    });
+    static_cast<void>(network.tick());
+
+    ASSERT_GT(neurons.front().potential(), 0.0F);
+    EXPECT_GT(neurons.front().last_update_time(), 0.0F);
+
+    network.reset_between_samples();
+
+    EXPECT_FLOAT_EQ(neurons.front().potential(), neurons.front().config().v_rest);
+    EXPECT_FLOAT_EQ(neurons.front().threshold(), 1.7F);
+    EXPECT_FLOAT_EQ(neurons.front().average_rate(), 12.0F);
+    EXPECT_FLOAT_EQ(neurons.front().last_update_time(), 0.0F);
+    EXPECT_TRUE(std::isinf(neurons.front().last_spike_time()));
+    EXPECT_TRUE(std::signbit(neurons.front().last_spike_time()));
+    EXPECT_FALSE(neurons.front().in_refractory());
 }

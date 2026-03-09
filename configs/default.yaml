@@ -26,13 +26,18 @@ stdp:
 
 homeostasis:
   r_target: 5.0
-  eta_homeo: 0.002
-  theta_min: 0.5
-  theta_max: 2.5
+  eta_homeo: 0.01
+  alpha: 0.99
+  theta_min: 0.2
+  theta_max: 3.0
+  update_interval_ticks: 100
 
 structural:
-  w_min: 0.005
+  w_min: 0.003
   N_prune: 100
+  sprout_weight: 0.05
+  max_sprouts_per_neuron: 3
+  update_interval_ticks: 5000
 
 encoder:
   max_rate: 180.0

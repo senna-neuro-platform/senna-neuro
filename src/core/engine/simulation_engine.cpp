@@ -73,7 +73,9 @@ void SimulationEngine::reset_state() noexcept {
     constexpr auto kNoSpike = -std::numeric_limits<senna::core::domain::Time>::infinity();
 
     for (std::size_t index = 0U; index < neurons_.size(); ++index) {
-        // Keep potential_[index] — let it decay naturally via tau_m
+        // Reset only the transient runtime state between samples.
+        // Learned neuron parameters such as threshold and average rate stay on the neuron object.
+        potential_[index] = v_rest_[index];
         last_update_time_[index] = 0.0F;
         last_spike_time_[index] = kNoSpike;
         in_refractory_[index] = 0U;

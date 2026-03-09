@@ -55,7 +55,10 @@ senna::core::domain::Weight STDPRule::compute_delta_w(
     }
 
     if (delta_t < 0.0F) {
-        return -config_.a_minus * std::exp(-(std::fabs(delta_t) / config_.tau_minus));
+        auto delta = -config_.a_minus * std::exp(-(std::fabs(delta_t) / config_.tau_minus));
+        const auto soft_limit = std::max(0.0F, current_weight / config_.w_max);
+        delta *= soft_limit;
+        return delta;
     }
 
     return 0.0F;
