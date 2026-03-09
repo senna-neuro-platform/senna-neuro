@@ -58,6 +58,10 @@ class Neuron final {
 
     void restore_from_snapshot(const NeuronSnapshot& state) noexcept;
 
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    void set_runtime_state(Voltage potential, Time last_update_time, Time last_spike_time,
+                           bool in_refractory) noexcept;
+
     void set_threshold(Voltage threshold) noexcept;
 
     void adjust_threshold(Voltage delta, Voltage theta_min, Voltage theta_max) noexcept;

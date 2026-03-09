@@ -66,6 +66,15 @@ void Neuron::restore_from_snapshot(const NeuronSnapshot& state) noexcept {
     in_refractory_ = state.in_refractory;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void Neuron::set_runtime_state(const Voltage potential, const Time last_update_time,
+                               const Time last_spike_time, const bool in_refractory) noexcept {
+    V_ = potential;
+    t_last_ = last_update_time;
+    t_spike_ = last_spike_time;
+    in_refractory_ = in_refractory;
+}
+
 void Neuron::set_threshold(const Voltage threshold) noexcept { theta_ = threshold; }
 
 void Neuron::adjust_threshold(const Voltage delta, const Voltage theta_min,

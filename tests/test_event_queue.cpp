@@ -116,3 +116,70 @@ TEST(SimulationEngineTest, AdvancesTimeOnEmptyTick) {
     EXPECT_EQ(engine.tick(), 0U);
     EXPECT_NEAR(time.elapsed(), 0.5F, 1e-6F);
 }
+
+TEST(SimulationEngineTest, PublishesSubthresholdStateBackToNeuronObjects) {
+    using senna::core::domain::Coord3D;
+    using senna::core::domain::Neuron;
+    using senna::core::domain::NeuronConfig;
+    using senna::core::domain::NeuronType;
+    using senna::core::domain::SpikeEvent;
+    using senna::core::domain::SynapseStore;
+    using senna::core::engine::EventQueue;
+    using senna::core::engine::SimulationEngine;
+    using senna::core::engine::TimeManager;
+
+    NeuronConfig config{};
+    config.theta_base = 2.0F;
+
+    std::vector<Neuron> neurons{};
+    neurons.emplace_back(0U, Coord3D{0U, 0U, 0U}, NeuronType::Excitatory, config);
+
+    SynapseStore synapses{neurons.size()};
+    EventQueue queue{};
+    TimeManager time{0.5F, 0.0F};
+    SimulationEngine engine{neurons, synapses, queue, time};
+
+    engine.inject_event(SpikeEvent{0U, 0U, 0.0F, 0.7F});
+
+    EXPECT_EQ(engine.tick(), 1U);
+    EXPECT_NEAR(neurons[0].potential(), 0.7F, 1e-6F);
+    EXPECT_NEAR(neurons[0].last_update_time(), 0.0F, 1e-6F);
+    EXPECT_FALSE(neurons[0].in_refractory());
+}
+
+TEST(SimulationEngineTest, SpikeObserversSeeSynchronizedNeuronState) {
+    using senna::core::domain::Coord3D;
+    using senna::core::domain::Neuron;
+    using senna::core::domain::NeuronConfig;
+    using senna::core::domain::NeuronType;
+    using senna::core::domain::SpikeEvent;
+    using senna::core::domain::SynapseStore;
+    using senna::core::engine::EventQueue;
+    using senna::core::engine::SimulationEngine;
+    using senna::core::engine::TimeManager;
+
+    NeuronConfig config{};
+    config.theta_base = 1.0F;
+    config.t_ref = 0.0F;
+
+    std::vector<Neuron> neurons{};
+    neurons.emplace_back(0U, Coord3D{0U, 0U, 0U}, NeuronType::Excitatory, config);
+
+    SynapseStore synapses{neurons.size()};
+    EventQueue queue{};
+    TimeManager time{0.5F, 0.0F};
+    SimulationEngine engine{neurons, synapses, queue, time};
+
+    float observed_last_spike = -1.0F;
+    bool observed_refractory = false;
+    engine.add_spike_observer([&](const SpikeEvent&) {
+        observed_last_spike = neurons[0].last_spike_time();
+        observed_refractory = neurons[0].in_refractory();
+    });
+
+    engine.inject_event(SpikeEvent{0U, 0U, 0.0F, 1.1F});
+
+    EXPECT_EQ(engine.tick(), 1U);
+    EXPECT_NEAR(observed_last_spike, 0.0F, 1e-6F);
+    EXPECT_TRUE(observed_refractory);
+}

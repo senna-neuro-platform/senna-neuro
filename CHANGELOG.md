@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.17.8-dev`
+- In [src/core/engine/simulation_engine.h](src/core/engine/simulation_engine.h) and [src/core/engine/simulation_engine.cpp](src/core/engine/simulation_engine.cpp), the simulation hot path now uses a near-SoA cache for mutable neuron runtime state (`potential`, `last_update_time`, `last_spike_time`, refractory flag, and immutable config scalars), reducing repeated AoS reads inside event processing while keeping `Neuron` as the public domain object.
+- In [src/core/domain/neuron.h](src/core/domain/neuron.h) and [src/core/domain/neuron.cpp](src/core/domain/neuron.cpp), a small `set_runtime_state(...)` sync hook was added so the engine can flush only dirty neuron state back into domain objects at observer and tick boundaries.
+- In [tests/test_event_queue.cpp](tests/test_event_queue.cpp), direct coverage was added to verify that subthreshold updates and spike observers still see synchronized neuron state after the engine-side hot-state caching.
+
 ## `0.17.7-dev`
 - In [src/core/domain/synapse.h](src/core/domain/synapse.h) and [src/core/domain/synapse.cpp](src/core/domain/synapse.cpp), `SynapseStore` now maintains compact CSR-style flat adjacency arrays with offsets in addition to the compatibility list indexes, exposing new `outgoing_span(...)` / `incoming_span(...)` accessors for cache-friendly iteration in hot paths.
 - In [src/core/engine/simulation_engine.cpp](src/core/engine/simulation_engine.cpp), [src/core/plasticity/stdp.cpp](src/core/plasticity/stdp.cpp), [src/core/plasticity/supervisor.cpp](src/core/plasticity/supervisor.cpp), and [src/core/plasticity/structural_plasticity.cpp](src/core/plasticity/structural_plasticity.cpp), hot synapse traversal was switched from per-neuron `vector<vector<...>>` access to contiguous span-based iteration over the compact indices.
