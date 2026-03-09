@@ -332,7 +332,14 @@ fi
 
 if [[ "${SKIP_DOCKER}" == false ]]; then
   log "Docker stack bring-up + health checks"
-  run_cmd make up
+  if curl -fsS "${MINIO_HEALTH_URL}" >/dev/null 2>&1; then
+    echo "[INFO] MinIO is already running — recreating only non-MinIO services"
+    run_cmd docker compose up -d --force-recreate --no-build \
+      simulator prometheus grafana visualizer artifact-uploader
+    run_cmd docker compose up -d --no-recreate minio minio-init
+  else
+    run_cmd make up
+  fi
   wait_http_ok "minio health" "${MINIO_HEALTH_URL}"
   wait_http_ok "simulator health" "${SIMULATOR_HEALTH_URL}"
   wait_http_ok "visualizer health" "${VISUALIZER_HEALTH_URL}"
