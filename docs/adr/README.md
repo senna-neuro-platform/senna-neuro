@@ -12,3 +12,4 @@
 - [ADR-0010: Metrics Contract and Export Path](./0010-metrics-contract-and-export-path.md) - Accepted
 - [ADR-0011: Python Bindings and Training Contract](./0011-python-bindings-and-training-contract.md) - Accepted
 - [ADR-0012: Training Target and Robustness Gates](./0012-training-target-and-robustness-gates.md) - Accepted
+- [ADR-0013: Performance and C++23 Parallelism Policy](./0013-performance-and-cpp23-parallelism-policy.md) - Accepted
