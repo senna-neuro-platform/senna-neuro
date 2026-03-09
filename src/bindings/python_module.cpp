@@ -39,6 +39,11 @@ struct BindingConfig {
     std::uint32_t seed{42U};
 };
 
+struct BatchExecutionStats {
+    std::size_t completed{0U};
+    std::size_t correct{0U};
+};
+
 template <typename T>
 T yaml_or(const YAML::Node& node, const char* key, const T& fallback) {
     if (!node || !node[key]) {
@@ -294,6 +299,7 @@ class PyNetworkHandle final {
         attach_observers();
         metrics_collector_.set_synapse_count(network_->synapse_count());
         rng_state_ = seed_to_state(config_.seed);
+        sample_spike_counts_.assign(network_->neurons().size(), 0U);
     }
 
     void load_sample(const std::vector<std::uint8_t>& image, const int label,
@@ -310,7 +316,22 @@ class PyNetworkHandle final {
         sample_is_train_ = is_train && !eval_mode_;
         sample_loaded_ = true;
 
+        reset_sample_activity();
         inject_encoded_sample();
+    }
+
+    [[nodiscard]] BatchExecutionStats batch_train(
+        const std::vector<std::vector<std::uint8_t>>& images, const std::vector<int>& labels,
+        const std::size_t ticks_per_sample) {
+        set_eval_mode(false);
+        return run_batch(images, labels, ticks_per_sample, true);
+    }
+
+    [[nodiscard]] BatchExecutionStats batch_evaluate(
+        const std::vector<std::vector<std::uint8_t>>& images, const std::vector<int>& labels,
+        const std::size_t ticks_per_sample) {
+        set_eval_mode(true);
+        return run_batch(images, labels, ticks_per_sample, false);
     }
 
     void step(const std::size_t n_ticks) {
@@ -541,33 +562,15 @@ class PyNetworkHandle final {
         const auto expected_output = output_neuron_for_label(expected_label);
         const auto has_predicted =
             is_valid_output_label(predicted_label) && predicted_label != expected_label;
-        const auto predicted_output =
-            has_predicted ? output_neuron_for_label(predicted_label) : expected_output;
-
-        auto& synapses = network_->synapses();
-        const auto learning_rate = std::max(0.0001F, config_.supervision_learning_rate);
-
-        for (std::size_t index = 0U; index < sample_image_.size(); ++index) {
-            const auto pixel = sample_image_[index];
-            if (!is_active_pixel(pixel)) {
-                continue;
-            }
-
-            const auto activity = static_cast<float>(pixel) / 255.0F;
-            const auto delta = static_cast<senna::core::domain::Weight>(learning_rate * activity);
-            const auto sensor_id = sensor_map_[index];
-
-            for (const auto synapse_id : synapses.outgoing(sensor_id)) {
-                auto& synapse = synapses.at(synapse_id);
-                if (synapse.post_id == expected_output) {
-                    synapse.weight = std::clamp(synapse.weight + delta, config_.network.min_weight,
-                                                config_.max_synapse_weight);
-                } else if (has_predicted && synapse.post_id == predicted_output) {
-                    synapse.weight = std::clamp(synapse.weight - delta, config_.network.min_weight,
-                                                config_.max_synapse_weight);
-                }
-            }
+        if (!has_predicted && last_prediction_ == expected_label) {
+            return;
         }
+
+        static_cast<void>(expected_output);
+        static_cast<void>(supervisor_.apply_output_weight_update(
+            predicted_label, expected_label, output_neurons_, sample_spike_counts_,
+            network_->synapses(), std::max(0.0001F, config_.supervision_learning_rate),
+            config_.network.min_weight, config_.max_synapse_weight));
     }
 
     void emit_wta_for_prediction(const int prediction) {
@@ -585,6 +588,7 @@ class PyNetworkHandle final {
     void attach_observers() {
         network_->add_spike_observer([this](const senna::core::domain::SpikeEvent& spike) {
             metrics_collector_.on_spike(spike);
+            record_sample_activity(spike);
             if (output_set_.contains(spike.source)) {
                 output_spikes_.push_back(spike);
             }
@@ -684,6 +688,57 @@ class PyNetworkHandle final {
         metrics_collector_.set_test_accuracy(test_acc);
     }
 
+    [[nodiscard]] BatchExecutionStats run_batch(
+        const std::vector<std::vector<std::uint8_t>>& images, const std::vector<int>& labels,
+        const std::size_t ticks_per_sample, const bool is_train) {
+        if (images.size() != labels.size()) {
+            throw std::invalid_argument("batch images and labels must have the same size");
+        }
+
+        BatchExecutionStats stats{};
+        for (std::size_t index = 0U; index < images.size(); ++index) {
+            load_sample(images[index], labels[index], is_train);
+            step(ticks_per_sample);
+
+            auto prediction = get_prediction();
+            if (is_train && prediction != labels[index]) {
+                supervise(labels[index]);
+                prediction = get_prediction();
+            }
+
+            ++stats.completed;
+            if (prediction == labels[index]) {
+                ++stats.correct;
+            }
+        }
+
+        return stats;
+    }
+
+    void reset_sample_activity() {
+        for (const auto neuron_id : active_sample_neurons_) {
+            const auto index = static_cast<std::size_t>(neuron_id);
+            if (index < sample_spike_counts_.size()) {
+                sample_spike_counts_[index] = 0U;
+            }
+        }
+        active_sample_neurons_.clear();
+    }
+
+    void record_sample_activity(const senna::core::domain::SpikeEvent& spike) {
+        const auto index = static_cast<std::size_t>(spike.source);
+        if (index >= sample_spike_counts_.size()) {
+            return;
+        }
+
+        if (sample_spike_counts_[index] == 0U) {
+            active_sample_neurons_.push_back(spike.source);
+        }
+        if (sample_spike_counts_[index] < std::numeric_limits<std::uint16_t>::max()) {
+            ++sample_spike_counts_[index];
+        }
+    }
+
     [[nodiscard]] py::dict build_tick_frame(const std::size_t tick_index) const {
         const auto& neurons = network_->neurons();
         const auto& spikes = network_->emitted_spikes_last_tick();
@@ -756,6 +811,8 @@ class PyNetworkHandle final {
     bool eval_mode_{false};
 
     std::vector<senna::core::domain::SpikeEvent> output_spikes_{};
+    std::vector<std::uint16_t> sample_spike_counts_{};
+    std::vector<senna::core::domain::NeuronId> active_sample_neurons_{};
     int last_prediction_{-1};
 
     std::uint64_t rng_state_{0x123456789abcdef0ULL};
@@ -775,6 +832,46 @@ PYBIND11_MODULE(senna_core, module) {
         .def(py::init<const std::string&>(), py::arg("config_path") = "configs/default.yaml")
         .def("load_sample", &PyNetworkHandle::load_sample, py::arg("image"), py::arg("label"),
              py::arg("is_train") = true)
+        .def(
+            "batch_train",
+            [](PyNetworkHandle& handle, const std::vector<std::vector<std::uint8_t>>& images,
+               const std::vector<int>& labels, const std::size_t ticks_per_sample) {
+                BatchExecutionStats stats{};
+                {
+                    py::gil_scoped_release release{};
+                    stats = handle.batch_train(images, labels, ticks_per_sample);
+                }
+
+                auto result = handle.get_metrics();
+                result[py::str("completed")] = py::int_(stats.completed);
+                result[py::str("correct")] = py::int_(stats.correct);
+                result[py::str("batch_accuracy")] =
+                    py::float_(stats.completed == 0U ? 0.0
+                                                     : static_cast<double>(stats.correct) /
+                                                           static_cast<double>(stats.completed));
+                return result;
+            },
+            py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"))
+        .def(
+            "batch_evaluate",
+            [](PyNetworkHandle& handle, const std::vector<std::vector<std::uint8_t>>& images,
+               const std::vector<int>& labels, const std::size_t ticks_per_sample) {
+                BatchExecutionStats stats{};
+                {
+                    py::gil_scoped_release release{};
+                    stats = handle.batch_evaluate(images, labels, ticks_per_sample);
+                }
+
+                auto result = handle.get_metrics();
+                result[py::str("completed")] = py::int_(stats.completed);
+                result[py::str("correct")] = py::int_(stats.correct);
+                result[py::str("batch_accuracy")] =
+                    py::float_(stats.completed == 0U ? 0.0
+                                                     : static_cast<double>(stats.correct) /
+                                                           static_cast<double>(stats.completed));
+                return result;
+            },
+            py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"))
         .def("step", &PyNetworkHandle::step, py::arg("n_ticks"))
         .def("step_with_trace", &PyNetworkHandle::step_with_trace, py::arg("n_ticks"))
         .def("get_prediction", &PyNetworkHandle::get_prediction)
@@ -805,6 +902,50 @@ PYBIND11_MODULE(senna_core, module) {
             handle->step(n_ticks);
         },
         py::arg("handle"), py::arg("n_ticks"));
+
+    module.def(
+        "batch_train",
+        [](const std::shared_ptr<PyNetworkHandle>& handle,
+           const std::vector<std::vector<std::uint8_t>>& images, const std::vector<int>& labels,
+           const std::size_t ticks_per_sample) {
+            BatchExecutionStats stats{};
+            {
+                py::gil_scoped_release release{};
+                stats = handle->batch_train(images, labels, ticks_per_sample);
+            }
+
+            auto result = handle->get_metrics();
+            result[py::str("completed")] = py::int_(stats.completed);
+            result[py::str("correct")] = py::int_(stats.correct);
+            result[py::str("batch_accuracy")] =
+                py::float_(stats.completed == 0U ? 0.0
+                                                 : static_cast<double>(stats.correct) /
+                                                       static_cast<double>(stats.completed));
+            return result;
+        },
+        py::arg("handle"), py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"));
+
+    module.def(
+        "batch_evaluate",
+        [](const std::shared_ptr<PyNetworkHandle>& handle,
+           const std::vector<std::vector<std::uint8_t>>& images, const std::vector<int>& labels,
+           const std::size_t ticks_per_sample) {
+            BatchExecutionStats stats{};
+            {
+                py::gil_scoped_release release{};
+                stats = handle->batch_evaluate(images, labels, ticks_per_sample);
+            }
+
+            auto result = handle->get_metrics();
+            result[py::str("completed")] = py::int_(stats.completed);
+            result[py::str("correct")] = py::int_(stats.correct);
+            result[py::str("batch_accuracy")] =
+                py::float_(stats.completed == 0U ? 0.0
+                                                 : static_cast<double>(stats.correct) /
+                                                       static_cast<double>(stats.completed));
+            return result;
+        },
+        py::arg("handle"), py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"));
 
     module.def(
         "step_with_trace",

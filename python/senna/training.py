@@ -21,6 +21,8 @@ MNIST_RAW_FILES = (
     "t10k-labels-idx1-ubyte",
 )
 
+DEFAULT_BATCH_SIZE = 256
+
 
 @dataclass(frozen=True)
 class Sample:
@@ -35,6 +37,23 @@ class ProgressUpdate:
     expected_total: int | None
     accuracy: float
     metrics: dict[str, float]
+
+
+def iter_sample_batches(
+    samples: Iterable["Sample"], batch_size: int
+) -> Iterator[list["Sample"]]:
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+
+    batch: list[Sample] = []
+    for sample in samples:
+        batch.append(sample)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+
+    if batch:
+        yield batch
 
 
 class TrainingPipeline:
@@ -53,31 +72,42 @@ class TrainingPipeline:
     ) -> dict[str, float]:
         total = 0
         correct = 0
+        batch_size = progress_every if progress_every > 0 else DEFAULT_BATCH_SIZE
 
         self.handle.set_eval_mode(False)
-        for sample in samples:
-            self.handle.load_sample(sample.image, sample.label, True)
-            self.handle.step(ticks_per_sample)
-            prediction = self.handle.get_prediction()
-            if prediction != sample.label:
-                self.handle.supervise(sample.label)
-                prediction = self.handle.get_prediction()
-            total += 1
-            if prediction == sample.label:
-                correct += 1
+        for batch in iter_sample_batches(samples, batch_size):
+            if hasattr(self.handle, "batch_train"):
+                batch_result = dict(
+                    self.handle.batch_train(
+                        [sample.image for sample in batch],
+                        [sample.label for sample in batch],
+                        ticks_per_sample,
+                    )
+                )
+                total += int(batch_result.get("completed", len(batch)))
+                correct += int(batch_result.get("correct", 0))
+                batch_metrics = dict(batch_result)
+            else:
+                for sample in batch:
+                    self.handle.load_sample(sample.image, sample.label, True)
+                    self.handle.step(ticks_per_sample)
+                    prediction = self.handle.get_prediction()
+                    if prediction != sample.label:
+                        self.handle.supervise(sample.label)
+                        prediction = self.handle.get_prediction()
+                    total += 1
+                    if prediction == sample.label:
+                        correct += 1
+                batch_metrics = dict(self.handle.get_metrics())
 
-            if (
-                progress_callback is not None
-                and progress_every > 0
-                and total % progress_every == 0
-            ):
+            if progress_callback is not None and progress_every > 0:
                 progress_callback(
                     ProgressUpdate(
                         stage="train",
                         completed=total,
                         expected_total=expected_total,
                         accuracy=(correct / total) if total else 0.0,
-                        metrics=dict(self.handle.get_metrics()),
+                        metrics=batch_metrics,
                     )
                 )
 
@@ -108,28 +138,39 @@ class TrainingPipeline:
     ) -> dict[str, float]:
         total = 0
         correct = 0
+        batch_size = progress_every if progress_every > 0 else DEFAULT_BATCH_SIZE
 
         self.handle.set_eval_mode(True)
-        for sample in samples:
-            self.handle.load_sample(sample.image, sample.label, False)
-            self.handle.step(ticks_per_sample)
-            prediction = self.handle.get_prediction()
-            total += 1
-            if prediction == sample.label:
-                correct += 1
+        for batch in iter_sample_batches(samples, batch_size):
+            if hasattr(self.handle, "batch_evaluate"):
+                batch_result = dict(
+                    self.handle.batch_evaluate(
+                        [sample.image for sample in batch],
+                        [sample.label for sample in batch],
+                        ticks_per_sample,
+                    )
+                )
+                total += int(batch_result.get("completed", len(batch)))
+                correct += int(batch_result.get("correct", 0))
+                batch_metrics = dict(batch_result)
+            else:
+                for sample in batch:
+                    self.handle.load_sample(sample.image, sample.label, False)
+                    self.handle.step(ticks_per_sample)
+                    prediction = self.handle.get_prediction()
+                    total += 1
+                    if prediction == sample.label:
+                        correct += 1
+                batch_metrics = dict(self.handle.get_metrics())
 
-            if (
-                progress_callback is not None
-                and progress_every > 0
-                and total % progress_every == 0
-            ):
+            if progress_callback is not None and progress_every > 0:
                 progress_callback(
                     ProgressUpdate(
                         stage="eval",
                         completed=total,
                         expected_total=expected_total,
                         accuracy=(correct / total) if total else 0.0,
-                        metrics=dict(self.handle.get_metrics()),
+                        metrics=batch_metrics,
                     )
                 )
 

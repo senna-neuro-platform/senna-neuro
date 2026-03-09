@@ -86,6 +86,29 @@ def test_module_level_trace_export() -> None:
     assert any(frame["totalNeurons"] == lattice["neuronCount"] for frame in frames)
 
 
+def test_module_level_batch_api() -> None:
+    handle = senna_core.create_network("configs/default.yaml")
+    images = []
+    labels = []
+
+    for label in range(4):
+        image = [0] * (28 * 28)
+        for offset in range(label, 28 * 28, 31):
+            image[offset] = 180 + (label * 10)
+        images.append(image)
+        labels.append(label)
+
+    train_result = senna_core.batch_train(handle, images, labels, 24)
+    assert train_result["completed"] == 4
+    assert 0.0 <= train_result["batch_accuracy"] <= 1.0
+    assert "senna_train_accuracy" in train_result
+
+    eval_result = senna_core.batch_evaluate(handle, images, labels, 24)
+    assert eval_result["completed"] == 4
+    assert 0.0 <= eval_result["batch_accuracy"] <= 1.0
+    assert "senna_test_accuracy" in eval_result
+
+
 def test_robustness_report_smoke(tmp_path: Path) -> None:
     pipeline = TrainingPipeline(config_path="configs/default.yaml")
     train_samples = make_synthetic_digit_samples(8, seed=23)

@@ -25,8 +25,7 @@ struct Synapse {
 
 class SynapseStore final {
    public:
-    explicit SynapseStore(std::size_t neuron_count = 0)
-        : outgoing_(neuron_count), incoming_(neuron_count) {}
+    explicit SynapseStore(std::size_t neuron_count = 0);
 
     [[nodiscard]] std::size_t neuron_capacity() const noexcept { return outgoing_.size(); }
 
@@ -34,53 +33,24 @@ class SynapseStore final {
 
     [[nodiscard]] bool empty() const noexcept { return synapses_.empty(); }
 
-    [[nodiscard]] const Synapse& at(const SynapseId id) const {
-        return synapses_.at(static_cast<std::size_t>(id));
-    }
+    [[nodiscard]] const Synapse& at(SynapseId id) const;
 
-    [[nodiscard]] Synapse& at(const SynapseId id) {
-        return synapses_.at(static_cast<std::size_t>(id));
-    }
+    [[nodiscard]] Synapse& at(SynapseId id);
 
     [[nodiscard]] const std::vector<Synapse>& synapses() const noexcept { return synapses_; }
 
     [[nodiscard]] std::vector<Synapse>& synapses() noexcept { return synapses_; }
 
-    [[nodiscard]] const std::vector<SynapseId>& outgoing(const NeuronId neuron_id) const noexcept {
-        static const std::vector<SynapseId> empty_index{};
-        const auto idx = static_cast<std::size_t>(neuron_id);
-        return idx < outgoing_.size() ? outgoing_[idx] : empty_index;
-    }
+    [[nodiscard]] const std::vector<SynapseId>& outgoing(NeuronId neuron_id) const noexcept;
 
-    [[nodiscard]] const std::vector<SynapseId>& incoming(const NeuronId neuron_id) const noexcept {
-        static const std::vector<SynapseId> empty_index{};
-        const auto idx = static_cast<std::size_t>(neuron_id);
-        return idx < incoming_.size() ? incoming_[idx] : empty_index;
-    }
+    [[nodiscard]] const std::vector<SynapseId>& incoming(NeuronId neuron_id) const noexcept;
 
-    SynapseId add(const Synapse& synapse) {
-        ensure_neuron_capacity(std::max(synapse.pre_id, synapse.post_id) + 1U);
+    SynapseId add(const Synapse& synapse);
 
-        const auto raw_id = synapses_.size();
-        if (raw_id > static_cast<std::size_t>(std::numeric_limits<SynapseId>::max())) {
-            throw std::overflow_error("SynapseId overflow");
-        }
-
-        const auto id = static_cast<SynapseId>(raw_id);
-        synapses_.push_back(synapse);
-        outgoing_[static_cast<std::size_t>(synapse.pre_id)].push_back(id);
-        incoming_[static_cast<std::size_t>(synapse.post_id)].push_back(id);
-        return id;
-    }
-
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     SynapseId connect(NeuronId pre_id, NeuronId post_id, const Coord3D& pre_position,
-                      const Coord3D& post_position, const NeuronType pre_type, const Weight weight,
-                      const Time c_base = 1.0F) {
-        const auto sign = pre_type == NeuronType::Excitatory ? static_cast<std::int8_t>(1)
-                                                             : static_cast<std::int8_t>(-1);
-        const auto delay = pre_position.distance(post_position) * c_base;
-        return add(Synapse{pre_id, post_id, weight, delay, sign});
-    }
+                      const Coord3D& post_position, NeuronType pre_type, Weight weight,
+                      Time c_base = 1.0F);
 
     template <typename RandomGenerator>
     SynapseId connect_random(NeuronId pre_id, NeuronId post_id, const Coord3D& pre_position,
@@ -92,36 +62,10 @@ class SynapseStore final {
                        c_base);
     }
 
-    void rebuild_indices(std::size_t neuron_count = 0) {
-        if (neuron_count == 0) {
-            for (const auto& synapse : synapses_) {
-                neuron_count = std::max(
-                    neuron_count,
-                    static_cast<std::size_t>(std::max(synapse.pre_id, synapse.post_id) + 1U));
-            }
-        }
-
-        outgoing_.assign(neuron_count, {});
-        incoming_.assign(neuron_count, {});
-
-        for (std::size_t id = 0; id < synapses_.size(); ++id) {
-            const auto& synapse = synapses_[id];
-            const auto synapse_id = static_cast<SynapseId>(id);
-            ensure_neuron_capacity(std::max(synapse.pre_id, synapse.post_id) + 1U);
-            outgoing_[static_cast<std::size_t>(synapse.pre_id)].push_back(synapse_id);
-            incoming_[static_cast<std::size_t>(synapse.post_id)].push_back(synapse_id);
-        }
-    }
+    void rebuild_indices(std::size_t neuron_count = 0);
 
    private:
-    void ensure_neuron_capacity(const NeuronId neuron_count) {
-        const auto required = static_cast<std::size_t>(neuron_count);
-        if (required <= outgoing_.size()) {
-            return;
-        }
-        outgoing_.resize(required);
-        incoming_.resize(required);
-    }
+    void ensure_neuron_capacity(NeuronId neuron_count);
 
     std::vector<Synapse> synapses_{};
     std::vector<std::vector<SynapseId>> outgoing_{};

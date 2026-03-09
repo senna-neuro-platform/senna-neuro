@@ -1,25 +1,16 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <optional>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
 #include "core/domain/neuron.h"
+#include "test_support/require_value.h"
 
 namespace {
 
 bool almost_equal(const float lhs, const float rhs, const float eps = 1e-4F) {
     return std::fabs(lhs - rhs) <= eps;
-}
-
-template <typename T>
-T require_value(const std::optional<T>& value, const char* message) {
-    if (!value.has_value()) {
-        throw std::runtime_error(message);
-    }
-    return *value;
 }
 
 void expect_time_equal(const float lhs, const float rhs, const float eps = 1e-4F) {

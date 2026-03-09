@@ -57,6 +57,8 @@ model.
 15. Every optimization that changes a core algorithm or data structure must retain or improve test
     coverage for correctness, determinism, persistence compatibility, and the Python integration
     path.
+16. Optimization work is not complete until it passes the project quality gate: formatting, lint,
+    relevant tests, and the required version/changelog update policy from ADR-0001.
 
 ## Consequences
 

@@ -9,6 +9,7 @@
 #include "core/engine/simulation_engine.h"
 #include "core/engine/time_manager.h"
 #include "core/plasticity/homeostasis.h"
+#include "test_support/require_value.h"
 
 TEST(HomeostasisTest, HyperactiveNeuronRaisesThresholdAndReducesSpiking) {
     using senna::core::domain::Coord3D;
@@ -44,7 +45,7 @@ TEST(HomeostasisTest, HyperactiveNeuronRaisesThresholdAndReducesSpiking) {
         const auto time = static_cast<float>(tick) * dt;
         const auto spike = neurons.front().receive_input(time, 0.3F);
         if (spike.has_value()) {
-            homeostasis.on_spike(*spike);
+            homeostasis.on_spike(require_value(spike, "expected spike for hyperactive neuron"));
             if (tick < 200) {
                 ++first_half_spikes;
             } else {
@@ -118,7 +119,7 @@ TEST(HomeostasisTest, ThresholdStaysInsideConfiguredBounds) {
         const auto time = static_cast<float>(tick);
         const auto spike = neurons.front().receive_input(time, 10.0F);
         if (spike.has_value()) {
-            homeostasis.on_spike(*spike);
+            homeostasis.on_spike(require_value(spike, "expected spike in bounded-threshold test"));
         }
         homeostasis.on_tick(neurons, 1.0F);
     }

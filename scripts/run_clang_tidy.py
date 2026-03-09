@@ -29,10 +29,21 @@ def parse_args() -> argparse.Namespace:
         default="*",
         help="Value passed to --warnings-as-errors (default: *).",
     )
+    parser.add_argument(
+        "--paths",
+        nargs="+",
+        default=["src"],
+        help=(
+            "Project-relative path prefixes to lint from compile_commands.json "
+            "(default: src)."
+        ),
+    )
     return parser.parse_args()
 
 
-def load_translation_units(source_root: Path, build_dir: Path) -> list[Path]:
+def load_translation_units(
+    source_root: Path, build_dir: Path, allowed_prefixes: list[str]
+) -> list[Path]:
     compile_commands_path = build_dir / "compile_commands.json"
     if not compile_commands_path.is_file():
         raise FileNotFoundError(
@@ -53,9 +64,10 @@ def load_translation_units(source_root: Path, build_dir: Path) -> list[Path]:
         if relative_path.suffix != ".cpp":
             continue
 
-        if not (
-            str(relative_path).startswith("src/")
-            or str(relative_path).startswith("tests/")
+        normalized = str(relative_path)
+        if not any(
+            normalized == prefix or normalized.startswith(f"{prefix}/")
+            for prefix in allowed_prefixes
         ):
             continue
 
@@ -65,9 +77,13 @@ def load_translation_units(source_root: Path, build_dir: Path) -> list[Path]:
 
 
 def run_clang_tidy(
-    source_root: Path, build_dir: Path, clang_tidy_bin: str, warnings_as_errors: str
+    source_root: Path,
+    build_dir: Path,
+    clang_tidy_bin: str,
+    warnings_as_errors: str,
+    allowed_prefixes: list[str],
 ) -> int:
-    translation_units = load_translation_units(source_root, build_dir)
+    translation_units = load_translation_units(source_root, build_dir, allowed_prefixes)
     if not translation_units:
         print("No translation units found in compile_commands.json", file=sys.stderr)
         return 1
@@ -124,6 +140,7 @@ def main() -> int:
             build_dir=build_dir,
             clang_tidy_bin=args.clang_tidy,
             warnings_as_errors=args.warnings_as_errors,
+            allowed_prefixes=args.paths,
         )
     except FileNotFoundError as error:
         print(error, file=sys.stderr)

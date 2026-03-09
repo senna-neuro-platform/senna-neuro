@@ -25,6 +25,8 @@ Project versions and the change log must be maintained consistently so that:
    - a new block is created only when moving to a new `B`, and it is placed above the previous ones;
    - each block records only actual project changes; maintenance notes like "updated version/changelog" are not added;
    - order is always reverse chronological, with the newest items first.
+8. Any code, build, runtime, or enforced workflow change is not considered complete until `VERSION`
+   and the top corresponding block in `CHANGELOG.md` are updated in the same change set.
 
 ## Consequences
 

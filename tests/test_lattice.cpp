@@ -1,22 +1,9 @@
 #include <gtest/gtest.h>
 
-#include <optional>
 #include <random>
-#include <stdexcept>
 
 #include "core/domain/lattice.h"
-
-namespace {
-
-template <typename T>
-T require_value(const std::optional<T>& value, const char* message) {
-    if (!value.has_value()) {
-        throw std::runtime_error(message);
-    }
-    return *value;
-}
-
-}  // namespace
+#include "test_support/require_value.h"
 
 TEST(LatticeTest, BuildsExpectedMvpGridAndLayerCounts) {
     using senna::core::domain::Lattice;

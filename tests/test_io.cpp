@@ -3,25 +3,16 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <random>
-#include <stdexcept>
 #include <vector>
 
 #include "core/domain/lattice.h"
 #include "core/engine/network_builder.h"
 #include "core/io/first_spike_decoder.h"
 #include "core/io/rate_encoder.h"
+#include "test_support/require_value.h"
 
 namespace {
-
-template <typename T>
-T require_value(const std::optional<T>& value, const char* message) {
-    if (!value.has_value()) {
-        throw std::runtime_error(message);
-    }
-    return *value;
-}
 
 senna::core::domain::Lattice make_sensor_lattice() {
     senna::core::domain::LatticeConfig config{};

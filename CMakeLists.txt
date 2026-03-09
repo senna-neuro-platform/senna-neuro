@@ -20,8 +20,33 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(SENNA_ENABLE_SANITIZERS "Enable ASan and UBSan for Debug builds" OFF)
 option(SENNA_BUILD_PYTHON_BINDINGS "Build pybind11 module senna_core" ON)
 
-add_library(senna_domain INTERFACE)
-target_include_directories(senna_domain INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(SENNA_DOMAIN_SOURCES
+    src/core/domain/neuron.cpp
+    src/core/domain/synapse.cpp
+    src/core/engine/event_queue.cpp
+    src/core/engine/network_builder.cpp
+    src/core/engine/simulation_engine.cpp
+    src/core/engine/time_manager.cpp
+    src/core/io/first_spike_decoder.cpp
+    src/core/io/rate_encoder.cpp
+    src/core/metrics/metrics_collector.cpp
+    src/core/plasticity/homeostasis.cpp
+    src/core/plasticity/stdp.cpp
+    src/core/plasticity/structural_plasticity.cpp
+    src/core/plasticity/supervisor.cpp
+)
+
+add_library(senna_domain STATIC ${SENNA_DOMAIN_SOURCES})
+target_include_directories(senna_domain PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set_target_properties(senna_domain PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(senna_domain PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(senna_domain PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+endif()
 
 add_executable(senna_simulator src/main.cpp)
 target_link_libraries(senna_simulator PRIVATE senna_domain)
@@ -195,6 +220,20 @@ if(BUILD_TESTING)
     endif()
 
     gtest_discover_tests(test_stdp)
+
+    add_executable(test_supervisor tests/test_supervisor.cpp)
+    target_link_libraries(test_supervisor PRIVATE senna_domain GTest::gtest_main)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_supervisor PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(test_supervisor PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(test_supervisor PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
+
+    gtest_discover_tests(test_supervisor)
 
     add_executable(test_homeostasis tests/test_homeostasis.cpp)
     target_link_libraries(test_homeostasis PRIVATE senna_domain GTest::gtest_main)

@@ -1,25 +1,12 @@
 #include <gtest/gtest.h>
 
-#include <optional>
-#include <stdexcept>
 #include <vector>
 
 #include "core/domain/synapse.h"
 #include "core/domain/types.h"
 #include "core/plasticity/stdp.h"
 #include "core/plasticity/supervisor.h"
-
-namespace {
-
-template <typename T>
-T require_value(const std::optional<T>& value, const char* message) {
-    if (!value.has_value()) {
-        throw std::runtime_error(message);
-    }
-    return *value;
-}
-
-}  // namespace
+#include "test_support/require_value.h"
 
 TEST(STDPRuleTest, CausalPairIncreasesWeight) {
     using senna::core::domain::Coord3D;

@@ -17,47 +17,16 @@ class EventQueue final {
 
     [[nodiscard]] std::size_t size() const noexcept { return queue_.size(); }
 
-    void clear() noexcept { queue_ = {}; }
+    void clear() noexcept;
 
-    void push(Event event) { queue_.push(std::move(event)); }
+    void push(const Event& event);
 
-    [[nodiscard]] std::vector<Event> snapshot() const {
-        std::vector<Event> events{};
-        events.reserve(queue_.size());
+    [[nodiscard]] std::vector<Event> snapshot() const;
 
-        auto copy = queue_;
-        while (!copy.empty()) {
-            events.push_back(copy.top());
-            copy.pop();
-        }
-        return events;
-    }
+    void restore(const std::vector<Event>& events);
 
-    void restore(const std::vector<Event>& events) {
-        clear();
-        for (const auto& event : events) {
-            push(event);
-        }
-    }
-
-    [[nodiscard]] std::vector<Event> drain_tick(const senna::core::domain::Time t_start,
-                                                const senna::core::domain::Time t_end) {
-        std::vector<Event> drained{};
-        if (t_end <= t_start) {
-            return drained;
-        }
-
-        while (!queue_.empty() && queue_.top().arrival < t_end) {
-            auto event = queue_.top();
-            queue_.pop();
-
-            if (event.arrival >= t_start) {
-                drained.push_back(event);
-            }
-        }
-
-        return drained;
-    }
+    [[nodiscard]] const std::vector<Event>& drain_tick(senna::core::domain::Time t_start,
+                                                       senna::core::domain::Time t_end);
 
    private:
     struct EarlierArrival {
@@ -67,6 +36,7 @@ class EventQueue final {
     };
 
     std::priority_queue<Event, std::vector<Event>, EarlierArrival> queue_{};
+    std::vector<Event> drained_{};
 };
 
 }  // namespace senna::core::engine

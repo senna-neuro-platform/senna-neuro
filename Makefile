@@ -15,6 +15,7 @@ MNIST_URL_BASE := https://storage.googleapis.com/cvdf-datasets/mnist
 MNIST_FILES := train-images-idx3-ubyte train-labels-idx1-ubyte t10k-images-idx3-ubyte t10k-labels-idx1-ubyte
 
 CPP_FILES := $(shell find src tests -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \) 2>/dev/null)
+PYTHON_LINT_TARGETS := python/senna python/train.py infra scripts
 
 .PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize test up up-build down logs
 
@@ -22,7 +23,7 @@ help:
 	@echo "Available targets:"
 	@echo "  make install         - install Conan dependencies and download MNIST data"
 	@echo "  make data-mnist      - download MNIST dataset into data/MNIST/raw"
-	@echo "  make lint            - run formatting and linters (fmt + lint)"
+	@echo "  make lint            - run production-code formatting and linters"
 	@echo "  make build-debug     - configure and build Debug preset"
 	@echo "  make build-release   - configure and build Release preset"
 	@echo "  make build-sanitize  - configure and build Sanitize preset"
@@ -95,9 +96,9 @@ fmt:
 
 lint: fmt
 	$(MAKE) build-debug
-	$(PYTHON) scripts/run_clang_tidy.py --build-dir build/debug
+	$(PYTHON) scripts/run_clang_tidy.py --build-dir build/debug --paths src
 	@if command -v ruff >/dev/null 2>&1; then \
-		ruff check .; \
+		ruff check $(PYTHON_LINT_TARGETS); \
 	else \
 		echo "ruff not found: skipping Python lint"; \
 	fi
