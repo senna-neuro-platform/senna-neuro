@@ -159,6 +159,9 @@ def exporter_snapshot_payload(
     progress_stage: str | None = None,
     progress_completed: int | None = None,
     progress_total: int | None = None,
+    training_progress_ratio: float | None = None,
+    training_samples_per_sec: float | None = None,
+    training_eta_seconds: float | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "ts_utc": datetime.now(timezone.utc).isoformat(),
@@ -198,6 +201,14 @@ def exporter_snapshot_payload(
         payload["progress_completed"] = progress_completed
     if progress_total is not None:
         payload["progress_total"] = progress_total
+    if training_progress_ratio is not None:
+        payload["training_progress_ratio"] = max(
+            0.0, min(1.0, float(training_progress_ratio))
+        )
+    if training_samples_per_sec is not None:
+        payload["training_samples_per_sec"] = max(0.0, float(training_samples_per_sec))
+    if training_eta_seconds is not None:
+        payload["training_eta_seconds"] = max(0.0, float(training_eta_seconds))
 
     return payload
 
@@ -342,6 +353,44 @@ def main() -> int:
     last_train_accuracy = 0.0
     last_eval_accuracy = 0.0
     last_checkpoint_path: Path | None = None
+    run_started_at = time.perf_counter()
+    total_work_items = max(1, args.epochs * (args.train_limit + args.test_limit))
+    work_items_per_epoch = args.train_limit + args.test_limit
+
+    def compute_training_progress(
+        *,
+        epoch_index: int,
+        stage: Literal["train", "eval"] | None = None,
+        completed: int = 0,
+    ) -> tuple[float, float, float]:
+        if stage is None:
+            overall_completed = min(
+                total_work_items, epoch_index * work_items_per_epoch
+            )
+        else:
+            completed_before_epoch = (epoch_index - 1) * work_items_per_epoch
+            completed_before_stage = completed_before_epoch + (
+                args.train_limit if stage == "eval" else 0
+            )
+            overall_completed = min(
+                total_work_items, completed_before_stage + completed
+            )
+
+        total_elapsed = max(0.001, time.perf_counter() - run_started_at)
+        training_samples_per_sec = (
+            overall_completed / total_elapsed if overall_completed > 0 else 0.0
+        )
+        training_eta_seconds = (
+            max(0.0, (total_work_items - overall_completed) / training_samples_per_sec)
+            if training_samples_per_sec > 0.0
+            else 0.0
+        )
+        training_progress_ratio = overall_completed / float(total_work_items)
+        return (
+            training_progress_ratio,
+            training_samples_per_sec,
+            training_eta_seconds,
+        )
 
     visualizer_sample = first_sample(
         dataset_mode=dataset_mode,
@@ -361,6 +410,9 @@ def main() -> int:
         progress_stage: str | None = None,
         progress_completed: int | None = None,
         progress_total: int | None = None,
+        training_progress_ratio: float | None = None,
+        training_samples_per_sec: float | None = None,
+        training_eta_seconds: float | None = None,
     ) -> None:
         write_metrics_snapshot(
             metrics_snapshot_path,
@@ -378,6 +430,9 @@ def main() -> int:
                 progress_stage=progress_stage,
                 progress_completed=progress_completed,
                 progress_total=progress_total,
+                training_progress_ratio=training_progress_ratio,
+                training_samples_per_sec=training_samples_per_sec,
+                training_eta_seconds=training_eta_seconds,
             ),
         )
 
@@ -407,6 +462,12 @@ def main() -> int:
         runtime_metrics=dict(pipeline.handle.get_metrics()),
         train_accuracy=0.0,
         test_accuracy=0.0,
+        progress_stage="bootstrap",
+        progress_completed=0,
+        progress_total=work_items_per_epoch,
+        training_progress_ratio=0.0,
+        training_samples_per_sec=0.0,
+        training_eta_seconds=0.0,
     )
     write_live_trace(epoch=0, trace_source="training_bootstrap")
     print(
@@ -444,6 +505,27 @@ def main() -> int:
             nonlocal last_live_trace_emit
             nonlocal last_eval_accuracy
 
+            stage_elapsed = max(0.001, time.perf_counter() - train_stage_started_at)
+            stage_samples_per_sec = (
+                update.completed / stage_elapsed if update.completed > 0 else 0.0
+            )
+            stage_eta_seconds = None
+            if update.expected_total is not None and stage_samples_per_sec > 0.0:
+                stage_eta_seconds = max(
+                    0.0,
+                    (update.expected_total - update.completed) / stage_samples_per_sec,
+                )
+
+            (
+                training_progress_ratio,
+                training_samples_per_sec,
+                training_eta_seconds,
+            ) = compute_training_progress(
+                epoch_index=epoch_index,
+                stage=update.stage,
+                completed=update.completed,
+            )
+
             should_print = (
                 args.progress_every > 0
                 and update.completed >= last_train_progress_print + args.progress_every
@@ -453,16 +535,10 @@ def main() -> int:
             )
 
             if should_print:
-                elapsed = max(0.001, time.perf_counter() - train_stage_started_at)
-                samples_per_sec = update.completed / elapsed
-                eta_seconds = None
-                if update.expected_total is not None and samples_per_sec > 0.0:
-                    eta_seconds = max(
-                        0.0,
-                        (update.expected_total - update.completed) / samples_per_sec,
-                    )
                 eta_text = (
-                    f" eta_sec={eta_seconds:.1f}" if eta_seconds is not None else ""
+                    f" eta_sec={stage_eta_seconds:.1f}"
+                    if stage_eta_seconds is not None
+                    else ""
                 )
                 total_text = (
                     str(update.expected_total)
@@ -475,7 +551,7 @@ def main() -> int:
                     f"accuracy={update.accuracy:.4f} "
                     f"spikes_per_tick={metric_float(update.metrics, 'senna_spikes_per_tick'):.4f} "
                     f"active_ratio={metric_float(update.metrics, 'senna_active_neurons_ratio'):.4f} "
-                    f"samples_per_sec={samples_per_sec:.2f}{eta_text}",
+                    f"samples_per_sec={stage_samples_per_sec:.2f}{eta_text}",
                     flush=True,
                 )
                 last_train_progress_print = update.completed
@@ -492,6 +568,9 @@ def main() -> int:
                 progress_stage=update.stage,
                 progress_completed=update.completed,
                 progress_total=update.expected_total,
+                training_progress_ratio=training_progress_ratio,
+                training_samples_per_sec=training_samples_per_sec,
+                training_eta_seconds=training_eta_seconds,
             )
 
             should_refresh_trace = (
@@ -567,6 +646,11 @@ def main() -> int:
                 "checkpoint_path": str(checkpoint_path),
             },
         )
+        (
+            epoch_progress_ratio,
+            epoch_samples_per_sec,
+            epoch_eta_seconds,
+        ) = compute_training_progress(epoch_index=epoch_index)
         write_metrics_snapshot(
             metrics_snapshot_path,
             exporter_snapshot_payload(
@@ -580,6 +664,12 @@ def main() -> int:
                 runtime_metrics=eval_metrics,
                 train_accuracy=train_metrics.get("epoch_accuracy", 0.0),
                 test_accuracy=eval_metrics.get("eval_accuracy", 0.0),
+                progress_stage="epoch_end",
+                progress_completed=work_items_per_epoch,
+                progress_total=work_items_per_epoch,
+                training_progress_ratio=epoch_progress_ratio,
+                training_samples_per_sec=epoch_samples_per_sec,
+                training_eta_seconds=epoch_eta_seconds,
             ),
         )
         visualizer_trace = capture_trace_from_state(

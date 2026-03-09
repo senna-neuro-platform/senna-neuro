@@ -44,6 +44,7 @@
         "x": 0,
         "y": 0
       },
+      "description": "Current train and evaluation accuracy in the [0..1] range. Train rising faster than test usually means the model is fitting samples but generalization still lags.",
       "id": 1,
       "options": {
         "legend": {
@@ -81,6 +82,7 @@
         "x": 12,
         "y": 0
       },
+      "description": "Number of currently active synapses in the network. A flat line means topology is stable; changes reflect pruning or sprouting if structural plasticity is enabled.",
       "id": 2,
       "options": {
         "legend": {
@@ -113,6 +115,7 @@
         "x": 0,
         "y": 8
       },
+      "description": "Net pruning and sprouting volume accumulated over the last 5 minutes. Positive activity here means structural plasticity is materially changing the graph, not just evaluating candidates.",
       "id": 3,
       "options": {
         "legend": {
@@ -150,6 +153,7 @@
         "x": 12,
         "y": 8
       },
+      "description": "Observed STDP update throughput in updates per second. Higher values mean synaptic plasticity is actively modifying weights; near-zero means the current run is mostly inference-like or silent.",
       "id": 4,
       "options": {
         "legend": {
@@ -186,6 +190,6 @@
   "timezone": "",
   "title": "SENNA Training",
   "uid": "senna-training",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

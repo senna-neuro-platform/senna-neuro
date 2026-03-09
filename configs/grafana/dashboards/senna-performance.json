@@ -43,6 +43,7 @@
         "x": 0,
         "y": 0
       },
+      "description": "Median and p95 duration of a simulation tick in milliseconds, derived from the exporter histogram. Lower is better; a widening gap between p50 and p95 usually means unstable latency spikes.",
       "id": 1,
       "options": {
         "legend": {
@@ -80,6 +81,7 @@
         "x": 12,
         "y": 0
       },
+      "description": "Effective simulation throughput in ticks per second. Rising values mean the runtime is processing faster; drops often correlate with heavier activity, persistence work, or host contention.",
       "id": 2,
       "options": {
         "legend": {
@@ -112,6 +114,7 @@
         "x": 0,
         "y": 8
       },
+      "description": "Resident memory usage of the Prometheus exporter process. This should stay relatively stable; monotonic growth over long runs is a signal to inspect exporter-side buffering or leaks.",
       "id": 3,
       "options": {
         "legend": {
@@ -134,32 +137,164 @@
       "fieldConfig": {
         "defaults": {
           "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
           "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 4,
         "x": 12,
         "y": 8
       },
+      "description": "Seconds since the exporter process started. It should increase monotonically during a healthy run; resets indicate container or process restarts.",
       "id": 4,
       "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom"
-        }
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "expr": "senna_exporter_uptime_seconds",
-          "legendFormat": "uptime",
           "refId": "A"
         }
       ],
       "title": "Exporter Uptime",
-      "type": "timeseries"
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 300
+              },
+              {
+                "color": "red",
+                "value": 900
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 16,
+        "y": 8
+      },
+      "description": "Estimated seconds remaining until the configured training run completes. Treat it as an operational estimate: it becomes more reliable after enough samples have already been processed.",
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "senna_training_eta_seconds",
+          "refId": "A"
+        }
+      ],
+      "title": "Training ETA",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.35
+              },
+              {
+                "color": "green",
+                "value": 0.8
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 8
+      },
+      "description": "Estimated overall completion fraction for the current training run in the [0..1] range. It combines completed train and eval samples across epochs and should converge to 1.0 at the end.",
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "senna_training_progress_ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Training Progress",
+      "type": "stat"
     }
   ],
   "refresh": "5s",
@@ -180,6 +315,6 @@
   "timezone": "",
   "title": "SENNA Performance",
   "uid": "senna-performance",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

@@ -23,11 +23,6 @@ std::vector<senna::core::domain::Neuron> make_neurons() {
     neurons.emplace_back(1U, Coord3D{1U, 0U, 0U}, NeuronType::Inhibitory, NeuronConfig{});
     neurons.emplace_back(2U, Coord3D{0U, 1U, 0U}, NeuronType::Excitatory, NeuronConfig{});
     neurons.emplace_back(3U, Coord3D{1U, 1U, 0U}, NeuronType::Inhibitory, NeuronConfig{});
-
-    neurons[0U].set_average_rate(8.0F);
-    neurons[1U].set_average_rate(4.0F);
-    neurons[2U].set_average_rate(6.0F);
-    neurons[3U].set_average_rate(2.0F);
     return neurons;
 }
 
@@ -75,9 +70,9 @@ TEST(MetricsCollectorTest, AggregatesExpectedValuesForKnownTickSequence) {
     EXPECT_DOUBLE_EQ(snapshot.max_active_neurons_ratio, 0.5);
     EXPECT_DOUBLE_EQ(snapshot.mean_active_neurons_ratio, 0.5);
 
-    EXPECT_NEAR(snapshot.e_rate_hz, 7.0, 1e-9);
-    EXPECT_NEAR(snapshot.i_rate_hz, 3.0, 1e-9);
-    EXPECT_NEAR(snapshot.ei_balance, 7.0 / 3.0, 1e-9);
+    EXPECT_NEAR(snapshot.e_rate_hz, 2000.0, 1e-9);
+    EXPECT_NEAR(snapshot.i_rate_hz, 1000.0, 1e-9);
+    EXPECT_NEAR(snapshot.ei_balance, 2.0, 1e-9);
 
     EXPECT_EQ(snapshot.synapse_count, 1200U);
     EXPECT_EQ(snapshot.stdp_updates_total, 200U);
@@ -106,9 +101,9 @@ TEST(MetricsCollectorTest, ExportsPrometheusMetricMapWithExpectedKeys) {
     EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_active_neurons_ratio"), 0.25);
     EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_max_active_neurons_ratio"), 0.25);
     EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_spikes_per_tick"), 1.0);
-    EXPECT_NEAR(metric_or_throw(metrics, "senna_e_rate_hz"), 7.0, 1e-9);
-    EXPECT_NEAR(metric_or_throw(metrics, "senna_i_rate_hz"), 3.0, 1e-9);
-    EXPECT_NEAR(metric_or_throw(metrics, "senna_ei_balance"), 7.0 / 3.0, 1e-9);
+    EXPECT_NEAR(metric_or_throw(metrics, "senna_e_rate_hz"), 1000.0, 1e-9);
+    EXPECT_NEAR(metric_or_throw(metrics, "senna_i_rate_hz"), 0.0, 1e-9);
+    EXPECT_NEAR(metric_or_throw(metrics, "senna_ei_balance"), 1000.0, 1e-9);
 
     EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_train_accuracy"), 1.0);
     EXPECT_DOUBLE_EQ(metric_or_throw(metrics, "senna_test_accuracy"), 0.0);

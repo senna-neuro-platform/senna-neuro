@@ -31,6 +31,9 @@ class MetricsSnapshot:
     tick_duration_seconds: float
     e_rate_hz: float
     i_rate_hz: float
+    training_progress_ratio: float
+    training_samples_per_sec: float
+    training_eta_seconds: float
 
 
 class TickDurationHistogram:
@@ -143,6 +146,33 @@ def load_snapshot_from_file(path: Path) -> MetricsSnapshot | None:
         ),
         e_rate_hz=max(0.0, e_rate_hz),
         i_rate_hz=max(0.0, i_rate_hz),
+        training_progress_ratio=max(
+            0.0,
+            min(
+                1.0,
+                _read_float(
+                    payload,
+                    0.0,
+                    "training_progress_ratio",
+                    "senna_training_progress_ratio",
+                ),
+            ),
+        ),
+        training_samples_per_sec=max(
+            0.0,
+            _read_float(
+                payload,
+                0.0,
+                "training_samples_per_sec",
+                "senna_training_samples_per_sec",
+            ),
+        ),
+        training_eta_seconds=max(
+            0.0,
+            _read_float(
+                payload, 0.0, "training_eta_seconds", "senna_training_eta_seconds"
+            ),
+        ),
     )
 
 
@@ -196,6 +226,19 @@ def render_metrics_payload(snapshot: MetricsSnapshot, state: ExporterState) -> s
         "# HELP senna_tick_duration_seconds Simulation tick duration histogram.",
         "# TYPE senna_tick_duration_seconds histogram",
         *state.histogram.render("senna_tick_duration_seconds"),
+        "# HELP senna_training_progress_ratio Estimated full-training progress [0..1].",
+        "# TYPE senna_training_progress_ratio gauge",
+        _format_metric(
+            "senna_training_progress_ratio", snapshot.training_progress_ratio
+        ),
+        "# HELP senna_training_samples_per_sec Overall training throughput in samples per second.",
+        "# TYPE senna_training_samples_per_sec gauge",
+        _format_metric(
+            "senna_training_samples_per_sec", snapshot.training_samples_per_sec
+        ),
+        "# HELP senna_training_eta_seconds Estimated seconds remaining until training completion.",
+        "# TYPE senna_training_eta_seconds gauge",
+        _format_metric("senna_training_eta_seconds", snapshot.training_eta_seconds),
         "# HELP senna_exporter_uptime_seconds Exporter uptime in seconds.",
         "# TYPE senna_exporter_uptime_seconds gauge",
         _format_metric("senna_exporter_uptime_seconds", uptime),

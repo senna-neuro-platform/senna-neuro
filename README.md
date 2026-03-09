@@ -186,6 +186,7 @@ docker compose down
   - `senna_spikes_per_tick`
   - `senna_e_rate_hz`, `senna_i_rate_hz`, `senna_ei_balance`
   - `senna_train_accuracy`, `senna_test_accuracy`
+  - `senna_training_progress_ratio`, `senna_training_samples_per_sec`, `senna_training_eta_seconds`
   - `senna_synapse_count`
   - `senna_stdp_updates_total`, `senna_pruned_total`, `senna_sprouted_total`
   - `senna_tick_duration_seconds` (histogram)

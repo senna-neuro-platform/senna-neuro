@@ -24,6 +24,9 @@ class PrometheusExporterTest(unittest.TestCase):
             tick_duration_seconds=0.00075,
             e_rate_hz=7.5,
             i_rate_hz=3.0,
+            training_progress_ratio=0.42,
+            training_samples_per_sec=128.0,
+            training_eta_seconds=360.0,
         )
         state.observe(snapshot)
         payload = simulator_server.render_metrics_payload(snapshot, state)
@@ -38,6 +41,9 @@ class PrometheusExporterTest(unittest.TestCase):
             "senna_pruned_total",
             "senna_sprouted_total",
             "senna_tick_duration_seconds",
+            "senna_training_progress_ratio",
+            "senna_training_samples_per_sec",
+            "senna_training_eta_seconds",
         ]
         for metric in expected_types:
             self.assertIn(f"# TYPE {metric}", payload)
@@ -64,6 +70,9 @@ class PrometheusExporterTest(unittest.TestCase):
                         "sprouted_total": 55,
                         "stdp_updates_total": 999,
                         "tick_duration_seconds": 0.00075,
+                        "training_progress_ratio": 0.42,
+                        "training_samples_per_sec": 128.0,
+                        "training_eta_seconds": 360.0,
                     }
                 ),
                 encoding="utf-8",
@@ -83,6 +92,9 @@ class PrometheusExporterTest(unittest.TestCase):
             self.assertAlmostEqual(snapshot.sprouted_total, 55.0)
             self.assertAlmostEqual(snapshot.stdp_updates_total, 999.0)
             self.assertAlmostEqual(snapshot.tick_duration_seconds, 0.00075)
+            self.assertAlmostEqual(snapshot.training_progress_ratio, 0.42)
+            self.assertAlmostEqual(snapshot.training_samples_per_sec, 128.0)
+            self.assertAlmostEqual(snapshot.training_eta_seconds, 360.0)
 
     def test_snapshot_returns_none_when_file_is_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

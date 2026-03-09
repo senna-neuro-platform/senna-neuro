@@ -68,13 +68,18 @@ class MetricsCollector final {
    private:
     [[nodiscard]] static double clamp_0_1(double value) noexcept;
 
-    [[nodiscard]] std::pair<double, double> average_rates_by_type() const noexcept;
+    [[nodiscard]] std::pair<double, double> rates_by_type(
+        double tick_duration_seconds) const noexcept;
 
     void reset_tick_accumulators() noexcept;
 
     const std::vector<senna::core::domain::Neuron>& neurons_;
+    std::size_t excitatory_neuron_count_{0U};
+    std::size_t inhibitory_neuron_count_{0U};
 
     std::size_t spikes_this_tick_{0U};
+    std::size_t excitatory_spikes_this_tick_{0U};
+    std::size_t inhibitory_spikes_this_tick_{0U};
     std::size_t active_count_this_tick_{0U};
     std::vector<std::uint8_t> active_neurons_bitmap_{};
     std::vector<senna::core::domain::NeuronId> active_neurons_dirty_{};
