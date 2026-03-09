@@ -20,6 +20,8 @@
 
 namespace senna::core::persistence {
 
+struct SimulationState;
+
 struct SnapshotData {
     std::vector<senna::core::domain::NeuronSnapshot> neurons{};
     std::vector<senna::core::domain::Synapse> synapses{};
@@ -213,12 +215,14 @@ class HDF5Writer final {
     void write_epoch(std::size_t epoch, const std::vector<senna::core::domain::SpikeEvent>& trace,
                      const std::vector<senna::core::domain::Neuron>& neurons,
                      const senna::core::domain::SynapseStore& synapses,
-                     const std::vector<MetricPoint>& metrics) const;
+                     const std::vector<MetricPoint>& metrics,
+                     const SimulationState* state = nullptr) const;
 
     void write_epoch(std::size_t epoch, const std::vector<senna::core::domain::SpikeEvent>& trace,
                      const std::vector<senna::core::domain::NeuronSnapshot>& neurons,
                      const std::vector<senna::core::domain::Synapse>& synapses,
-                     const std::vector<MetricPoint>& metrics) const;
+                     const std::vector<MetricPoint>& metrics,
+                     const SimulationState* state = nullptr) const;
 
     void write_spike_trace(std::size_t epoch,
                            const std::vector<senna::core::domain::SpikeEvent>& trace) const;
@@ -234,6 +238,8 @@ class HDF5Writer final {
 
     void write_metrics(std::size_t epoch,
                        const std::unordered_map<std::string, double>& metrics) const;
+
+    void write_state(const SimulationState& state) const;
 
     [[nodiscard]] std::vector<senna::core::domain::SpikeEvent> read_spike_trace(
         std::size_t epoch) const;
@@ -253,6 +259,8 @@ class HDF5Writer final {
 
     [[nodiscard]] hid_t ensure_metric_type() const;
 
+    [[nodiscard]] hid_t ensure_state_metadata_type() const;
+
     void write_spike_trace_group(hid_t epoch_group_id,
                                  const std::vector<senna::core::domain::SpikeEvent>& trace) const;
 
@@ -261,6 +269,8 @@ class HDF5Writer final {
                               const std::vector<senna::core::domain::Synapse>& synapses) const;
 
     void write_metrics_group(hid_t epoch_group_id, const std::vector<MetricPoint>& metrics) const;
+
+    void write_state_group(hid_t file_id, const SimulationState& state) const;
 
     [[nodiscard]] const std::vector<senna::core::domain::NeuronSnapshot>& snapshot_buffer_from(
         const std::vector<senna::core::domain::Neuron>& neurons) const;
@@ -275,6 +285,7 @@ class HDF5Writer final {
     mutable detail::ScopedH5 synapse_type_{};
     mutable detail::ScopedH5 neuron_type_{};
     mutable detail::ScopedH5 metric_type_{};
+    mutable detail::ScopedH5 state_metadata_type_{};
     mutable std::vector<detail::SpikeEventRecord> spike_record_buffer_{};
     mutable std::vector<detail::NeuronRecord> neuron_record_buffer_{};
     mutable std::vector<detail::SynapseRecord> synapse_record_buffer_{};

@@ -1,11 +1,12 @@
 # Changelog
 
-## `0.17.4-dev`
+## `0.17.5-dev`
+- In `src/core/persistence/hdf5_writer.cpp`, `src/core/persistence/hdf5_writer.h`, and `src/core/persistence/epoch_artifact_pipeline.cpp`, outbox epoch persistence now writes `trace + snapshot + metrics + optional /state` in a single HDF5 open/write pass, removing the extra `StateSerializer::save_state(...)` reopen step for state snapshots.
+- In `src/core/persistence/state_serializer.cpp`, `StateSerializer::save_state(...)` was reduced to a thin wrapper over `HDF5Writer::write_state(...)`, so state-only writes reuse the same cached compound types and serialization buffers as the main epoch writer.
+- In `tests/test_persistence.cpp`, direct coverage was added for `HDF5Writer::write_epoch(..., state)` to verify that the fused persistence path still produces a loadable simulation state.
 - In `src/core/persistence/hdf5_writer.cpp` and `src/core/persistence/hdf5_writer.h`, persistence writes were optimized with a batched `write_epoch(...)` path, lazy caching of HDF5 compound types, and reusable serialization buffers for spikes, neurons, synapses, and metrics, reducing repeated type creation, heap churn, and per-epoch HDF5 setup work.
 - In `src/core/persistence/epoch_artifact_pipeline.cpp`, epoch persistence now uses the batched writer for both experiment and outbox artifacts, so each epoch no longer performs three independent `trace + snapshot + metrics` write passes through the same HDF5 file.
 - In `tests/test_persistence.cpp`, direct coverage was added for the new `HDF5Writer::write_epoch(...)` path to verify combined trace, snapshot, and metric round-trips.
-
-## `0.17.3-dev`
 - In `src/core/persistence/*.cpp` and `CMakeLists.txt`, the persistence layer was decomposed the same way as the runtime core: `HDF5Writer`, `StateSerializer`, and `EpochArtifactPipeline` now compile as dedicated translation units in a separate `senna_persistence` static library instead of remaining header-only.
 - In `src/core/persistence/hdf5_writer.h`, `src/core/persistence/state_serializer.h`, and `src/core/persistence/epoch_artifact_pipeline.h`, non-template persistence logic was moved out of headers while keeping only declarations, records, and the small generic HDF5 dataset templates inline, reducing header weight without forcing HDF5 into the base `senna_domain` target.
 

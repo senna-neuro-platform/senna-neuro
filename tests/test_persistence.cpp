@@ -252,6 +252,34 @@ TEST(HDF5WriterTest, EpochBundleRoundTripPreservesTraceSnapshotAndMetrics) {
     static_cast<void>(std::filesystem::remove(path));
 }
 
+TEST(HDF5WriterTest, EpochBundleCanPersistStateInSingleWritePass) {
+    const auto path = make_temp_h5_path("senna_epoch_bundle_with_state");
+    const std::string file = path.string();
+
+    Runtime runtime{};
+    const std::vector<senna::core::domain::SpikeEvent> trace{
+        {0U, 0U, 0.0F, 1.1F},
+        {0U, 1U, 0.5F, 1.1F},
+    };
+    const std::vector<senna::core::persistence::MetricPoint> metrics{
+        {"accuracy", 0.5},
+        {"spikes", 2.0},
+    };
+    const auto state = senna::core::persistence::StateSerializer::capture(
+        runtime.neurons, runtime.synapses, runtime.queue, runtime.time, 123U);
+
+    senna::core::persistence::HDF5Writer writer{file};
+    writer.write_epoch(6U, trace, runtime.neurons, runtime.synapses, metrics, &state);
+
+    const auto restored_state = senna::core::persistence::StateSerializer::load_state(file);
+    EXPECT_EQ(restored_state.rng_state, 123U);
+    EXPECT_EQ(restored_state.pending_events.size(), state.pending_events.size());
+    EXPECT_EQ(restored_state.neurons.size(), state.neurons.size());
+    EXPECT_EQ(restored_state.synapses.size(), state.synapses.size());
+
+    static_cast<void>(std::filesystem::remove(path));
+}
+
 TEST(StateSerializerTest, SaveLoadAndContinuationMatchReferenceRun) {
     const auto path = make_temp_h5_path("senna_state");
     const std::string file = path.string();

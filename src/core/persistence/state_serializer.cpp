@@ -23,44 +23,8 @@ hid_t make_state_metadata_type() {
 }  // namespace detail
 
 void StateSerializer::save_state(const std::string& path, const SimulationState& state) {
-    auto file = detail::open_rw_or_create_file(path);
-    auto state_group = detail::open_or_create_group_path(file.id, "/state");
-
-    auto neuron_type =
-        detail::ScopedH5{detail::make_neuron_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-    auto synapse_type =
-        detail::ScopedH5{detail::make_synapse_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-    auto spike_type =
-        detail::ScopedH5{detail::make_spike_event_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-    auto metadata_type = detail::ScopedH5{detail::make_state_metadata_type(),
-                                          static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-
-    std::vector<detail::NeuronRecord> neuron_records{};
-    neuron_records.reserve(state.neurons.size());
-    for (const auto& neuron : state.neurons) {
-        neuron_records.push_back(detail::to_record(neuron));
-    }
-
-    std::vector<detail::SynapseRecord> synapse_records{};
-    synapse_records.reserve(state.synapses.size());
-    for (const auto& synapse : state.synapses) {
-        synapse_records.push_back(detail::to_record(synapse));
-    }
-
-    std::vector<detail::SpikeEventRecord> pending_records{};
-    pending_records.reserve(state.pending_events.size());
-    for (const auto& event : state.pending_events) {
-        pending_records.push_back(detail::to_record(event));
-    }
-
-    detail::write_compound_dataset(state_group.id, "neurons", neuron_type.id, neuron_records);
-    detail::write_compound_dataset(state_group.id, "synapses", synapse_type.id, synapse_records);
-    detail::write_compound_dataset(state_group.id, "pending_events", spike_type.id,
-                                   pending_records);
-
-    const std::vector<detail::StateMetadataRecord> metadata{
-        detail::StateMetadataRecord{state.elapsed, state.dt, state.rng_state}};
-    detail::write_compound_dataset(state_group.id, "metadata", metadata_type.id, metadata);
+    HDF5Writer writer{path};
+    writer.write_state(state);
 }
 
 SimulationState StateSerializer::load_state(const std::string& path) {

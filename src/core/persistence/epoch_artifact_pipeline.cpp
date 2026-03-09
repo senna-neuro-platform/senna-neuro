@@ -71,11 +71,8 @@ void EpochArtifactPipeline::write_outbox_epoch_file(
     static_cast<void>(std::filesystem::remove(temporary));
 
     HDF5Writer outbox_writer{temporary};
-    outbox_writer.write_epoch(epoch, spike_trace, neurons, synapses, metrics);
-
-    if (config_.include_state_snapshot && state != nullptr) {
-        StateSerializer::save_state(temporary, *state);
-    }
+    outbox_writer.write_epoch(epoch, spike_trace, neurons, synapses, metrics,
+                              config_.include_state_snapshot ? state : nullptr);
 
     std::filesystem::rename(temporary, destination);
 }
