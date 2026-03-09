@@ -3,8 +3,6 @@
 ## `0.17.14-dev`
 - In [configs/grafana/dashboards/senna-activity.json](configs/grafana/dashboards/senna-activity.json), [configs/grafana/dashboards/senna-training.json](configs/grafana/dashboards/senna-training.json), and [configs/grafana/dashboards/senna-performance.json](configs/grafana/dashboards/senna-performance.json), every Grafana panel now has a short built-in description explaining what the metric means and how to interpret its values directly from the dashboard UI.
 - In the same dashboard files, the internal Grafana dashboard `version` field was incremented so provisioned dashboards clearly reflect the updated panel metadata.
-
-## `0.17.13-dev`
 - In [python/train.py](python/train.py), the live metrics snapshot now includes full-run progress and ETA fields (`training_progress_ratio`, `training_samples_per_sec`, `training_eta_seconds`) so Grafana can show an estimated training completion directly from the same `latest.json` snapshot used by the Prometheus exporter.
 - In [infra/simulator/simulator_server.py](infra/simulator/simulator_server.py) and [infra/simulator/test_simulator_server.py](infra/simulator/test_simulator_server.py), the exporter now publishes `senna_training_progress_ratio`, `senna_training_samples_per_sec`, and `senna_training_eta_seconds`, with test coverage for both JSON snapshot loading and rendered Prometheus payloads.
 - In [configs/grafana/dashboards/senna-performance.json](configs/grafana/dashboards/senna-performance.json), the `Exporter Uptime` panel was changed from a time-series graph to a stat panel, and new `Training ETA` and `Training Progress` stat panels were added to the same dashboard.
