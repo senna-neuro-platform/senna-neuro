@@ -13,7 +13,12 @@ class PrometheusExporterTest(unittest.TestCase):
         state = simulator_server.ExporterState()
         snapshot = simulator_server.MetricsSnapshot(
             active_neurons_ratio=0.04,
+            max_active_neurons_ratio=0.12,
+            mean_active_neurons_ratio=0.035,
             spikes_per_tick=111.0,
+            mean_spikes_per_tick=95.5,
+            ticks_total=5000.0,
+            spikes_total=477500.0,
             ei_balance=2.5,
             train_accuracy=0.77,
             test_accuracy=0.74,
@@ -33,7 +38,12 @@ class PrometheusExporterTest(unittest.TestCase):
 
         expected_types = [
             "senna_active_neurons_ratio",
+            "senna_max_active_neurons_ratio",
+            "senna_mean_active_neurons_ratio",
             "senna_spikes_per_tick",
+            "senna_mean_spikes_per_tick",
+            "senna_ticks_total",
+            "senna_spikes_total",
             "senna_ei_balance",
             "senna_train_accuracy",
             "senna_test_accuracy",
@@ -60,7 +70,12 @@ class PrometheusExporterTest(unittest.TestCase):
                 json.dumps(
                     {
                         "active_neurons_ratio": 0.04,
+                        "max_active_neurons_ratio": 0.12,
+                        "mean_active_neurons_ratio": 0.035,
                         "spikes_per_tick": 111,
+                        "mean_spikes_per_tick": 95.5,
+                        "ticks_total": 5000,
+                        "spikes_total": 477500,
                         "e_rate_hz": 7.5,
                         "i_rate_hz": 3.0,
                         "train_accuracy": 0.77,
@@ -83,7 +98,12 @@ class PrometheusExporterTest(unittest.TestCase):
             assert snapshot is not None
 
             self.assertAlmostEqual(snapshot.active_neurons_ratio, 0.04)
+            self.assertAlmostEqual(snapshot.max_active_neurons_ratio, 0.12)
+            self.assertAlmostEqual(snapshot.mean_active_neurons_ratio, 0.035)
             self.assertAlmostEqual(snapshot.spikes_per_tick, 111.0)
+            self.assertAlmostEqual(snapshot.mean_spikes_per_tick, 95.5)
+            self.assertAlmostEqual(snapshot.ticks_total, 5000.0)
+            self.assertAlmostEqual(snapshot.spikes_total, 477500.0)
             self.assertAlmostEqual(snapshot.ei_balance, 2.5)
             self.assertAlmostEqual(snapshot.train_accuracy, 0.77)
             self.assertAlmostEqual(snapshot.test_accuracy, 0.74)

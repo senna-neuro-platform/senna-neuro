@@ -99,7 +99,11 @@ std::unordered_map<std::string, double> MetricsCollector::as_metric_map() const 
     return {
         {"senna_active_neurons_ratio", snapshot_.active_neurons_ratio},
         {"senna_max_active_neurons_ratio", snapshot_.max_active_neurons_ratio},
+        {"senna_mean_active_neurons_ratio", snapshot_.mean_active_neurons_ratio},
         {"senna_spikes_per_tick", snapshot_.spikes_per_tick},
+        {"senna_mean_spikes_per_tick", snapshot_.mean_spikes_per_tick},
+        {"senna_ticks_total", static_cast<double>(snapshot_.ticks_total)},
+        {"senna_spikes_total", static_cast<double>(snapshot_.spikes_total)},
         {"senna_e_rate_hz", snapshot_.e_rate_hz},
         {"senna_i_rate_hz", snapshot_.i_rate_hz},
         {"senna_ei_balance", snapshot_.ei_balance},

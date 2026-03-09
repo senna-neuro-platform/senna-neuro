@@ -20,7 +20,12 @@ METRICS_SNAPSHOT_PATH = Path(
 @dataclass(frozen=True)
 class MetricsSnapshot:
     active_neurons_ratio: float
+    max_active_neurons_ratio: float
+    mean_active_neurons_ratio: float
     spikes_per_tick: float
+    mean_spikes_per_tick: float
+    ticks_total: float
+    spikes_total: float
     ei_balance: float
     train_accuracy: float
     test_accuracy: float
@@ -112,9 +117,29 @@ def load_snapshot_from_file(path: Path) -> MetricsSnapshot | None:
     if ei_balance <= 0.0 and i_rate_hz > 0.0:
         ei_balance = e_rate_hz / i_rate_hz
 
+    max_active_ratio = _read_float(
+        payload,
+        active_ratio,
+        "max_active_neurons_ratio",
+        "senna_max_active_neurons_ratio",
+    )
+    mean_active_ratio = _read_float(
+        payload, 0.0, "mean_active_neurons_ratio", "senna_mean_active_neurons_ratio"
+    )
+    mean_spikes_per_tick = _read_float(
+        payload, 0.0, "mean_spikes_per_tick", "senna_mean_spikes_per_tick"
+    )
+    ticks_total = _read_float(payload, 0.0, "ticks_total", "senna_ticks_total")
+    spikes_total = _read_float(payload, 0.0, "spikes_total", "senna_spikes_total")
+
     return MetricsSnapshot(
         active_neurons_ratio=max(0.0, active_ratio),
+        max_active_neurons_ratio=max(0.0, max_active_ratio),
+        mean_active_neurons_ratio=max(0.0, mean_active_ratio),
         spikes_per_tick=max(0.0, spikes_per_tick),
+        mean_spikes_per_tick=max(0.0, mean_spikes_per_tick),
+        ticks_total=max(0.0, ticks_total),
+        spikes_total=max(0.0, spikes_total),
         ei_balance=max(0.0, ei_balance),
         train_accuracy=_clamp_0_1(
             _read_float(payload, 0.0, "train_accuracy", "senna_train_accuracy")
@@ -193,9 +218,28 @@ def render_metrics_payload(snapshot: MetricsSnapshot, state: ExporterState) -> s
         "# HELP senna_active_neurons_ratio Ratio of active neurons.",
         "# TYPE senna_active_neurons_ratio gauge",
         _format_metric("senna_active_neurons_ratio", snapshot.active_neurons_ratio),
+        "# HELP senna_max_active_neurons_ratio Peak active neurons ratio observed.",
+        "# TYPE senna_max_active_neurons_ratio gauge",
+        _format_metric(
+            "senna_max_active_neurons_ratio", snapshot.max_active_neurons_ratio
+        ),
+        "# HELP senna_mean_active_neurons_ratio Running mean of active neurons ratio.",
+        "# TYPE senna_mean_active_neurons_ratio gauge",
+        _format_metric(
+            "senna_mean_active_neurons_ratio", snapshot.mean_active_neurons_ratio
+        ),
         "# HELP senna_spikes_per_tick Average spikes per simulation tick.",
         "# TYPE senna_spikes_per_tick gauge",
         _format_metric("senna_spikes_per_tick", snapshot.spikes_per_tick),
+        "# HELP senna_mean_spikes_per_tick Running mean of spikes per tick.",
+        "# TYPE senna_mean_spikes_per_tick gauge",
+        _format_metric("senna_mean_spikes_per_tick", snapshot.mean_spikes_per_tick),
+        "# HELP senna_ticks_total Cumulative number of simulation ticks.",
+        "# TYPE senna_ticks_total counter",
+        _format_metric("senna_ticks_total", snapshot.ticks_total),
+        "# HELP senna_spikes_total Cumulative number of spikes emitted.",
+        "# TYPE senna_spikes_total counter",
+        _format_metric("senna_spikes_total", snapshot.spikes_total),
         "# HELP senna_e_rate_hz Average firing rate of excitatory neurons (Hz).",
         "# TYPE senna_e_rate_hz gauge",
         _format_metric("senna_e_rate_hz", snapshot.e_rate_hz),

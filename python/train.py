@@ -180,7 +180,15 @@ def exporter_snapshot_payload(
             "senna_max_active_neurons_ratio",
             metric_float(runtime_metrics, "senna_active_neurons_ratio"),
         ),
+        "mean_active_neurons_ratio": metric_float(
+            runtime_metrics, "senna_mean_active_neurons_ratio"
+        ),
         "spikes_per_tick": metric_float(runtime_metrics, "senna_spikes_per_tick"),
+        "mean_spikes_per_tick": metric_float(
+            runtime_metrics, "senna_mean_spikes_per_tick"
+        ),
+        "ticks_total": metric_float(runtime_metrics, "senna_ticks_total"),
+        "spikes_total": metric_float(runtime_metrics, "senna_spikes_total"),
         "e_rate_hz": metric_float(runtime_metrics, "senna_e_rate_hz"),
         "i_rate_hz": metric_float(runtime_metrics, "senna_i_rate_hz"),
         "ei_balance": metric_float(runtime_metrics, "senna_ei_balance"),

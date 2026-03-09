@@ -129,6 +129,29 @@
         gap: 6px;
       }
 
+      .color-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      .color-row label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .color-row input[type="color"] {
+        width: 28px;
+        height: 22px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 5px;
+        background: transparent;
+        cursor: pointer;
+      }
+
       .status {
         margin-top: 8px;
         padding-top: 8px;
@@ -219,6 +242,24 @@
         </div>
       </div>
 
+      <div class="control">
+        <div class="label"><span>Neuron colors</span></div>
+        <div class="color-row">
+          <label><input id="colorExcitatory" type="color" value="#33d9ff" />Exc</label>
+          <label><input id="colorInhibitory" type="color" value="#ff4d8c" />Inh</label>
+          <label><input id="colorOutput" type="color" value="#ffd92e" />Out</label>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="label"><span>Spike flash colors</span></div>
+        <div class="color-row">
+          <label><input id="flashExcitatory" type="color" value="#73ffff" />Exc</label>
+          <label><input id="flashInhibitory" type="color" value="#ff80bf" />Inh</label>
+          <label><input id="flashOutput" type="color" value="#fff28c" />Out</label>
+        </div>
+      </div>
+
       <div class="status">
         <div class="status-line">
           <span>Connection</span>
@@ -304,6 +345,12 @@
         showExcitatory: document.getElementById("showExcitatory"),
         showInhibitory: document.getElementById("showInhibitory"),
         showOutput: document.getElementById("showOutput"),
+        colorExcitatory: document.getElementById("colorExcitatory"),
+        colorInhibitory: document.getElementById("colorInhibitory"),
+        colorOutput: document.getElementById("colorOutput"),
+        flashExcitatory: document.getElementById("flashExcitatory"),
+        flashInhibitory: document.getElementById("flashInhibitory"),
+        flashOutput: document.getElementById("flashOutput"),
         visibleCount: document.getElementById("visibleCount"),
         connState: document.getElementById("connState"),
         tickValue: document.getElementById("tickValue"),
@@ -333,6 +380,7 @@
         positions: [],
         visible: [],
         baseColors: [],
+        spikeColors: [],
         flash: [],
         heat: [],
       };
@@ -401,14 +449,30 @@
         return true;
       }
 
+      function hexToRgb(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
+      }
+
+      const palette = {
+        excitatory: [0.20, 0.85, 1.0],
+        inhibitory: [1.0, 0.30, 0.55],
+        output: [1.0, 0.85, 0.18],
+        flashExcitatory: [0.45, 1.0, 1.0],
+        flashInhibitory: [1.0, 0.50, 0.75],
+        flashOutput: [1.0, 0.95, 0.55],
+      };
+
       function colorForType(type) {
-        if (type === "output") {
-          return [1.0, 0.82, 0.12];
-        }
-        if (type === "inhibitory") {
-          return [1.0, 0.24, 0.30];
-        }
-        return [0.08, 0.88, 1.0];
+        if (type === "output") { return palette.output.slice(); }
+        if (type === "inhibitory") { return palette.inhibitory.slice(); }
+        return palette.excitatory.slice();
+      }
+
+      function flashColorForType(type) {
+        if (type === "output") { return palette.flashOutput.slice(); }
+        if (type === "inhibitory") { return palette.flashInhibitory.slice(); }
+        return palette.flashExcitatory.slice();
       }
 
       function lerp(a, b, t) {
@@ -539,15 +603,16 @@
           } else {
             const s = state.flash[i];
             const h = state.heat[i];
-            r = Math.min(1.0, (r * (0.45 + (h * 0.18))) + 0.10 + (0.92 * s));
-            g = Math.min(1.0, (g * (0.45 + (h * 0.18))) + 0.10 + (0.92 * s));
-            b = Math.min(1.0, (b * (0.45 + (h * 0.16))) + 0.10 + (0.88 * s));
+            const fc = state.spikeColors[i];
+            r = Math.min(1.0, (r * (0.55 + (h * 0.20))) + 0.12 + (fc[0] * s));
+            g = Math.min(1.0, (g * (0.55 + (h * 0.20))) + 0.12 + (fc[1] * s));
+            b = Math.min(1.0, (b * (0.55 + (h * 0.18))) + 0.12 + (fc[2] * s));
             scale = baseScale + (h * heatScale) + (s * flashScale);
-            const glowStrength = Math.min(1.0, (s * 1.2) + (h * 0.65));
-            glowR = Math.min(1.0, ((base[0] * 0.35) + 0.65) * glowStrength);
-            glowG = Math.min(1.0, ((base[1] * 0.35) + 0.65) * glowStrength);
-            glowB = Math.min(1.0, ((base[2] * 0.35) + 0.65) * glowStrength);
-            glowScale = 0.14 + (glowStrength * 0.58);
+            const glowStrength = Math.min(1.0, (s * 1.3) + (h * 0.7));
+            glowR = Math.min(1.0, fc[0] * glowStrength);
+            glowG = Math.min(1.0, fc[1] * glowStrength);
+            glowB = Math.min(1.0, fc[2] * glowStrength);
+            glowScale = 0.16 + (glowStrength * 0.62);
           }
 
           tempColor.setRGB(r, g, b);
@@ -688,6 +753,15 @@
         renderer.render(scene, camera);
       }
 
+      function recolorAllNeurons() {
+        if (!state.lattice) { return; }
+        for (let i = 0; i < state.lattice.neurons.length; i += 1) {
+          const type = state.lattice.neurons[i].type;
+          state.baseColors[i] = colorForType(type);
+          state.spikeColors[i] = flashColorForType(type);
+        }
+      }
+
       function installControls() {
         ui.togglePlay.addEventListener("click", () => {
           state.paused = !state.paused;
@@ -724,6 +798,22 @@
         ui.showExcitatory.addEventListener("change", onFilterChange);
         ui.showInhibitory.addEventListener("change", onFilterChange);
         ui.showOutput.addEventListener("change", onFilterChange);
+
+        const onColorChange = () => {
+          palette.excitatory = hexToRgb(ui.colorExcitatory.value);
+          palette.inhibitory = hexToRgb(ui.colorInhibitory.value);
+          palette.output = hexToRgb(ui.colorOutput.value);
+          palette.flashExcitatory = hexToRgb(ui.flashExcitatory.value);
+          palette.flashInhibitory = hexToRgb(ui.flashInhibitory.value);
+          palette.flashOutput = hexToRgb(ui.flashOutput.value);
+          recolorAllNeurons();
+        };
+        ui.colorExcitatory.addEventListener("input", onColorChange);
+        ui.colorInhibitory.addEventListener("input", onColorChange);
+        ui.colorOutput.addEventListener("input", onColorChange);
+        ui.flashExcitatory.addEventListener("input", onColorChange);
+        ui.flashInhibitory.addEventListener("input", onColorChange);
+        ui.flashOutput.addEventListener("input", onColorChange);
       }
 
       function initMesh(lattice) {
@@ -760,6 +850,7 @@
         state.positions = new Array(count);
         state.visible = new Array(count).fill(true);
         state.baseColors = new Array(count);
+        state.spikeColors = new Array(count);
         state.flash = new Array(count).fill(0);
         state.heat = new Array(count).fill(0);
 
@@ -771,6 +862,7 @@
 
           const base = colorForType(neuron.type);
           state.baseColors[i] = base;
+          state.spikeColors[i] = flashColorForType(neuron.type);
 
           tempScale.setScalar(0.155);
           tempMatrix.compose(position, tempQuat, tempScale);

@@ -17,6 +17,33 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# ── Performance flags for Release builds ─────────────────────────────
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set(SENNA_RELEASE_FLAGS -O3 -march=native -mtune=native -DNDEBUG)
+    set(SENNA_FAST_MATH_FLAGS
+        -fno-math-errno
+        -funsafe-math-optimizations
+        -fno-signed-zeros
+        -fno-trapping-math
+        -freciprocal-math
+    )
+
+    add_compile_options(
+        "$<$<CONFIG:Release>:${SENNA_RELEASE_FLAGS}>"
+        "$<$<CONFIG:Release>:${SENNA_FAST_MATH_FLAGS}>"
+        "$<$<CONFIG:RelWithDebInfo>:${SENNA_RELEASE_FLAGS}>"
+        "$<$<CONFIG:RelWithDebInfo>:${SENNA_FAST_MATH_FLAGS}>"
+    )
+endif()
+
+# ── Link-Time Optimization for Release builds ────────────────────────
+include(CheckIPOSupported)
+check_ipo_supported(RESULT SENNA_LTO_SUPPORTED OUTPUT SENNA_LTO_ERROR)
+if(SENNA_LTO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
+endif()
+
 option(SENNA_ENABLE_SANITIZERS "Enable ASan and UBSan for Debug builds" OFF)
 option(SENNA_BUILD_PYTHON_BINDINGS "Build pybind11 module senna_core" ON)
 
