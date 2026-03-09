@@ -1,5 +1,13 @@
 # Changelog
 
+## `0.17.11-dev`
+- In [Makefile](Makefile) and [scripts/setup_python_packages.py](scripts/setup_python_packages.py), `make install` now also prepares a project-local Python dependency set in `.python-packages/`, verifying and installing the host-side packages required by the project (`numpy`, `pytest`, `ruff`, `torch`, `torchvision`) before normal build and acceptance flows.
+- In [Makefile](Makefile), Python formatting and linting now run through `python -m ruff` with `.python-packages` on `PYTHONPATH`, so quality gates use the same local package set that `make install` prepares.
+- In [CMakeLists.txt](CMakeLists.txt), Python integration test discovery now checks `pytest` with `.python-packages` on `PYTHONPATH`, keeping `CTest` aligned with the project-local Python dependency model.
+- In [README.md](README.md) and [docs/acceptance/README.md](docs/acceptance/README.md), setup instructions were updated to state that `make install` populates `.python-packages` and that manual host-side runs should use the same local package directory.
+- In [docs/acceptance/scripts/run_acceptance.sh](docs/acceptance/scripts/run_acceptance.sh) and [docs/acceptance/scripts/run_e2e_smoke.sh](docs/acceptance/scripts/run_e2e_smoke.sh), host-side Python launches now prepend `.python-packages` to `PYTHONPATH`, so acceptance preflight, training, and validation can see project-local packages such as `torch` and `torchvision`.
+- In [docs/acceptance/README.md](docs/acceptance/README.md) and [README.md](README.md), the documented MNIST/acceptance setup was corrected to use `python3 -m pip install --target .python-packages ...` and `PYTHONPATH=.python-packages:build/release:python ...` for manual host-side runs.
+
 ## `0.17.9-dev`
 - In [docs/acceptance/scripts/run_e2e_smoke.sh](docs/acceptance/scripts/run_e2e_smoke.sh) and [docs/acceptance/scripts/check_e2e_smoke.py](docs/acceptance/scripts/check_e2e_smoke.py), a lightweight deployment-to-training E2E smoke path was added: it brings up the runtime stack, runs a very small synthetic training job, waits for HDF5 artifact uploads, reloads the saved state for inference, and emits a final `PASS` or `FAIL` verdict with key runtime metrics.
 - In [Makefile](Makefile), `make e2e-smoke` was added and Python lint coverage was extended to include `docs/acceptance/scripts`, so the new acceptance automation is part of the normal quality gate.

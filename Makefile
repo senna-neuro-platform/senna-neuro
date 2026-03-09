@@ -10,6 +10,8 @@ CONAN_PROFILE_DIR := build/conan/profiles
 CONAN_HOST_PROFILE := $(CONAN_PROFILE_DIR)/host
 CONAN_BUILD_PROFILE := $(CONAN_PROFILE_DIR)/build
 CONAN_PROFILE_ARGS := --profile:host=$(CONAN_HOST_PROFILE) --profile:build=$(CONAN_BUILD_PROFILE)
+LOCAL_PYTHON_PACKAGES := .python-packages
+PROJECT_PYTHONPATH := $(LOCAL_PYTHON_PACKAGES)$(if $(PYTHONPATH),:$(PYTHONPATH),)
 MNIST_DIR := data/MNIST/raw
 MNIST_URL_BASE := https://storage.googleapis.com/cvdf-datasets/mnist
 MNIST_FILES := train-images-idx3-ubyte train-labels-idx1-ubyte t10k-images-idx3-ubyte t10k-labels-idx1-ubyte
@@ -17,11 +19,12 @@ MNIST_FILES := train-images-idx3-ubyte train-labels-idx1-ubyte t10k-images-idx3-
 CPP_FILES := $(shell find src tests -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' -o -name '*.hxx' \) 2>/dev/null)
 PYTHON_LINT_TARGETS := python/senna python/train.py infra scripts docs/acceptance/scripts
 
-.PHONY: help conan-setup data-mnist install fmt lint build-debug build-release build-sanitize test up up-build down logs e2e-smoke
+.PHONY: help conan-setup python-setup data-mnist install fmt lint build-debug build-release build-sanitize test up up-build down logs e2e-smoke
 
 help:
 	@echo "Available targets:"
-	@echo "  make install         - install Conan dependencies and download MNIST data"
+	@echo "  make install         - install Conan deps, project-local Python deps, and MNIST data"
+	@echo "  make python-setup    - install required host Python packages into .python-packages"
 	@echo "  make data-mnist      - download MNIST dataset into data/MNIST/raw"
 	@echo "  make lint            - run production-code formatting and linters"
 	@echo "  make build-debug     - configure and build Debug preset"
@@ -67,7 +70,10 @@ data-mnist:
 		echo "Saved $(MNIST_DIR)/$$file"; \
 	done
 
-install: conan-setup data-mnist
+python-setup:
+	$(PYTHON) scripts/setup_python_packages.py --target $(LOCAL_PYTHON_PACKAGES)
+
+install: conan-setup python-setup data-mnist
 	$(CONAN) install . --output-folder=build/debug $(CONAN_INSTALL_FLAGS) $(CONAN_PROFILE_ARGS) -s:h build_type=Debug
 
 build-debug: install
@@ -91,18 +97,12 @@ fmt:
 	@if [ -n "$(CPP_FILES)" ]; then \
 		clang-format -i $(CPP_FILES); \
 	fi
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff format .; \
-	fi
+	env PYTHONPATH="$(PROJECT_PYTHONPATH)" $(PYTHON) -m ruff format .
 
 lint: fmt
 	$(MAKE) build-debug
 	$(PYTHON) scripts/run_clang_tidy.py --build-dir build/debug --paths src
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff check $(PYTHON_LINT_TARGETS); \
-	else \
-		echo "ruff not found: skipping Python lint"; \
-	fi
+	env PYTHONPATH="$(PROJECT_PYTHONPATH)" $(PYTHON) -m ruff check $(PYTHON_LINT_TARGETS)
 
 up:
 	$(DOCKER_COMPOSE) up -d --force-recreate --no-build

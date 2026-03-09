@@ -28,7 +28,9 @@ PROMETHEUS_HEALTH_URL="http://localhost:9090/-/healthy"
 GRAFANA_HEALTH_URL="http://localhost:3000/api/health"
 MINIO_HEALTH_URL="http://localhost:9000/minio/health/live"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-RUNTIME_PYTHONPATH="build/release:python"
+LOCAL_PYTHON_PACKAGES=".python-packages"
+HOST_PYTHONPATH="${LOCAL_PYTHON_PACKAGES}${PYTHONPATH:+:${PYTHONPATH}}"
+RUNTIME_PYTHONPATH="${LOCAL_PYTHON_PACKAGES}:build/release:python"
 
 SKIP_BUILD=false
 SKIP_LINT=false
@@ -90,9 +92,10 @@ require_python_module() {
   local module_expr="$1"
   local install_hint="$2"
 
-  if ! "${PYTHON_BIN}" -c "${module_expr}" >/dev/null 2>&1; then
+  if ! env PYTHONPATH="${HOST_PYTHONPATH}" "${PYTHON_BIN}" -c "${module_expr}" >/dev/null 2>&1; then
     echo "[FAIL] missing required Python modules in current host env"
     echo "[INFO] install with: ${install_hint}"
+    echo "[INFO] current host Python path: ${HOST_PYTHONPATH}"
     echo "[INFO] real MNIST for acceptance is read locally from ${DATA_ROOT}/MNIST/raw by host Python; MinIO is used only for artifact upload from data/artifacts/outbox"
     exit 1
   fi
@@ -291,7 +294,7 @@ log "root=${ROOT_DIR}"
 if [[ "${SKIP_TRAINING}" == false ]]; then
   require_python_module \
     "import torch, torchvision" \
-    "${PYTHON_BIN} -m pip install torch torchvision"
+    "${PYTHON_BIN} -m pip install --target .python-packages torch torchvision"
 fi
 
 mkdir -p \
@@ -365,7 +368,9 @@ if [[ "${SKIP_TRAINING}" == false ]]; then
 fi
 
 log "DoD numeric gates from metrics"
-run_cmd "${PYTHON_BIN}" "${SCRIPTS_DIR}/check_dod_metrics.py" \
+run_cmd env \
+  PYTHONPATH="${RUNTIME_PYTHONPATH}${PYTHONPATH:+:${PYTHONPATH}}" \
+  "${PYTHON_BIN}" "${SCRIPTS_DIR}/check_dod_metrics.py" \
   --metrics-path "${METRICS_PATH}" \
   --target-accuracy "${TARGET_ACCURACY}" \
   --max-active-ratio "${MAX_ACTIVE_RATIO}" \
@@ -385,7 +390,9 @@ run_cmd env \
 
 if [[ "${SKIP_WS_SPARSITY}" == false ]]; then
   log "WebSocket sparsity gate"
-  run_cmd "${PYTHON_BIN}" "${SCRIPTS_DIR}/check_ws_sparsity.py" \
+  run_cmd env \
+    PYTHONPATH="${RUNTIME_PYTHONPATH}${PYTHONPATH:+:${PYTHONPATH}}" \
+    "${PYTHON_BIN}" "${SCRIPTS_DIR}/check_ws_sparsity.py" \
     --ws-url "${WS_URL}" \
     --lattice-url "${LATTICE_URL}" \
     --frames 40 \

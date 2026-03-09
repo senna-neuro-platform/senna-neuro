@@ -22,6 +22,8 @@ Typical local workflow:
 make install
 ```
 
+`make install` prepares Conan dependencies, downloads MNIST raw files, and installs the required host-side Python packages into `.python-packages/`.
+
 2. Build and validate the release runtime:
 
 ```bash
@@ -38,7 +40,7 @@ make up
 4. Run training on real MNIST:
 
 ```bash
-PYTHONPATH=build/release:python python3 python/train.py \
+PYTHONPATH=.python-packages:build/release:python python3 python/train.py \
   --config configs/default.yaml \
   --dataset mnist \
   --data-root data \

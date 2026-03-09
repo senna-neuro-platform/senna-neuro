@@ -49,12 +49,12 @@ The script will execute:
 
 ## Preconditions
 
-Before steps 15 and 16, the following must be available:
+The following must be available:
 
 1. `python3`, `conan`, `cmake`, `ninja`, `clang-tidy`, `docker compose`, `ruff`, `pytest`
 2. `g++` with `libasan.so`
 3. the 4 MNIST raw files in `data/MNIST/raw` (`make install` downloads them automatically)
-4. `torch` and `torchvision` installed in the current Python environment
+4. `torch` and `torchvision` available to the host Python runtime; the recommended project-local install location is `.python-packages/`
 5. local access to ports `3000`, `8000`, and `8080`
 6. MinIO is used in this scenario only for uploading artifacts from `data/artifacts/outbox`; the training run reads MNIST locally from `data/MNIST/raw`, not from S3/MinIO
 
@@ -66,11 +66,7 @@ make build-release
 ctest --preset release
 ```
 
-Install Python dependencies for real MNIST:
-
-```bash
-python3 -m pip install torch torchvision
-```
+`make install` now also populates `.python-packages/` with the required host-side Python packages (`numpy`, `pytest`, `ruff`, `torch`, `torchvision`). `docs/acceptance/scripts/run_acceptance.sh` and `docs/acceptance/scripts/run_e2e_smoke.sh` prepend `.python-packages` automatically, so the preflight import check, the training process, and the post-run validation scripts all use the same project-local host packages.
 
 ## Observation notes between steps
 
@@ -147,8 +143,7 @@ Option B: directly through `python/train.py`
 ```bash
 make install
 make build-release
-python3 -m pip install torch torchvision
-PYTHONPATH=build/release:python python3 python/train.py \
+PYTHONPATH=.python-packages:build/release:python python3 python/train.py \
   --config configs/default.yaml \
   --dataset mnist \
   --data-root data \
@@ -189,7 +184,7 @@ ctest --preset release
 2. Run the baseline training:
 
 ```bash
-PYTHONPATH=build/release:python python3 python/train.py \
+PYTHONPATH=.python-packages:build/release:python python3 python/train.py \
   --config configs/default.yaml \
   --dataset mnist \
   --data-root data \
@@ -350,6 +345,7 @@ docs/acceptance/scripts/run_acceptance.sh \
 - `--state-path <path>`
 - `--config <path>`, `--checkpoint-dir <path>`, `--data-root <path>`
 - `PYTHON_BIN=python3.12 .../run_acceptance.sh` (if a different Python executable is needed)
+- for manual host-side launches, use `PYTHONPATH=.python-packages:build/release:python`
 
 ## DoD 13: clang-tidy clean
 

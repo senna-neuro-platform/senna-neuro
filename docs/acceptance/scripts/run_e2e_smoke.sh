@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCRIPTS_DIR="${ROOT_DIR}/docs/acceptance/scripts"
 RUN_TAG="e2e_smoke_$(date -u +%Y%m%dT%H%M%SZ)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-RUNTIME_PYTHONPATH="build/release:python"
+RUNTIME_PYTHONPATH=".python-packages:build/release:python${PYTHONPATH:+:${PYTHONPATH}}"
 
 DATASET="synthetic"
 DATA_ROOT="data"
