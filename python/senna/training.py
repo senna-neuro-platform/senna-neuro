@@ -3,11 +3,16 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Iterator
+from typing import Any, Callable, Iterable, Iterator
 
 import senna_core
 
 from .config import resolve_config_path
+
+try:
+    import numpy as np
+except Exception:  # pragma: no cover - optional dependency in local env
+    np = None
 
 try:
     from torchvision import datasets  # type: ignore[import-not-found]
@@ -56,6 +61,17 @@ def iter_sample_batches(
         yield batch
 
 
+def as_fast_batch(batch: list["Sample"]) -> tuple[Any, Any] | None:
+    if np is None or not batch:
+        return None
+
+    images = np.asarray([sample.image for sample in batch], dtype=np.uint8)
+    labels = np.fromiter(
+        (sample.label for sample in batch), dtype=np.int32, count=len(batch)
+    )
+    return images, labels
+
+
 class TrainingPipeline:
     def __init__(self, config_path: str | None = None) -> None:
         self.config_path = str(resolve_config_path(config_path))
@@ -76,7 +92,20 @@ class TrainingPipeline:
 
         self.handle.set_eval_mode(False)
         for batch in iter_sample_batches(samples, batch_size):
-            if hasattr(self.handle, "batch_train"):
+            fast_batch = (
+                as_fast_batch(batch)
+                if hasattr(self.handle, "batch_train_array")
+                else None
+            )
+            if fast_batch is not None:
+                images, labels = fast_batch
+                batch_result = dict(
+                    self.handle.batch_train_array(images, labels, ticks_per_sample)
+                )
+                total += int(batch_result.get("completed", len(batch)))
+                correct += int(batch_result.get("correct", 0))
+                batch_metrics = dict(batch_result)
+            elif hasattr(self.handle, "batch_train"):
                 batch_result = dict(
                     self.handle.batch_train(
                         [sample.image for sample in batch],
@@ -142,7 +171,20 @@ class TrainingPipeline:
 
         self.handle.set_eval_mode(True)
         for batch in iter_sample_batches(samples, batch_size):
-            if hasattr(self.handle, "batch_evaluate"):
+            fast_batch = (
+                as_fast_batch(batch)
+                if hasattr(self.handle, "batch_evaluate_array")
+                else None
+            )
+            if fast_batch is not None:
+                images, labels = fast_batch
+                batch_result = dict(
+                    self.handle.batch_evaluate_array(images, labels, ticks_per_sample)
+                )
+                total += int(batch_result.get("completed", len(batch)))
+                correct += int(batch_result.get("correct", 0))
+                batch_metrics = dict(batch_result)
+            elif hasattr(self.handle, "batch_evaluate"):
                 batch_result = dict(
                     self.handle.batch_evaluate(
                         [sample.image for sample in batch],

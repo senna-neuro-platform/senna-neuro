@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.17.6-dev`
+- In [src/bindings/python_module.cpp](src/bindings/python_module.cpp) and [python/senna/training.py](python/senna/training.py), the training and evaluation batch path now has a fast array-based boundary: Python can pass contiguous `uint8[N, 784]` images and `int32[N]` labels into dedicated `batch_train_array(...)` / `batch_evaluate_array(...)` bindings instead of rebuilding nested Python lists for every batch.
+- In [src/bindings/python_module.cpp](src/bindings/python_module.cpp), MNIST input encoding is now cached as precomputed pulse plans keyed by the flattened sample image, so repeated epochs reuse the same `sensor_id + local_offset + value` schedule and only shift it by the current base time before injecting events.
+- In [python/tests/test_integration.py](python/tests/test_integration.py), direct integration coverage was added for the new array batch API while preserving the old list-based batch API as a compatible fallback.
+
 ## `0.17.5-dev`
 - In `src/core/persistence/hdf5_writer.cpp`, `src/core/persistence/hdf5_writer.h`, and `src/core/persistence/epoch_artifact_pipeline.cpp`, outbox epoch persistence now writes `trace + snapshot + metrics + optional /state` in a single HDF5 open/write pass, removing the extra `StateSerializer::save_state(...)` reopen step for state snapshots.
 - In `src/core/persistence/state_serializer.cpp`, `StateSerializer::save_state(...)` was reduced to a thin wrapper over `HDF5Writer::write_state(...)`, so state-only writes reuse the same cached compound types and serialization buffers as the main epoch writer.

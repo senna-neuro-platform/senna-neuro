@@ -13,6 +13,11 @@ from senna.training import (
     robustness_report,
 )
 
+try:
+    import numpy as np
+except Exception:  # pragma: no cover - optional dependency in local env
+    np = None
+
 
 def test_bindings_full_cycle(tmp_path: Path) -> None:
     pipeline = TrainingPipeline(config_path="configs/default.yaml")
@@ -104,6 +109,29 @@ def test_module_level_batch_api() -> None:
     assert "senna_train_accuracy" in train_result
 
     eval_result = senna_core.batch_evaluate(handle, images, labels, 24)
+    assert eval_result["completed"] == 4
+    assert 0.0 <= eval_result["batch_accuracy"] <= 1.0
+    assert "senna_test_accuracy" in eval_result
+
+
+def test_module_level_batch_array_api() -> None:
+    if np is None:
+        pytest.skip("numpy is not available")
+
+    handle = senna_core.create_network("configs/default.yaml")
+    images = np.zeros((4, 28 * 28), dtype=np.uint8)
+    labels = np.arange(4, dtype=np.int32)
+
+    for label in range(4):
+        for offset in range(label, 28 * 28, 31):
+            images[label, offset] = 180 + (label * 10)
+
+    train_result = senna_core.batch_train_array(handle, images, labels, 24)
+    assert train_result["completed"] == 4
+    assert 0.0 <= train_result["batch_accuracy"] <= 1.0
+    assert "senna_train_accuracy" in train_result
+
+    eval_result = senna_core.batch_evaluate_array(handle, images, labels, 24)
     assert eval_result["completed"] == 4
     assert 0.0 <= eval_result["batch_accuracy"] <= 1.0
     assert "senna_test_accuracy" in eval_result

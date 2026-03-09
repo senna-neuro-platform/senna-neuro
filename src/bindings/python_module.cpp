@@ -1,8 +1,10 @@
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -10,8 +12,10 @@
 #include <fstream>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -42,6 +46,40 @@ struct BindingConfig {
 struct BatchExecutionStats {
     std::size_t completed{0U};
     std::size_t correct{0U};
+};
+
+using ImageArray = py::array_t<std::uint8_t, py::array::c_style | py::array::forcecast>;
+using LabelArray = py::array_t<std::int32_t, py::array::c_style | py::array::forcecast>;
+
+struct BatchArrayView {
+    const std::uint8_t* images{nullptr};
+    const std::int32_t* labels{nullptr};
+    std::size_t sample_count{0U};
+};
+
+struct EncodedInputPulse {
+    senna::core::domain::NeuronId sensor_id{};
+    senna::core::domain::Time local_offset{0.0F};
+    senna::core::domain::Weight value{0.0F};
+};
+
+using EncodedSamplePlan = std::vector<EncodedInputPulse>;
+
+struct SampleCacheKey {
+    std::array<std::uint8_t, kMnistPixels> pixels{};
+
+    [[nodiscard]] bool operator==(const SampleCacheKey& other) const noexcept = default;
+};
+
+struct SampleCacheKeyHash {
+    [[nodiscard]] std::size_t operator()(const SampleCacheKey& key) const noexcept {
+        std::uint64_t hash = 1469598103934665603ULL;
+        for (const auto pixel : key.pixels) {
+            hash ^= static_cast<std::uint64_t>(pixel);
+            hash *= 1099511628211ULL;
+        }
+        return static_cast<std::size_t>(hash);
+    }
 };
 
 template <typename T>
@@ -283,6 +321,29 @@ std::vector<senna::core::domain::NeuronId> find_output_neurons(
     return output;
 }
 
+BatchArrayView validate_batch_arrays(const ImageArray& images, const LabelArray& labels) {
+    const auto image_info = images.request();
+    const auto label_info = labels.request();
+
+    if (image_info.ndim != 2 || image_info.shape[1] != static_cast<py::ssize_t>(kMnistPixels)) {
+        throw std::invalid_argument("batch arrays expect images shaped as [N, 784]");
+    }
+    if (label_info.ndim != 1) {
+        throw std::invalid_argument("batch arrays expect labels shaped as [N]");
+    }
+
+    const auto sample_count = static_cast<std::size_t>(image_info.shape[0]);
+    if (sample_count != static_cast<std::size_t>(label_info.shape[0])) {
+        throw std::invalid_argument("batch images and labels must have the same size");
+    }
+
+    return BatchArrayView{
+        static_cast<const std::uint8_t*>(image_info.ptr),
+        static_cast<const std::int32_t*>(label_info.ptr),
+        sample_count,
+    };
+}
+
 class PyNetworkHandle final {
    public:
     explicit PyNetworkHandle(const std::string& config_path = "configs/default.yaml")
@@ -300,24 +361,13 @@ class PyNetworkHandle final {
         metrics_collector_.set_synapse_count(network_->synapse_count());
         rng_state_ = seed_to_state(config_.seed);
         sample_spike_counts_.assign(network_->neurons().size(), 0U);
+        sample_plan_cache_.reserve(4096U);
     }
 
     void load_sample(const std::vector<std::uint8_t>& image, const int label,
                      const bool is_train = true) {
-        if (image.size() != kMnistPixels) {
-            throw std::invalid_argument("load_sample expects flattened 28x28 image (784 values)");
-        }
-        if (label < 0 || label > 9) {
-            throw std::invalid_argument("label must be in [0, 9]");
-        }
-
-        sample_image_ = image;
-        sample_label_ = label;
-        sample_is_train_ = is_train && !eval_mode_;
-        sample_loaded_ = true;
-
-        reset_sample_activity();
-        inject_encoded_sample();
+        load_sample_view(std::span<const std::uint8_t>(image.data(), image.size()), label,
+                         is_train);
     }
 
     [[nodiscard]] BatchExecutionStats batch_train(
@@ -327,11 +377,23 @@ class PyNetworkHandle final {
         return run_batch(images, labels, ticks_per_sample, true);
     }
 
+    [[nodiscard]] BatchExecutionStats batch_train_array(const BatchArrayView& batch,
+                                                        const std::size_t ticks_per_sample) {
+        set_eval_mode(false);
+        return run_batch(batch, ticks_per_sample, true);
+    }
+
     [[nodiscard]] BatchExecutionStats batch_evaluate(
         const std::vector<std::vector<std::uint8_t>>& images, const std::vector<int>& labels,
         const std::size_t ticks_per_sample) {
         set_eval_mode(true);
         return run_batch(images, labels, ticks_per_sample, false);
+    }
+
+    [[nodiscard]] BatchExecutionStats batch_evaluate_array(const BatchArrayView& batch,
+                                                           const std::size_t ticks_per_sample) {
+        set_eval_mode(true);
+        return run_batch(batch, ticks_per_sample, false);
     }
 
     void step(const std::size_t n_ticks) {
@@ -539,6 +601,24 @@ class PyNetworkHandle final {
     }
 
    private:
+    void load_sample_view(const std::span<const std::uint8_t> image, const int label,
+                          const bool is_train = true) {
+        if (image.size() != kMnistPixels) {
+            throw std::invalid_argument("load_sample expects flattened 28x28 image (784 values)");
+        }
+        if (label < 0 || label > 9) {
+            throw std::invalid_argument("label must be in [0, 9]");
+        }
+
+        current_sample_plan_ = get_or_build_sample_plan(image);
+        sample_label_ = label;
+        sample_is_train_ = is_train && !eval_mode_;
+        sample_loaded_ = true;
+
+        reset_sample_activity();
+        inject_encoded_sample();
+    }
+
     [[nodiscard]] bool is_active_pixel(const std::uint8_t pixel) const noexcept {
         return (static_cast<float>(pixel) / 255.0F) >= 0.08F;
     }
@@ -600,12 +680,10 @@ class PyNetworkHandle final {
             });
     }
 
-    void inject_encoded_sample() {
-        if (!sample_loaded_) {
-            return;
-        }
+    [[nodiscard]] EncodedSamplePlan build_sample_plan(
+        const std::span<const std::uint8_t> image) const {
+        EncodedSamplePlan plan{};
 
-        const auto base_time = network_->elapsed();
         const auto dt = std::max(0.01F, config_.network.dt);
         const auto sample_window = std::max(dt, config_.sample_duration_ms);
         const auto max_spikes_per_pixel = std::clamp<std::size_t>(
@@ -616,27 +694,25 @@ class PyNetworkHandle final {
         const auto pulse_stride =
             sample_window / static_cast<senna::core::domain::Time>(max_spikes_per_pixel);
 
-        for (std::size_t index = 0U; index < sample_image_.size(); ++index) {
-            const auto pixel = sample_image_[index];
-            if (pixel == 0U) {
+        plan.reserve(kMnistPixels / 4U);
+        for (std::size_t index = 0U; index < image.size(); ++index) {
+            const auto pixel = image[index];
+            if (pixel == 0U || !is_active_pixel(pixel)) {
                 continue;
             }
 
             const auto normalized = static_cast<float>(pixel) / 255.0F;
-            if (!is_active_pixel(pixel)) {
-                continue;
-            }
-
             const auto pulse_count = std::clamp<std::size_t>(
                 static_cast<std::size_t>(
                     std::ceil(normalized * static_cast<float>(max_spikes_per_pixel))),
                 1U, max_spikes_per_pixel);
             const auto value = static_cast<senna::core::domain::Weight>(
                 config_.network.input_spike_value * normalized);
+            const auto sensor_id = sensor_map_[index];
+            const auto deterministic_jitter =
+                static_cast<senna::core::domain::Time>(index % 17U) * dt * 0.01F;
 
             for (std::size_t pulse = 0U; pulse < pulse_count; ++pulse) {
-                const auto deterministic_jitter =
-                    static_cast<senna::core::domain::Time>(index % 17U) * dt * 0.01F;
                 const auto local_offset = static_cast<senna::core::domain::Time>(
                     static_cast<senna::core::domain::Time>(pulse) * pulse_stride +
                     deterministic_jitter);
@@ -644,13 +720,40 @@ class PyNetworkHandle final {
                     continue;
                 }
 
-                network_->inject_event(senna::core::domain::SpikeEvent{
-                    sensor_map_[index],
-                    sensor_map_[index],
-                    base_time + local_offset,
-                    value,
-                });
+                plan.push_back(EncodedInputPulse{sensor_id, local_offset, value});
             }
+        }
+
+        return plan;
+    }
+
+    [[nodiscard]] std::shared_ptr<const EncodedSamplePlan> get_or_build_sample_plan(
+        const std::span<const std::uint8_t> image) {
+        SampleCacheKey key{};
+        std::copy(image.begin(), image.end(), key.pixels.begin());
+
+        if (const auto found = sample_plan_cache_.find(key); found != sample_plan_cache_.end()) {
+            return found->second;
+        }
+
+        auto plan = std::make_shared<const EncodedSamplePlan>(build_sample_plan(image));
+        const auto insert_result = sample_plan_cache_.emplace(key, std::move(plan));
+        return insert_result.first->second;
+    }
+
+    void inject_encoded_sample() {
+        if (!sample_loaded_ || !current_sample_plan_) {
+            return;
+        }
+
+        const auto base_time = network_->elapsed();
+        for (const auto& pulse : *current_sample_plan_) {
+            network_->inject_event(senna::core::domain::SpikeEvent{
+                pulse.sensor_id,
+                pulse.sensor_id,
+                base_time + pulse.local_offset,
+                pulse.value,
+            });
         }
 
         output_spikes_.clear();
@@ -708,6 +811,33 @@ class PyNetworkHandle final {
 
             ++stats.completed;
             if (prediction == labels[index]) {
+                ++stats.correct;
+            }
+        }
+
+        return stats;
+    }
+
+    [[nodiscard]] BatchExecutionStats run_batch(const BatchArrayView& batch,
+                                                const std::size_t ticks_per_sample,
+                                                const bool is_train) {
+        BatchExecutionStats stats{};
+        for (std::size_t index = 0U; index < batch.sample_count; ++index) {
+            const auto image =
+                std::span<const std::uint8_t>(batch.images + (index * kMnistPixels), kMnistPixels);
+            const auto label = static_cast<int>(batch.labels[index]);
+
+            load_sample_view(image, label, is_train);
+            step(ticks_per_sample);
+
+            auto prediction = get_prediction();
+            if (is_train && prediction != label) {
+                supervise(label);
+                prediction = get_prediction();
+            }
+
+            ++stats.completed;
+            if (prediction == label) {
                 ++stats.correct;
             }
         }
@@ -804,7 +934,9 @@ class PyNetworkHandle final {
     senna::core::io::FirstSpikeDecoder decoder_;
     senna::core::plasticity::Supervisor supervisor_;
 
-    std::vector<std::uint8_t> sample_image_ = std::vector<std::uint8_t>(kMnistPixels, 0U);
+    std::shared_ptr<const EncodedSamplePlan> current_sample_plan_{};
+    std::unordered_map<SampleCacheKey, std::shared_ptr<const EncodedSamplePlan>, SampleCacheKeyHash>
+        sample_plan_cache_{};
     std::optional<int> sample_label_{};
     bool sample_loaded_{false};
     bool sample_is_train_{true};
@@ -823,6 +955,18 @@ class PyNetworkHandle final {
     std::size_t test_correct_{0U};
 };
 
+[[nodiscard]] py::dict batch_result_dict(PyNetworkHandle& handle,
+                                         const BatchExecutionStats& stats) {
+    auto result = handle.get_metrics();
+    result[py::str("completed")] = py::int_(stats.completed);
+    result[py::str("correct")] = py::int_(stats.correct);
+    result[py::str("batch_accuracy")] =
+        py::float_(stats.completed == 0U
+                       ? 0.0
+                       : static_cast<double>(stats.correct) / static_cast<double>(stats.completed));
+    return result;
+}
+
 }  // namespace
 
 PYBIND11_MODULE(senna_core, module) {
@@ -833,6 +977,32 @@ PYBIND11_MODULE(senna_core, module) {
         .def("load_sample", &PyNetworkHandle::load_sample, py::arg("image"), py::arg("label"),
              py::arg("is_train") = true)
         .def(
+            "batch_train_array",
+            [](PyNetworkHandle& handle, const ImageArray& images, const LabelArray& labels,
+               const std::size_t ticks_per_sample) {
+                const auto batch = validate_batch_arrays(images, labels);
+                BatchExecutionStats stats{};
+                {
+                    py::gil_scoped_release release{};
+                    stats = handle.batch_train_array(batch, ticks_per_sample);
+                }
+                return batch_result_dict(handle, stats);
+            },
+            py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"))
+        .def(
+            "batch_evaluate_array",
+            [](PyNetworkHandle& handle, const ImageArray& images, const LabelArray& labels,
+               const std::size_t ticks_per_sample) {
+                const auto batch = validate_batch_arrays(images, labels);
+                BatchExecutionStats stats{};
+                {
+                    py::gil_scoped_release release{};
+                    stats = handle.batch_evaluate_array(batch, ticks_per_sample);
+                }
+                return batch_result_dict(handle, stats);
+            },
+            py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"))
+        .def(
             "batch_train",
             [](PyNetworkHandle& handle, const std::vector<std::vector<std::uint8_t>>& images,
                const std::vector<int>& labels, const std::size_t ticks_per_sample) {
@@ -841,15 +1011,7 @@ PYBIND11_MODULE(senna_core, module) {
                     py::gil_scoped_release release{};
                     stats = handle.batch_train(images, labels, ticks_per_sample);
                 }
-
-                auto result = handle.get_metrics();
-                result[py::str("completed")] = py::int_(stats.completed);
-                result[py::str("correct")] = py::int_(stats.correct);
-                result[py::str("batch_accuracy")] =
-                    py::float_(stats.completed == 0U ? 0.0
-                                                     : static_cast<double>(stats.correct) /
-                                                           static_cast<double>(stats.completed));
-                return result;
+                return batch_result_dict(handle, stats);
             },
             py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"))
         .def(
@@ -861,15 +1023,7 @@ PYBIND11_MODULE(senna_core, module) {
                     py::gil_scoped_release release{};
                     stats = handle.batch_evaluate(images, labels, ticks_per_sample);
                 }
-
-                auto result = handle.get_metrics();
-                result[py::str("completed")] = py::int_(stats.completed);
-                result[py::str("correct")] = py::int_(stats.correct);
-                result[py::str("batch_accuracy")] =
-                    py::float_(stats.completed == 0U ? 0.0
-                                                     : static_cast<double>(stats.correct) /
-                                                           static_cast<double>(stats.completed));
-                return result;
+                return batch_result_dict(handle, stats);
             },
             py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"))
         .def("step", &PyNetworkHandle::step, py::arg("n_ticks"))
@@ -904,6 +1058,34 @@ PYBIND11_MODULE(senna_core, module) {
         py::arg("handle"), py::arg("n_ticks"));
 
     module.def(
+        "batch_train_array",
+        [](const std::shared_ptr<PyNetworkHandle>& handle, const ImageArray& images,
+           const LabelArray& labels, const std::size_t ticks_per_sample) {
+            const auto batch = validate_batch_arrays(images, labels);
+            BatchExecutionStats stats{};
+            {
+                py::gil_scoped_release release{};
+                stats = handle->batch_train_array(batch, ticks_per_sample);
+            }
+            return batch_result_dict(*handle, stats);
+        },
+        py::arg("handle"), py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"));
+
+    module.def(
+        "batch_evaluate_array",
+        [](const std::shared_ptr<PyNetworkHandle>& handle, const ImageArray& images,
+           const LabelArray& labels, const std::size_t ticks_per_sample) {
+            const auto batch = validate_batch_arrays(images, labels);
+            BatchExecutionStats stats{};
+            {
+                py::gil_scoped_release release{};
+                stats = handle->batch_evaluate_array(batch, ticks_per_sample);
+            }
+            return batch_result_dict(*handle, stats);
+        },
+        py::arg("handle"), py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"));
+
+    module.def(
         "batch_train",
         [](const std::shared_ptr<PyNetworkHandle>& handle,
            const std::vector<std::vector<std::uint8_t>>& images, const std::vector<int>& labels,
@@ -913,15 +1095,7 @@ PYBIND11_MODULE(senna_core, module) {
                 py::gil_scoped_release release{};
                 stats = handle->batch_train(images, labels, ticks_per_sample);
             }
-
-            auto result = handle->get_metrics();
-            result[py::str("completed")] = py::int_(stats.completed);
-            result[py::str("correct")] = py::int_(stats.correct);
-            result[py::str("batch_accuracy")] =
-                py::float_(stats.completed == 0U ? 0.0
-                                                 : static_cast<double>(stats.correct) /
-                                                       static_cast<double>(stats.completed));
-            return result;
+            return batch_result_dict(*handle, stats);
         },
         py::arg("handle"), py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"));
 
@@ -935,15 +1109,7 @@ PYBIND11_MODULE(senna_core, module) {
                 py::gil_scoped_release release{};
                 stats = handle->batch_evaluate(images, labels, ticks_per_sample);
             }
-
-            auto result = handle->get_metrics();
-            result[py::str("completed")] = py::int_(stats.completed);
-            result[py::str("correct")] = py::int_(stats.correct);
-            result[py::str("batch_accuracy")] =
-                py::float_(stats.completed == 0U ? 0.0
-                                                 : static_cast<double>(stats.correct) /
-                                                       static_cast<double>(stats.completed));
-            return result;
+            return batch_result_dict(*handle, stats);
         },
         py::arg("handle"), py::arg("images"), py::arg("labels"), py::arg("ticks_per_sample"));
 
