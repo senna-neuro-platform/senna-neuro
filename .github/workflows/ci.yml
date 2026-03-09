@@ -48,7 +48,7 @@ jobs:
           compiler=gcc
           compiler.version=${compiler_version}
           compiler.libcxx=libstdc++11
-          compiler.cppstd=gnu17
+          compiler.cppstd=gnu23
           EOF
           if ! conan remote list | grep -q '^conancenter:'; then
             conan remote add conancenter https://center2.conan.io

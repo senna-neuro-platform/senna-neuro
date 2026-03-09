@@ -42,7 +42,7 @@ conan-setup:
 	@compiler_version=$$(g++ -dumpfullversion -dumpversion | cut -d. -f1); \
 	printf "[settings]\nos=Linux\narch=x86_64\ncompiler=gcc\ncompiler.version=%s\ncompiler.libcxx=libstdc++11\ncompiler.cppstd=gnu23\n" "$$compiler_version" > $(CONAN_HOST_PROFILE)
 	@compiler_version=$$(g++ -dumpfullversion -dumpversion | cut -d. -f1); \
-	printf "[settings]\nos=Linux\narch=x86_64\nbuild_type=Release\ncompiler=gcc\ncompiler.version=%s\ncompiler.libcxx=libstdc++11\ncompiler.cppstd=gnu17\n" "$$compiler_version" > $(CONAN_BUILD_PROFILE)
+	printf "[settings]\nos=Linux\narch=x86_64\nbuild_type=Release\ncompiler=gcc\ncompiler.version=%s\ncompiler.libcxx=libstdc++11\ncompiler.cppstd=gnu23\n" "$$compiler_version" > $(CONAN_BUILD_PROFILE)
 	@if ! $(CONAN) remote list | grep -q '^conancenter:'; then \
 		$(CONAN) remote add conancenter https://center2.conan.io; \
 	fi
