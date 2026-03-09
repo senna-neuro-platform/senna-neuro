@@ -12,10 +12,7 @@ void EpochArtifactPipeline::persist_epoch(
     const std::vector<senna::core::domain::Neuron>& neurons,
     const senna::core::domain::SynapseStore& synapses, const std::vector<MetricPoint>& metrics,
     const SimulationState* state) const {
-    experiment_writer_.write_spike_trace(epoch, spike_trace);
-    experiment_writer_.write_snapshot(epoch, neurons, synapses);
-    experiment_writer_.write_metrics(epoch, metrics);
-
+    experiment_writer_.write_epoch(epoch, spike_trace, neurons, synapses, metrics);
     write_outbox_epoch_file(epoch, spike_trace, neurons, synapses, metrics, state);
 }
 
@@ -74,9 +71,7 @@ void EpochArtifactPipeline::write_outbox_epoch_file(
     static_cast<void>(std::filesystem::remove(temporary));
 
     HDF5Writer outbox_writer{temporary};
-    outbox_writer.write_spike_trace(epoch, spike_trace);
-    outbox_writer.write_snapshot(epoch, neurons, synapses);
-    outbox_writer.write_metrics(epoch, metrics);
+    outbox_writer.write_epoch(epoch, spike_trace, neurons, synapses, metrics);
 
     if (config_.include_state_snapshot && state != nullptr) {
         StateSerializer::save_state(temporary, *state);

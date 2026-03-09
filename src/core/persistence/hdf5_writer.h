@@ -210,6 +210,16 @@ class HDF5Writer final {
    public:
     explicit HDF5Writer(std::string file_path);
 
+    void write_epoch(std::size_t epoch, const std::vector<senna::core::domain::SpikeEvent>& trace,
+                     const std::vector<senna::core::domain::Neuron>& neurons,
+                     const senna::core::domain::SynapseStore& synapses,
+                     const std::vector<MetricPoint>& metrics) const;
+
+    void write_epoch(std::size_t epoch, const std::vector<senna::core::domain::SpikeEvent>& trace,
+                     const std::vector<senna::core::domain::NeuronSnapshot>& neurons,
+                     const std::vector<senna::core::domain::Synapse>& synapses,
+                     const std::vector<MetricPoint>& metrics) const;
+
     void write_spike_trace(std::size_t epoch,
                            const std::vector<senna::core::domain::SpikeEvent>& trace) const;
 
@@ -235,9 +245,42 @@ class HDF5Writer final {
     [[nodiscard]] const std::string& file_path() const noexcept { return file_path_; }
 
    private:
+    [[nodiscard]] hid_t ensure_spike_type() const;
+
+    [[nodiscard]] hid_t ensure_synapse_type() const;
+
+    [[nodiscard]] hid_t ensure_neuron_type() const;
+
+    [[nodiscard]] hid_t ensure_metric_type() const;
+
+    void write_spike_trace_group(hid_t epoch_group_id,
+                                 const std::vector<senna::core::domain::SpikeEvent>& trace) const;
+
+    void write_snapshot_group(hid_t epoch_group_id,
+                              const std::vector<senna::core::domain::NeuronSnapshot>& neurons,
+                              const std::vector<senna::core::domain::Synapse>& synapses) const;
+
+    void write_metrics_group(hid_t epoch_group_id, const std::vector<MetricPoint>& metrics) const;
+
+    [[nodiscard]] const std::vector<senna::core::domain::NeuronSnapshot>& snapshot_buffer_from(
+        const std::vector<senna::core::domain::Neuron>& neurons) const;
+
+    [[nodiscard]] const std::vector<MetricPoint>& sorted_metric_buffer_from(
+        const std::unordered_map<std::string, double>& metrics) const;
+
     [[nodiscard]] static std::string epoch_group_path(std::size_t epoch);
 
     std::string file_path_{};
+    mutable detail::ScopedH5 spike_type_{};
+    mutable detail::ScopedH5 synapse_type_{};
+    mutable detail::ScopedH5 neuron_type_{};
+    mutable detail::ScopedH5 metric_type_{};
+    mutable std::vector<detail::SpikeEventRecord> spike_record_buffer_{};
+    mutable std::vector<detail::NeuronRecord> neuron_record_buffer_{};
+    mutable std::vector<detail::SynapseRecord> synapse_record_buffer_{};
+    mutable std::vector<detail::MetricRecord> metric_record_buffer_{};
+    mutable std::vector<senna::core::domain::NeuronSnapshot> neuron_snapshot_buffer_{};
+    mutable std::vector<MetricPoint> metric_point_buffer_{};
 };
 
 }  // namespace senna::core::persistence

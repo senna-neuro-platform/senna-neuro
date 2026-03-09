@@ -212,6 +212,46 @@ TEST(HDF5WriterTest, MetricsRoundTripPreservesNameAndValue) {
     static_cast<void>(std::filesystem::remove(path));
 }
 
+TEST(HDF5WriterTest, EpochBundleRoundTripPreservesTraceSnapshotAndMetrics) {
+    const auto path = make_temp_h5_path("senna_epoch_bundle");
+    const std::string file = path.string();
+
+    Runtime runtime{};
+    const std::vector<senna::core::domain::SpikeEvent> trace{
+        {0U, 0U, 0.0F, 1.1F},
+        {0U, 1U, 0.5F, 1.1F},
+        {1U, 1U, 1.0F, 1.0F},
+    };
+    const std::vector<senna::core::persistence::MetricPoint> metrics{
+        {"accuracy", 0.75},
+        {"spikes", 3.0},
+    };
+
+    senna::core::persistence::HDF5Writer writer{file};
+    writer.write_epoch(5U, trace, runtime.neurons, runtime.synapses, metrics);
+
+    const auto restored_trace = writer.read_spike_trace(5U);
+    const auto restored_snapshot = writer.read_snapshot(5U);
+    auto restored_metrics = writer.read_metrics(5U);
+
+    expect_events_equal(trace, restored_trace);
+    ASSERT_EQ(restored_snapshot.neurons.size(), runtime.neurons.size());
+    ASSERT_EQ(restored_snapshot.synapses.size(), runtime.synapses.size());
+    for (std::size_t i = 0U; i < runtime.neurons.size(); ++i) {
+        expect_neuron_snapshot_equal(runtime.neurons[i].snapshot(), restored_snapshot.neurons[i]);
+    }
+
+    std::sort(restored_metrics.begin(), restored_metrics.end(),
+              [](const auto& lhs, const auto& rhs) { return lhs.name < rhs.name; });
+    ASSERT_EQ(restored_metrics.size(), 2U);
+    EXPECT_EQ(restored_metrics[0U].name, "accuracy");
+    EXPECT_DOUBLE_EQ(restored_metrics[0U].value, 0.75);
+    EXPECT_EQ(restored_metrics[1U].name, "spikes");
+    EXPECT_DOUBLE_EQ(restored_metrics[1U].value, 3.0);
+
+    static_cast<void>(std::filesystem::remove(path));
+}
+
 TEST(StateSerializerTest, SaveLoadAndContinuationMatchReferenceRun) {
     const auto path = make_temp_h5_path("senna_state");
     const std::string file = path.string();

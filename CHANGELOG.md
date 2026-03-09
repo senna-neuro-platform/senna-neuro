@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.17.4-dev`
+- In `src/core/persistence/hdf5_writer.cpp` and `src/core/persistence/hdf5_writer.h`, persistence writes were optimized with a batched `write_epoch(...)` path, lazy caching of HDF5 compound types, and reusable serialization buffers for spikes, neurons, synapses, and metrics, reducing repeated type creation, heap churn, and per-epoch HDF5 setup work.
+- In `src/core/persistence/epoch_artifact_pipeline.cpp`, epoch persistence now uses the batched writer for both experiment and outbox artifacts, so each epoch no longer performs three independent `trace + snapshot + metrics` write passes through the same HDF5 file.
+- In `tests/test_persistence.cpp`, direct coverage was added for the new `HDF5Writer::write_epoch(...)` path to verify combined trace, snapshot, and metric round-trips.
+
 ## `0.17.3-dev`
 - In `src/core/persistence/*.cpp` and `CMakeLists.txt`, the persistence layer was decomposed the same way as the runtime core: `HDF5Writer`, `StateSerializer`, and `EpochArtifactPipeline` now compile as dedicated translation units in a separate `senna_persistence` static library instead of remaining header-only.
 - In `src/core/persistence/hdf5_writer.h`, `src/core/persistence/state_serializer.h`, and `src/core/persistence/epoch_artifact_pipeline.h`, non-template persistence logic was moved out of headers while keeping only declarations, records, and the small generic HDF5 dataset templates inline, reducing header weight without forcing HDF5 into the base `senna_domain` target.

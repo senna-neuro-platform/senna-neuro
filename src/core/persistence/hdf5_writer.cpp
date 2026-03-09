@@ -283,32 +283,37 @@ MetricPoint from_record(const MetricRecord& record) {
 
 HDF5Writer::HDF5Writer(std::string file_path) : file_path_(std::move(file_path)) {}
 
+void HDF5Writer::write_epoch(const std::size_t epoch,
+                             const std::vector<senna::core::domain::SpikeEvent>& trace,
+                             const std::vector<senna::core::domain::Neuron>& neurons,
+                             const senna::core::domain::SynapseStore& synapses,
+                             const std::vector<MetricPoint>& metrics) const {
+    write_epoch(epoch, trace, snapshot_buffer_from(neurons), synapses.synapses(), metrics);
+}
+
+void HDF5Writer::write_epoch(const std::size_t epoch,
+                             const std::vector<senna::core::domain::SpikeEvent>& trace,
+                             const std::vector<senna::core::domain::NeuronSnapshot>& neurons,
+                             const std::vector<senna::core::domain::Synapse>& synapses,
+                             const std::vector<MetricPoint>& metrics) const {
+    auto file = detail::open_rw_or_create_file(file_path_);
+    auto epoch_group = detail::open_or_create_group_path(file.id, epoch_group_path(epoch));
+    write_spike_trace_group(epoch_group.id, trace);
+    write_snapshot_group(epoch_group.id, neurons, synapses);
+    write_metrics_group(epoch_group.id, metrics);
+}
+
 void HDF5Writer::write_spike_trace(
     const std::size_t epoch, const std::vector<senna::core::domain::SpikeEvent>& trace) const {
     auto file = detail::open_rw_or_create_file(file_path_);
     auto epoch_group = detail::open_or_create_group_path(file.id, epoch_group_path(epoch));
-    auto spike_type =
-        detail::ScopedH5{detail::make_spike_event_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-
-    std::vector<detail::SpikeEventRecord> records{};
-    records.reserve(trace.size());
-    for (const auto& event : trace) {
-        records.push_back(detail::to_record(event));
-    }
-
-    detail::write_compound_dataset(epoch_group.id, "spike_trace", spike_type.id, records);
+    write_spike_trace_group(epoch_group.id, trace);
 }
 
 void HDF5Writer::write_snapshot(const std::size_t epoch,
                                 const std::vector<senna::core::domain::Neuron>& neurons,
                                 const senna::core::domain::SynapseStore& synapses) const {
-    std::vector<senna::core::domain::NeuronSnapshot> neuron_snapshots{};
-    neuron_snapshots.reserve(neurons.size());
-    for (const auto& neuron : neurons) {
-        neuron_snapshots.push_back(neuron.snapshot());
-    }
-
-    write_snapshot(epoch, neuron_snapshots, synapses.synapses());
+    write_snapshot(epoch, snapshot_buffer_from(neurons), synapses.synapses());
 }
 
 void HDF5Writer::write_snapshot(const std::size_t epoch,
@@ -316,67 +321,28 @@ void HDF5Writer::write_snapshot(const std::size_t epoch,
                                 const std::vector<senna::core::domain::Synapse>& synapses) const {
     auto file = detail::open_rw_or_create_file(file_path_);
     auto epoch_group = detail::open_or_create_group_path(file.id, epoch_group_path(epoch));
-
-    auto neuron_type =
-        detail::ScopedH5{detail::make_neuron_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-    auto synapse_type =
-        detail::ScopedH5{detail::make_synapse_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-
-    std::vector<detail::NeuronRecord> neuron_records{};
-    neuron_records.reserve(neurons.size());
-    for (const auto& neuron : neurons) {
-        neuron_records.push_back(detail::to_record(neuron));
-    }
-
-    std::vector<detail::SynapseRecord> synapse_records{};
-    synapse_records.reserve(synapses.size());
-    for (const auto& synapse : synapses) {
-        synapse_records.push_back(detail::to_record(synapse));
-    }
-
-    detail::write_compound_dataset(epoch_group.id, "neurons", neuron_type.id, neuron_records);
-    detail::write_compound_dataset(epoch_group.id, "synapses", synapse_type.id, synapse_records);
+    write_snapshot_group(epoch_group.id, neurons, synapses);
 }
 
 void HDF5Writer::write_metrics(const std::size_t epoch,
                                const std::vector<MetricPoint>& metrics) const {
     auto file = detail::open_rw_or_create_file(file_path_);
     auto epoch_group = detail::open_or_create_group_path(file.id, epoch_group_path(epoch));
-    auto metric_type =
-        detail::ScopedH5{detail::make_metric_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-
-    std::vector<detail::MetricRecord> records{};
-    records.reserve(metrics.size());
-    for (const auto& metric : metrics) {
-        records.push_back(detail::to_record(metric));
-    }
-
-    detail::write_compound_dataset(epoch_group.id, "metrics", metric_type.id, records);
+    write_metrics_group(epoch_group.id, metrics);
 }
 
 void HDF5Writer::write_metrics(const std::size_t epoch,
                                const std::unordered_map<std::string, double>& metrics) const {
-    std::vector<MetricPoint> sorted{};
-    sorted.reserve(metrics.size());
-    for (const auto& [name, value] : metrics) {
-        sorted.push_back(MetricPoint{name, value});
-    }
-
-    std::sort(sorted.begin(), sorted.end(),
-              [](const MetricPoint& lhs, const MetricPoint& rhs) { return lhs.name < rhs.name; });
-
-    write_metrics(epoch, sorted);
+    write_metrics(epoch, sorted_metric_buffer_from(metrics));
 }
 
 std::vector<senna::core::domain::SpikeEvent> HDF5Writer::read_spike_trace(
     const std::size_t epoch) const {
     auto file = detail::open_ro_file(file_path_);
     auto epoch_group = detail::open_group_path(file.id, epoch_group_path(epoch));
-    auto spike_type =
-        detail::ScopedH5{detail::make_spike_event_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
 
     const auto records = detail::read_compound_dataset<detail::SpikeEventRecord>(
-        epoch_group.id, "spike_trace", spike_type.id);
+        epoch_group.id, "spike_trace", ensure_spike_type());
 
     std::vector<senna::core::domain::SpikeEvent> trace{};
     trace.reserve(records.size());
@@ -390,15 +356,10 @@ SnapshotData HDF5Writer::read_snapshot(const std::size_t epoch) const {
     auto file = detail::open_ro_file(file_path_);
     auto epoch_group = detail::open_group_path(file.id, epoch_group_path(epoch));
 
-    auto neuron_type =
-        detail::ScopedH5{detail::make_neuron_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-    auto synapse_type =
-        detail::ScopedH5{detail::make_synapse_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
-
     const auto neuron_records = detail::read_compound_dataset<detail::NeuronRecord>(
-        epoch_group.id, "neurons", neuron_type.id);
+        epoch_group.id, "neurons", ensure_neuron_type());
     const auto synapse_records = detail::read_compound_dataset<detail::SynapseRecord>(
-        epoch_group.id, "synapses", synapse_type.id);
+        epoch_group.id, "synapses", ensure_synapse_type());
 
     SnapshotData data{};
     data.neurons.reserve(neuron_records.size());
@@ -417,11 +378,9 @@ SnapshotData HDF5Writer::read_snapshot(const std::size_t epoch) const {
 std::vector<MetricPoint> HDF5Writer::read_metrics(const std::size_t epoch) const {
     auto file = detail::open_ro_file(file_path_);
     auto epoch_group = detail::open_group_path(file.id, epoch_group_path(epoch));
-    auto metric_type =
-        detail::ScopedH5{detail::make_metric_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
 
     const auto records = detail::read_compound_dataset<detail::MetricRecord>(
-        epoch_group.id, "metrics", metric_type.id);
+        epoch_group.id, "metrics", ensure_metric_type());
 
     std::vector<MetricPoint> metrics{};
     metrics.reserve(records.size());
@@ -429,6 +388,106 @@ std::vector<MetricPoint> HDF5Writer::read_metrics(const std::size_t epoch) const
         metrics.push_back(detail::from_record(record));
     }
     return metrics;
+}
+
+hid_t HDF5Writer::ensure_spike_type() const {
+    if (spike_type_.id < 0) {
+        spike_type_ = detail::ScopedH5{detail::make_spike_event_type(),
+                                       static_cast<herr_t (*)(hid_t)>(H5Tclose)};
+    }
+    return spike_type_.id;
+}
+
+hid_t HDF5Writer::ensure_synapse_type() const {
+    if (synapse_type_.id < 0) {
+        synapse_type_ =
+            detail::ScopedH5{detail::make_synapse_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
+    }
+    return synapse_type_.id;
+}
+
+hid_t HDF5Writer::ensure_neuron_type() const {
+    if (neuron_type_.id < 0) {
+        neuron_type_ =
+            detail::ScopedH5{detail::make_neuron_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
+    }
+    return neuron_type_.id;
+}
+
+hid_t HDF5Writer::ensure_metric_type() const {
+    if (metric_type_.id < 0) {
+        metric_type_ =
+            detail::ScopedH5{detail::make_metric_type(), static_cast<herr_t (*)(hid_t)>(H5Tclose)};
+    }
+    return metric_type_.id;
+}
+
+void HDF5Writer::write_spike_trace_group(
+    const hid_t epoch_group_id, const std::vector<senna::core::domain::SpikeEvent>& trace) const {
+    spike_record_buffer_.clear();
+    spike_record_buffer_.reserve(trace.size());
+    for (const auto& event : trace) {
+        spike_record_buffer_.push_back(detail::to_record(event));
+    }
+
+    detail::write_compound_dataset(epoch_group_id, "spike_trace", ensure_spike_type(),
+                                   spike_record_buffer_);
+}
+
+void HDF5Writer::write_snapshot_group(
+    const hid_t epoch_group_id, const std::vector<senna::core::domain::NeuronSnapshot>& neurons,
+    const std::vector<senna::core::domain::Synapse>& synapses) const {
+    neuron_record_buffer_.clear();
+    neuron_record_buffer_.reserve(neurons.size());
+    for (const auto& neuron : neurons) {
+        neuron_record_buffer_.push_back(detail::to_record(neuron));
+    }
+
+    synapse_record_buffer_.clear();
+    synapse_record_buffer_.reserve(synapses.size());
+    for (const auto& synapse : synapses) {
+        synapse_record_buffer_.push_back(detail::to_record(synapse));
+    }
+
+    detail::write_compound_dataset(epoch_group_id, "neurons", ensure_neuron_type(),
+                                   neuron_record_buffer_);
+    detail::write_compound_dataset(epoch_group_id, "synapses", ensure_synapse_type(),
+                                   synapse_record_buffer_);
+}
+
+void HDF5Writer::write_metrics_group(const hid_t epoch_group_id,
+                                     const std::vector<MetricPoint>& metrics) const {
+    metric_record_buffer_.clear();
+    metric_record_buffer_.reserve(metrics.size());
+    for (const auto& metric : metrics) {
+        metric_record_buffer_.push_back(detail::to_record(metric));
+    }
+
+    detail::write_compound_dataset(epoch_group_id, "metrics", ensure_metric_type(),
+                                   metric_record_buffer_);
+}
+
+const std::vector<senna::core::domain::NeuronSnapshot>& HDF5Writer::snapshot_buffer_from(
+    const std::vector<senna::core::domain::Neuron>& neurons) const {
+    neuron_snapshot_buffer_.clear();
+    neuron_snapshot_buffer_.reserve(neurons.size());
+    for (const auto& neuron : neurons) {
+        neuron_snapshot_buffer_.push_back(neuron.snapshot());
+    }
+    return neuron_snapshot_buffer_;
+}
+
+const std::vector<MetricPoint>& HDF5Writer::sorted_metric_buffer_from(
+    const std::unordered_map<std::string, double>& metrics) const {
+    metric_point_buffer_.clear();
+    metric_point_buffer_.reserve(metrics.size());
+    for (const auto& [name, value] : metrics) {
+        metric_point_buffer_.push_back(MetricPoint{name, value});
+    }
+
+    std::sort(metric_point_buffer_.begin(), metric_point_buffer_.end(),
+              [](const MetricPoint& lhs, const MetricPoint& rhs) { return lhs.name < rhs.name; });
+    return metric_point_buffer_;
 }
 
 std::string HDF5Writer::epoch_group_path(const std::size_t epoch) {
