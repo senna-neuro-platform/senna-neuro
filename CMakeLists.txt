@@ -63,6 +63,25 @@ endif()
 
 if(SENNA_BUILD_PYTHON_BINDINGS OR BUILD_TESTING)
     find_package(HDF5 REQUIRED MODULE)
+
+    set(SENNA_PERSISTENCE_SOURCES
+        src/core/persistence/epoch_artifact_pipeline.cpp
+        src/core/persistence/hdf5_writer.cpp
+        src/core/persistence/state_serializer.cpp
+    )
+
+    add_library(senna_persistence STATIC ${SENNA_PERSISTENCE_SOURCES})
+    target_include_directories(senna_persistence PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_link_libraries(senna_persistence PUBLIC senna_domain HDF5::HDF5)
+    set_target_properties(senna_persistence PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(senna_persistence PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(SENNA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(senna_persistence PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endif()
 endif()
 
 if(SENNA_BUILD_PYTHON_BINDINGS)
@@ -72,7 +91,7 @@ if(SENNA_BUILD_PYTHON_BINDINGS)
     find_package(yaml-cpp REQUIRED CONFIG)
 
     pybind11_add_module(senna_core MODULE src/bindings/python_module.cpp)
-    target_link_libraries(senna_core PRIVATE senna_domain yaml-cpp::yaml-cpp HDF5::HDF5)
+    target_link_libraries(senna_core PRIVATE senna_persistence yaml-cpp::yaml-cpp)
     set_target_properties(senna_core PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -264,7 +283,7 @@ if(BUILD_TESTING)
     gtest_discover_tests(test_structural_plasticity)
 
     add_executable(test_persistence tests/test_persistence.cpp)
-    target_link_libraries(test_persistence PRIVATE senna_domain GTest::gtest_main HDF5::HDF5)
+    target_link_libraries(test_persistence PRIVATE senna_persistence GTest::gtest_main)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(test_persistence PRIVATE -Wall -Wextra -Wpedantic)

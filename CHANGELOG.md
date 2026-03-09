@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.17.3-dev`
+- In `src/core/persistence/*.cpp` and `CMakeLists.txt`, the persistence layer was decomposed the same way as the runtime core: `HDF5Writer`, `StateSerializer`, and `EpochArtifactPipeline` now compile as dedicated translation units in a separate `senna_persistence` static library instead of remaining header-only.
+- In `src/core/persistence/hdf5_writer.h`, `src/core/persistence/state_serializer.h`, and `src/core/persistence/epoch_artifact_pipeline.h`, non-template persistence logic was moved out of headers while keeping only declarations, records, and the small generic HDF5 dataset templates inline, reducing header weight without forcing HDF5 into the base `senna_domain` target.
+
 ## `0.17.2-dev`
 - In `CMakeLists.txt` and the `src/core/**` runtime modules, `senna_domain` was converted from an `INTERFACE` target to a real `STATIC` library with dedicated translation units for domain, engine, IO, metrics, and plasticity code, so production `clang-tidy` now covers substantially more of the core implementation instead of only `src/main.cpp` and `src/bindings/python_module.cpp`.
 - In `src/core/engine/network_builder.cpp`, `src/core/io/*.cpp`, `src/core/metrics/metrics_collector.cpp`, and `src/core/plasticity/*.cpp`, non-template runtime logic was moved out of headers into `.cpp` files without changing the external API, reducing header-only sprawl and making future profiling, linting, and parallel C++ work easier to isolate.
