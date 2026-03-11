@@ -1,0 +1,11 @@
+{
+  "name": "senna-visualizer",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "http-server -p 8081 -c-1 ."
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  }
+}

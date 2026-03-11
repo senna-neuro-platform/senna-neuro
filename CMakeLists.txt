@@ -16,6 +16,7 @@ if(SENNA_ENABLE_SANITIZERS)
 endif()
 
 include(CTest)
+find_package(Threads REQUIRED)
 
 set(SENNA_CORE_SOURCES
   src/core/spatial/lattice.cpp
@@ -39,9 +40,9 @@ set(SENNA_CORE_SOURCES
   src/core/interfaces/ws_server.cpp
 )
 
-add_library(senna_core ${SENNA_CORE_SOURCES})
-target_compile_features(senna_core PUBLIC cxx_std_23)
-target_include_directories(senna_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+add_library(senna_core_lib ${SENNA_CORE_SOURCES})
+target_compile_features(senna_core_lib PUBLIC cxx_std_23)
+target_include_directories(senna_core_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 set(SENNA_TRAINER_SOURCES
   src/trainer/main.cpp
@@ -50,7 +51,12 @@ set(SENNA_TRAINER_SOURCES
   src/trainer/config.cpp
 )
 
+add_executable(senna_core src/core/main.cpp)
+target_compile_features(senna_core PRIVATE cxx_std_23)
+target_include_directories(senna_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(senna_core PRIVATE senna_core_lib Threads::Threads)
+
 add_executable(senna_trainer ${SENNA_TRAINER_SOURCES})
 target_compile_features(senna_trainer PRIVATE cxx_std_23)
 target_include_directories(senna_trainer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(senna_trainer PRIVATE senna_core)
+target_link_libraries(senna_trainer PRIVATE senna_core_lib Threads::Threads)

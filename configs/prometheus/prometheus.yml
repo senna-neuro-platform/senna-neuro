@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "senna-core"
+    static_configs:
+      - targets: ["senna-core:9090"]
