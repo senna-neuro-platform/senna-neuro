@@ -13,7 +13,7 @@ class SennaNeuroConan(ConanFile):
         "boost/1.88.0",
         "grpc/1.78.1",
         "spdlog/1.14.1",
-        "fmt/12.1.0",
+        "fmt/10.2.1",
         "yaml-cpp/0.8.0",
         "gtest/1.17.0",
     )
