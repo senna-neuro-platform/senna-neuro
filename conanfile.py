@@ -4,19 +4,18 @@ from conan.tools.cmake import CMakeDeps, CMakeToolchain, cmake_layout
 
 class SennaNeuroConan(ConanFile):
     name = "senna-neuro"
-    version = "0.2.0-dev"
+    version = "0.2.2-dev"
     package_type = "application"
 
     settings = "os", "arch", "compiler", "build_type"
 
     requires = (
-        "boost/1.84.0",
-        "grpc/1.62.2",
-        "protobuf/4.25.3",
+        "boost/1.88.0",
+        "grpc/1.78.1",
         "spdlog/1.14.1",
-        "fmt/10.2.1",
+        "fmt/12.1.0",
         "yaml-cpp/0.8.0",
-        "gtest/1.14.0",
+        "gtest/1.17.0",
     )
 
     def layout(self):
