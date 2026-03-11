@@ -1,0 +1,56 @@
+cmake_minimum_required(VERSION 3.25)
+
+project(senna-neuro LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(SENNA_ENABLE_SANITIZERS "Enable ASan/UBSan" OFF)
+
+if(SENNA_ENABLE_SANITIZERS)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
+    add_link_options(-fsanitize=address,undefined)
+  endif()
+endif()
+
+include(CTest)
+
+set(SENNA_CORE_SOURCES
+  src/core/spatial/lattice.cpp
+  src/core/spatial/neighbor_index.cpp
+  src/core/neural/neuron.cpp
+  src/core/neural/neuron_pool.cpp
+  src/core/synaptic/synapse.cpp
+  src/core/synaptic/synapse_index.cpp
+  src/core/temporal/event_queue.cpp
+  src/core/temporal/time_manager.cpp
+  src/core/plasticity/stdp.cpp
+  src/core/plasticity/homeostasis.cpp
+  src/core/plasticity/structural.cpp
+  src/core/encoding/rate_encoder.cpp
+  src/core/encoding/wta_decoder.cpp
+  src/core/observability/metrics_collector.cpp
+  src/core/observability/prometheus_exporter.cpp
+  src/core/network/network_builder.cpp
+  src/core/network/spike_loop.cpp
+  src/core/interfaces/grpc_server.cpp
+  src/core/interfaces/ws_server.cpp
+)
+
+add_library(senna_core ${SENNA_CORE_SOURCES})
+target_compile_features(senna_core PUBLIC cxx_std_23)
+target_include_directories(senna_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+set(SENNA_TRAINER_SOURCES
+  src/trainer/main.cpp
+  src/trainer/mnist_loader.cpp
+  src/trainer/training_pipeline.cpp
+  src/trainer/config.cpp
+)
+
+add_executable(senna_trainer ${SENNA_TRAINER_SOURCES})
+target_compile_features(senna_trainer PRIVATE cxx_std_23)
+target_include_directories(senna_trainer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(senna_trainer PRIVATE senna_core)
