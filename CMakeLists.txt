@@ -91,6 +91,12 @@ if(BUILD_TESTING)
   target_link_libraries(test_temporal PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_temporal)
 
+  add_executable(test_encoding
+    tests/encoding/rate_encoder_test.cpp  
+  )
+  target_link_libraries(test_encoding PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_encoding)
+
   add_executable(test_smoke
     tests/integration/lattice_smoke_test.cpp
     tests/integration/network_smoke_test.cpp

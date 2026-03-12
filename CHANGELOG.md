@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.26.0-dev`
+- Implemented rate-based input encoding: [src/core/encoding/rate_encoder.hpp](src/core/encoding/rate_encoder.hpp) / [.cpp](src/core/encoding/rate_encoder.cpp) generate Poisson spike trains from 28×28 images onto the sensory panel, configurable by max rate, presentation window, and injected event value.
+- Added encoding unit tests in [tests/encoding/rate_encoder_test.cpp](tests/encoding/rate_encoder_test.cpp) covering pixel-level behavior, brightness scaling, determinism, presentation window bounds, and whole-image statistics.
+
 ## `0.25.0-dev`
 - Added full network wiring in [src/core/network/network_builder.hpp](src/core/network/network_builder.hpp) and [src/core/network/network_builder.cpp](src/core/network/network_builder.cpp): assembles zoned lattice, neighbor index, neuron pool, synapse index (with WTA), event queue, and time manager into a cohesive `Network`, with helpers to inject spikes or sensory inputs.
 - Implemented the simulation driver [src/core/network/spike_loop.hpp](src/core/network/spike_loop.hpp) / [.cpp](src/core/network/spike_loop.cpp): runs ticked propagation over a duration, records spike logs, and returns run statistics.
