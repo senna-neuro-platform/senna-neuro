@@ -50,6 +50,7 @@ TEST(HomeostasisTest, RespectsThetaBounds) {
   cfg.theta_step = 10.0f;
   cfg.theta_min = 0.5f;
   cfg.theta_max = 1.0f;
+  cfg.global_mix = 0.0f;  // use local only to isolate effect
 
   Homeostasis homeo(cfg);
   float dt_ms = 1.0f;
@@ -60,6 +61,34 @@ TEST(HomeostasisTest, RespectsThetaBounds) {
                                       /*global_activity=*/-1.0f);
   EXPECT_GE(theta_new[0], cfg.theta_min);
   EXPECT_LE(theta_new[0], cfg.theta_max);
+}
+
+TEST(HomeostasisTest, GlobalMixInfluencesAdjustment) {
+  HomeostasisConfig cfg;
+  cfg.alpha = 1.0f;
+  cfg.target_rate_hz = 5.0f;
+  cfg.theta_step = 1.0f;
+  cfg.global_mix = 1.0f;  // fully global
+  cfg.theta_min = 0.1f;
+  cfg.theta_max = 10.0f;
+
+  Homeostasis homeo(cfg);
+  float dt_ms = 1.0f;
+
+  // Local r_avg is low, but global activity is high -> should increase theta.
+  std::vector<float> theta = {1.0f};
+  std::vector<float> r_avg = {0.0f};
+  float global_activity = 1.0f;  // 1000 Hz equivalent at dt=1 ms
+
+  auto theta_new = homeo.ComputeTheta(theta, r_avg, dt_ms, global_activity);
+  EXPECT_GT(theta_new[0], theta[0]);
+
+  // With global_mix = 0, same inputs should decrease theta (target above
+  // local).
+  cfg.global_mix = 0.0f;
+  homeo.SetConfig(cfg);
+  theta_new = homeo.ComputeTheta(theta, r_avg, dt_ms, global_activity);
+  EXPECT_LT(theta_new[0], theta[0]);
 }
 
 }  // namespace senna::plasticity

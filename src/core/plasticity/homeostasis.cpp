@@ -16,8 +16,9 @@ std::vector<float> Homeostasis::ComputeTheta(
   std::vector<float> theta_new(theta_cur);
 
   for (int i = 0; i < n; ++i) {
+    float mix = std::clamp(cfg_.global_mix, 0.0f, 1.0f);
     float activity = (global_activity >= 0.0f)
-                         ? 0.5f * global_activity + 0.5f * r_avg[i]
+                         ? mix * global_activity + (1.0f - mix) * r_avg[i]
                          : r_avg[i];
     float freq_hz = activity / dt_seconds;
     float diff = freq_hz - cfg_.target_rate_hz;

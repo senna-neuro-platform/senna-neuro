@@ -76,16 +76,20 @@ make fmt      # Auto-format (src/ + tests/)
 
 ## Configuration
 
-- Main settings live in `configs/default.yaml` and load into `RuntimeConfig`.
-- `simulation`: dt, seed
-- `lattice`: size, density, neighbor radius, num_outputs, E/I ratio
-- `lif`: V_rest/reset, tau_m, t_ref, theta_base
-- `synapse`: w_min/w_max, c_base, w_wta
-- `stdp`: A_plus, A_minus, tau_plus, tau_minus, w_max
-- `homeostasis`: alpha, target_rate, theta_step, theta_min, theta_max, interval_ticks
-- `encoder`: max_rate, presentation_ms, input_value
-- `decoder`: window_ms
-- All values feed directly into `Network`, `TimeManager`, `RateEncoder`, decoder (no hardcoded defaults).
+Main settings live in `configs/default.yaml` and load into `RuntimeConfig`.
+
+| Section        | Parameters (key: meaning) |
+| -------------- | ------------------------- |
+| `simulation`   | `dt`: tick size (ms); `seed`: RNG seed |
+| `lattice`      | `width/height/depth`: grid dims; `density`: fill ratio; `neighbor_radius`: neighbor search radius (voxels); `num_outputs`: output neurons; `excitatory_ratio`: E/I split |
+| `lif`          | `V_rest`, `V_reset`, `tau_m`: membrane decay (ms); `t_ref`: refractory (ms); `theta_base`: initial threshold |
+| `synapse`      | `w_min/w_max`: init weight bounds; `c_base`: delay per voxel (ms); `w_wta`: inhibitory WTA weight |
+| `stdp`         | `A_plus/A_minus`: LTP/LTD amplitudes; `tau_plus/tau_minus` (ms); `w_max`: STDP cap |
+| `homeostasis`  | `alpha`: smoothing; `target_rate`: Hz; `theta_step`: Δθ per Hz error; `theta_min/theta_max`: bounds; `interval_ticks`: apply cadence; `global_mix`: blend global vs local activity |
+| `encoder`      | `max_rate`: Hz; `presentation_ms`: stimulus window; `input_value`: event amplitude |
+| `decoder`      | `window_ms`: first-spike decision window |
+
+All values feed directly into `Network`, `TimeManager`, `RateEncoder`, decoder (no hardcoded defaults).
 
 ## Project Structure
 

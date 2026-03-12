@@ -38,6 +38,7 @@ homeostasis:
   theta_min: 0.1
   theta_max: 5.0
   interval_ticks: 10
+  global_mix: 0.5    # share of global activity in blend [0,1]
 
 encoder:
   max_rate: 100.0

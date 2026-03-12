@@ -14,6 +14,7 @@ struct HomeostasisConfig {
   float theta_min = 0.1f;       // lower bound for threshold
   float theta_max = 5.0f;       // upper bound for threshold
   int interval_ticks = 10;      // how often to run homeostasis
+  float global_mix = 0.5f;      // weight of global activity in [0,1]
 };
 
 // Stateless homeostasis updater operating on a NeuronPool.
