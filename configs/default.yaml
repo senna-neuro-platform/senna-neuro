@@ -33,8 +33,11 @@ stdp:
 
 homeostasis:
   alpha: 0.999
-  target_rate: 0.01
-  theta_step: 0.005
+  target_rate: 5.0   # Hz
+  theta_step: 0.001  # delta theta per Hz error
+  theta_min: 0.1
+  theta_max: 5.0
+  interval_ticks: 10
 
 encoder:
   max_rate: 100.0

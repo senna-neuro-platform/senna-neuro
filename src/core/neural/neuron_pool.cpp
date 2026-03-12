@@ -3,6 +3,8 @@
 #include <cmath>
 #include <unordered_set>
 
+#include "core/plasticity/homeostasis.hpp"
+
 namespace senna::neural {
 
 NeuronPool::NeuronPool(const spatial::Lattice& lattice, const LIFParams& params,
@@ -10,7 +12,8 @@ NeuronPool::NeuronPool(const spatial::Lattice& lattice, const LIFParams& params,
     : size_(lattice.neuron_count()),
       params_(params),
       V_(size_, params.V_rest),
-      theta_(size_, params.theta_base),
+      theta_bufs_{std::vector<float>(size_, params.theta_base),
+                  std::vector<float>(size_, params.theta_base)},
       t_last_(size_, 0.0f),
       t_spike_(size_, -params.t_ref),  // allow immediate firing at t=0
       r_avg_(size_, 0.0f),
@@ -41,7 +44,7 @@ bool NeuronPool::ReceiveInput(int id, float t_now, float input) {
   t_last_[id] = t_now;
 
   // Check threshold.
-  return V_[id] >= theta_[id];
+  return V_[id] >= theta_active()[id];
 }
 
 void NeuronPool::Fire(int id, float t_now) {
@@ -50,28 +53,20 @@ void NeuronPool::Fire(int id, float t_now) {
   t_last_[id] = t_now;
 }
 
-void NeuronPool::ApplyHomeostasis(const std::vector<int32_t>& fired,
-                                  float alpha, float target_rate,
-                                  float theta_step, float global_activity) {
+void NeuronPool::UpdateAverages(const std::vector<int32_t>& fired,
+                                float alpha) {
   std::unordered_set<int32_t> fired_set(fired.begin(), fired.end());
-
   for (int i = 0; i < size_; ++i) {
-    // Update smoothed firing rate.
     float spike = fired_set.count(i) ? 1.0f : 0.0f;
     r_avg_[i] = alpha * r_avg_[i] + (1.0f - alpha) * spike;
-
-    // Blend local and global activity if provided (>=0).
-    float activity = global_activity >= 0.0f
-                         ? 0.5f * global_activity + 0.5f * r_avg_[i]
-                         : r_avg_[i];
-
-    // Adjust threshold toward target firing rate using blended activity.
-    if (activity > target_rate) {
-      theta_[i] += theta_step;
-    } else {
-      theta_[i] = std::max(0.1f, theta_[i] - theta_step);
-    }
   }
+}
+
+void NeuronPool::ApplyThetaBuffer(const std::vector<float>& new_theta) {
+  if (static_cast<int>(new_theta.size()) != size_) return;
+  int inactive = 1 - theta_active_idx_.load(std::memory_order_acquire);
+  theta_bufs_[inactive] = new_theta;
+  theta_active_idx_.store(inactive, std::memory_order_release);
 }
 
 }  // namespace senna::neural

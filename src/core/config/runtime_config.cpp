@@ -77,10 +77,16 @@ RuntimeConfig LoadRuntimeConfig(const std::string& path) {
   if (auto homeo = root["homeostasis"]) {
     cfg.network.homeostasis.alpha =
         MaybeGet<float>(homeo, "alpha", cfg.network.homeostasis.alpha);
-    cfg.network.homeostasis.target_rate = MaybeGet<float>(
-        homeo, "target_rate", cfg.network.homeostasis.target_rate);
+    cfg.network.homeostasis.target_rate_hz = MaybeGet<float>(
+        homeo, "target_rate", cfg.network.homeostasis.target_rate_hz);
     cfg.network.homeostasis.theta_step = MaybeGet<float>(
         homeo, "theta_step", cfg.network.homeostasis.theta_step);
+    cfg.network.homeostasis.theta_min =
+        MaybeGet<float>(homeo, "theta_min", cfg.network.homeostasis.theta_min);
+    cfg.network.homeostasis.theta_max =
+        MaybeGet<float>(homeo, "theta_max", cfg.network.homeostasis.theta_max);
+    cfg.network.homeostasis.interval_ticks = MaybeGet<int>(
+        homeo, "interval_ticks", cfg.network.homeostasis.interval_ticks);
   }
 
   if (auto enc = root["encoder"]) {

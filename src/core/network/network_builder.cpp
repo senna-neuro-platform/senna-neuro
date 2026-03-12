@@ -22,7 +22,9 @@ Network::Network(const NetworkConfig& config)
       synapses_(lattice_, neighbors_, pool_, output_ids_, config.synapse_params,
                 config.seed),
       encoder_(config.encoder_params, config.dt, config.seed),
-      time_manager_(config.dt, config.homeostasis, config.seed) {}
+      time_manager_(config.dt, config.homeostasis, config.seed) {
+  time_manager_.attach_pool(&pool_);
+}
 
 void Network::InjectSpike(int32_t neuron_id, float time, float value) {
   queue_.Push({.target_id = neuron_id,

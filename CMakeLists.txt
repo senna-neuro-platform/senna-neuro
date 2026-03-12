@@ -93,6 +93,7 @@ if(BUILD_TESTING)
   add_executable(test_plasticity
     tests/plasticity/stdp_test.cpp
     tests/plasticity/stdp_worker_test.cpp
+    tests/plasticity/homeostasis_test.cpp
   )
   target_link_libraries(test_plasticity PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_plasticity)

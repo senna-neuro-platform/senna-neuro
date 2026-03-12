@@ -2,12 +2,14 @@
 
 #include <algorithm>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace senna::temporal {
 
-TimeManager::TimeManager(float dt, HomeostasisConfig hcfg, uint64_t seed)
-    : dt_(dt), hcfg_(hcfg), rng_(seed) {}
+TimeManager::TimeManager(float dt, plasticity::HomeostasisConfig hcfg,
+                         uint64_t seed)
+    : dt_(dt), homeostasis_(hcfg), hcfg_(hcfg), rng_(seed) {}
 
 std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
                                        neural::NeuronPool& pool,
@@ -86,16 +88,65 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
     queue.PushBatch(new_events_);
   }
 
-  // 5. Homeostasis (optional simple rule).
+  // 5. Update smoothed firing rates; schedule background homeostasis.
+  pool.UpdateAverages(fired, hcfg_.alpha);
   float global_activity =
       pool.size() > 0 ? static_cast<float>(fired.size()) / pool.size() : 0.0f;
-  pool.ApplyHomeostasis(fired, hcfg_.alpha, hcfg_.target_rate, hcfg_.theta_step,
-                        global_activity);
+  if (pool_ && hcfg_.interval_ticks > 0) {
+    ++ticks_since_homeo_;
+    if (ticks_since_homeo_ >= hcfg_.interval_ticks) {
+      ticks_since_homeo_ = 0;
+      HomeoTask task;
+      task.theta_snapshot = pool.ThetaSnapshot();
+      task.r_avg_snapshot = pool.RateSnapshot();
+      task.global_activity = global_activity;
+      {
+        std::lock_guard<std::mutex> lk(homeo_mutex_);
+        homeo_queue_.push_back(std::move(task));
+      }
+      homeo_cv_.notify_one();
+    }
+  }
 
   // 6. Advance time.
   t_now_ = t_end;
 
   return fired;
+}
+
+void TimeManager::attach_pool(neural::NeuronPool* pool) {
+  pool_ = pool;
+  if (!homeo_thread_.joinable()) {
+    homeo_thread_ = std::thread(&TimeManager::homeostasis_worker, this);
+  }
+}
+
+void TimeManager::homeostasis_worker() {
+  while (true) {
+    HomeoTask task;
+    {
+      std::unique_lock<std::mutex> lk(homeo_mutex_);
+      homeo_cv_.wait(lk, [&] { return homeo_stop_ || !homeo_queue_.empty(); });
+      if (homeo_stop_) break;
+      task = std::move(homeo_queue_.front());
+      homeo_queue_.pop_front();
+    }
+    if (!pool_) continue;
+    auto theta_new = homeostasis_.ComputeTheta(
+        task.theta_snapshot, task.r_avg_snapshot, dt_, task.global_activity);
+    pool_->ApplyThetaBuffer(theta_new);
+  }
+}
+
+TimeManager::~TimeManager() {
+  if (homeo_thread_.joinable()) {
+    {
+      std::lock_guard<std::mutex> lk(homeo_mutex_);
+      homeo_stop_ = true;
+    }
+    homeo_cv_.notify_all();
+    homeo_thread_.join();
+  }
 }
 
 }  // namespace senna::temporal

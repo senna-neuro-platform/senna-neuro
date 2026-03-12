@@ -82,7 +82,7 @@ make fmt      # Auto-format (src/ + tests/)
 - `lif`: V_rest/reset, tau_m, t_ref, theta_base
 - `synapse`: w_min/w_max, c_base, w_wta
 - `stdp`: A_plus, A_minus, tau_plus, tau_minus, w_max
-- `homeostasis`: alpha, target_rate, theta_step
+- `homeostasis`: alpha, target_rate, theta_step, theta_min, theta_max, interval_ticks
 - `encoder`: max_rate, presentation_ms, input_value
 - `decoder`: window_ms
 - All values feed directly into `Network`, `TimeManager`, `RateEncoder`, decoder (no hardcoded defaults).

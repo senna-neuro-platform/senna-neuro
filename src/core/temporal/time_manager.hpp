@@ -1,19 +1,18 @@
 #pragma once
 
+#include <condition_variable>
+#include <deque>
+#include <mutex>
 #include <random>
+#include <thread>
 #include <vector>
 
 #include "core/neural/neuron_pool.hpp"
+#include "core/plasticity/homeostasis.hpp"
 #include "core/synaptic/synapse_index.hpp"
 #include "core/temporal/event_queue.hpp"
 
 namespace senna::temporal {
-
-struct HomeostasisConfig {
-  float alpha = 0.999f;
-  float target_rate = 0.01f;
-  float theta_step = 0.005f;
-};
 
 // Manages virtual time and the spike-processing loop.
 //
@@ -26,8 +25,9 @@ struct HomeostasisConfig {
 //   6. Advance time by dt
 class TimeManager {
  public:
-  explicit TimeManager(float dt = 0.5f, HomeostasisConfig hcfg = {},
+  explicit TimeManager(float dt = 0.5f, plasticity::HomeostasisConfig hcfg = {},
                        uint64_t seed = 42);
+  ~TimeManager();
 
   // Run a single tick: drain, deliver, spike, fan-out, advance.
   // Returns the list of neuron IDs that fired this tick.
@@ -38,17 +38,38 @@ class TimeManager {
   float dt() const { return dt_; }
 
   void set_time(float t) { t_now_ = t; }
-  void set_homeostasis(HomeostasisConfig cfg) { hcfg_ = cfg; }
+  void set_homeostasis(const plasticity::HomeostasisConfig& cfg) {
+    homeostasis_.SetConfig(cfg);
+    hcfg_ = cfg;
+  }
+  void attach_pool(neural::NeuronPool* pool);
 
  private:
+  void homeostasis_worker();
+
   float t_now_ = 0.0f;
   float dt_;
-  HomeostasisConfig hcfg_;
+  plasticity::Homeostasis homeostasis_;
+  plasticity::HomeostasisConfig hcfg_;
   std::mt19937_64 rng_;
 
   // Reusable buffers to avoid per-tick allocations.
   std::vector<SpikeEvent> tick_events_;
   std::vector<SpikeEvent> new_events_;
+
+  // Homeostasis background thread state.
+  neural::NeuronPool* pool_ = nullptr;
+  std::thread homeo_thread_;
+  std::mutex homeo_mutex_;
+  std::condition_variable homeo_cv_;
+  bool homeo_stop_ = false;
+  int ticks_since_homeo_ = 0;
+  struct HomeoTask {
+    std::vector<float> theta_snapshot;
+    std::vector<float> r_avg_snapshot;
+    float global_activity;
+  };
+  std::deque<HomeoTask> homeo_queue_;
 };
 
 }  // namespace senna::temporal
