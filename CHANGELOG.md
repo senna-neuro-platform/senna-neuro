@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.25.0-dev`
+- Added full network wiring in [src/core/network/network_builder.hpp](src/core/network/network_builder.hpp) and [src/core/network/network_builder.cpp](src/core/network/network_builder.cpp): assembles zoned lattice, neighbor index, neuron pool, synapse index (with WTA), event queue, and time manager into a cohesive `Network`, with helpers to inject spikes or sensory inputs.
+- Implemented the simulation driver [src/core/network/spike_loop.hpp](src/core/network/spike_loop.hpp) / [.cpp](src/core/network/spike_loop.cpp): runs ticked propagation over a duration, records spike logs, and returns run statistics.
+- Added integration smoke tests in [tests/integration/network_smoke_test.cpp](tests/integration/network_smoke_test.cpp) to validate construction, silence without stimuli, spike propagation from injected stimuli, sensory injection, determinism, and spike logging.
+
 ## `0.24.0-dev`
 - Added temporal event infrastructure: thread-safe priority-based [EventQueue](src/core/temporal/event_queue.hpp) with batch push/drain and a ticked [TimeManager](src/core/temporal/time_manager.hpp) that delivers events, triggers spikes via `NeuronPool`, fans out through `SynapseIndex`, and advances simulation time.
 - Introduced temporal unit tests in [tests/temporal/event_queue_test.cpp](tests/temporal/event_queue_test.cpp) covering queue ordering, draining windows, concurrency, and TimeManager spike propagation; registered `test_temporal` targets alongside existing suites in [CMakeLists.txt](CMakeLists.txt).

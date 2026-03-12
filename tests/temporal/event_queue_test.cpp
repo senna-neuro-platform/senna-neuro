@@ -1,11 +1,12 @@
 #include "core/temporal/event_queue.hpp"
-#include "core/temporal/time_manager.hpp"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <thread>
 #include <vector>
+
+#include "core/temporal/time_manager.hpp"
 
 namespace senna::temporal {
 namespace {
@@ -147,14 +148,15 @@ TEST_F(TimeManagerTest, EventDelivered) {
   TimeManager tm(0.5f);
 
   // Inject an event that arrives at t=0.1 with a large value.
-  queue.Push({.target_id = 0, .source_id = 1, .arrival_time = 0.1f, .value = 0.5f});
+  queue.Push(
+      {.target_id = 0, .source_id = 1, .arrival_time = 0.1f, .value = 0.5f});
 
   tm.Tick(queue, pool_, synapses_);
 
   // Neuron 0 should have received the input.
   // V starts at 0 (V_rest), input 0.5 -> V = 0.5 (below theta=1.0).
-  // But it may have fired if there were subsequent events. Just check V changed.
-  // Since 0.5 < 1.0, it shouldn't fire.
+  // But it may have fired if there were subsequent events. Just check V
+  // changed. Since 0.5 < 1.0, it shouldn't fire.
   EXPECT_NEAR(pool_.V(0), 0.5f, 1e-4f);
 }
 

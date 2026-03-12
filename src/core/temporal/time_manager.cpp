@@ -16,8 +16,8 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
   // 2. Deliver events to target neurons and collect spikes.
   std::vector<int32_t> fired;
   for (const auto& event : tick_events_) {
-    bool spiked = pool.ReceiveInput(event.target_id, event.arrival_time,
-                                    event.value);
+    bool spiked =
+        pool.ReceiveInput(event.target_id, event.arrival_time, event.value);
     if (spiked) {
       pool.Fire(event.target_id, event.arrival_time);
       fired.push_back(event.target_id);
