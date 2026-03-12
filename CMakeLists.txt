@@ -72,4 +72,10 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_spatial PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_spatial)
+
+  add_executable(test_smoke
+    tests/integration/lattice_smoke_test.cpp
+  )
+  target_link_libraries(test_smoke PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_smoke)
 endif()

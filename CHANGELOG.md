@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.22.1-dev`
+- Introduced a LIF neuron domain model in [src/core/neural/neuron.hpp](src/core/neural/neuron.hpp): excitatory/inhibitory types, default MVP parameters, refractory checks, and a compact AoS state view.
+- Added a structure-of-arrays `NeuronPool` in [src/core/neural/neuron_pool.hpp](src/core/neural/neuron_pool.hpp) and [src/core/neural/neuron_pool.cpp](src/core/neural/neuron_pool.cpp): initializes from a lattice, assigns E/I types by ratio and seed, exposes SoA field accessors plus AoS gather/scatter helpers for simulation logic.
+
 ## `0.21.3-dev`
 - Added `ZonedLattice` in [src/core/spatial/lattice.hpp](src/core/spatial/lattice.hpp) and [src/core/spatial/lattice.cpp](src/core/spatial/lattice.cpp): enforces a fully populated sensory panel on Z=0, clears/places a fixed number of output neurons on the top plane, and exposes helpers to fetch sensory/output neuron IDs.
 - Adjusted lint/format scopes in [Makefile](Makefile): `lint`/`fmt-check` target only `src/`, while `fmt` now reformats both `src/` and `tests/`.

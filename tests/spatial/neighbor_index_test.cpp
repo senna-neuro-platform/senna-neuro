@@ -186,24 +186,5 @@ TEST_F(NeighborIndexTest, FullDensityLattice) {
   EXPECT_EQ(idx.NeighborCount(corner), 3);
 }
 
-// MVP-scale test.
-TEST(NeighborIndexMVPTest, FullScaleLattice28x28x20) {
-  Lattice lat(28, 28, 20, 0.7, 42);
-  NeighborIndex idx(lat, 2.0f, 0);  // use all cores
-
-  // Should produce a substantial number of entries.
-  EXPECT_GT(idx.total_entries(), 0u);
-
-  // Every neuron should have at least some neighbors (unless on extreme
-  // boundary).
-  int zero_count = 0;
-  for (NeuronId id = 0; id < lat.neuron_count(); ++id) {
-    if (idx.NeighborCount(id) == 0) ++zero_count;
-  }
-  // At most a tiny fraction should have 0 neighbors.
-  double zero_frac = static_cast<double>(zero_count) / lat.neuron_count();
-  EXPECT_LT(zero_frac, 0.01);
-}
-
 }  // namespace
 }  // namespace senna::spatial
