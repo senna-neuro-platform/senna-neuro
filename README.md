@@ -10,13 +10,13 @@ for classification (MNIST, target accuracy >85%).
 ## Architecture
 
 ```
-   Sensory Panel (Z=0)        Processing Volume (Z=1..18)       Output Layer (Z=19)
-  ┌──────────────────┐       ┌───────────────────────────┐       ┌───────────────┐
-  │  28x28 = 784     │──────>│  3D lattice, density 70%  │──────>│  10 neurons   │
-  │  rate-coded input│       │  LIF neurons (80% E/20% I)│       │  WTA decoder  │
-  └──────────────────┘       │  STDP + homeostasis       │       └───────────────┘
-                             │  structural plasticity    │
-                             └───────────────────────────┘
+   Sensory Panel (Z=0)          Processing Volume (Z=1..18)       Output Layer (Z=19)
+  ┌────────────────────┐       ┌────────────────────────────┐       ┌───────────────┐
+  │  28x28 = 784       │──────>│  3D lattice, density 70%   │──────>│  10 neurons   │
+  │  rate-coded input  │       │  LIF neurons (80% E/20% I) │       │  WTA decoder  │
+  └────────────────────┘       │  STDP + homeostasis        │       └───────────────┘
+                               │  structural plasticity     │
+                               └────────────────────────────┘
 ```
 
 | Component            | Description                                                |
