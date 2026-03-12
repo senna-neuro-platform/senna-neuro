@@ -21,6 +21,7 @@ Network::Network(const NetworkConfig& config)
       output_ids_(BuildOutputIds(lattice_, config.num_outputs)),
       synapses_(lattice_, neighbors_, pool_, output_ids_, config.synapse_params,
                 config.seed),
+      encoder_(encoding::kDefaultEncoderParams, config.dt, config.seed),
       time_manager_(config.dt) {}
 
 void Network::InjectSpike(int32_t neuron_id, float time, float value) {
@@ -35,6 +36,10 @@ void Network::InjectSensory(int x, int y, float time, float value) {
   if (id != spatial::kEmptyVoxel) {
     InjectSpike(id, time, value);
   }
+}
+
+void Network::EncodeImage(std::span<const uint8_t> image, float t_start) {
+  encoder_.Encode(image, lattice_, queue_, t_start);
 }
 
 }  // namespace senna::network

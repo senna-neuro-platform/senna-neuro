@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <span>
 
+#include "core/encoding/rate_encoder.hpp"
 #include "core/neural/neuron.hpp"
 #include "core/neural/neuron_pool.hpp"
 #include "core/spatial/lattice.hpp"
@@ -56,6 +58,9 @@ class Network {
   // Inject spikes into sensory panel neurons at given positions.
   void InjectSensory(int x, int y, float time, float value);
 
+  // Encode a 28x28 image into sensory spikes and enqueue them at t_start.
+  void EncodeImage(std::span<const uint8_t> image, float t_start);
+
   const NetworkConfig& config() const { return config_; }
 
  private:
@@ -66,6 +71,7 @@ class Network {
   std::vector<int32_t> output_ids_;  // must be before synapses_ (init order)
   synaptic::SynapseIndex synapses_;
   temporal::EventQueue queue_;
+  encoding::RateEncoder encoder_;
   temporal::TimeManager time_manager_;
 };
 

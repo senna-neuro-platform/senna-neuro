@@ -1,5 +1,10 @@
 # Changelog
 
+## `0.26.1-dev`
+- Wired the input encoder into the network: `Network` now owns a `RateEncoder` and exposes `EncodeImage(...)` to enqueue sensory spikes directly into the event queue, keeping encoder `dt`/seed aligned with the simulation config.
+- Added an integration smoke test in `tests/integration/network_smoke_test.cpp` that encodes an image and verifies spike activity after propagation.
+- Extended `RateEncoder` tests to cover brightness proportionality, distinct target IDs for different images, and stricter bounds; added helper utilities for averaged spike counting.
+
 ## `0.26.0-dev`
 - Implemented rate-based input encoding: [src/core/encoding/rate_encoder.hpp](src/core/encoding/rate_encoder.hpp) / [.cpp](src/core/encoding/rate_encoder.cpp) generate Poisson spike trains from 28×28 images onto the sensory panel, configurable by max rate, presentation window, and injected event value.
 - Added encoding unit tests in [tests/encoding/rate_encoder_test.cpp](tests/encoding/rate_encoder_test.cpp) covering pixel-level behavior, brightness scaling, determinism, presentation window bounds, and whole-image statistics.

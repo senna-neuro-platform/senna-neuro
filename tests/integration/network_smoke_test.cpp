@@ -80,6 +80,21 @@ TEST(NetworkSmokeTest, SensoryInjection) {
   EXPECT_GE(stats.total_spikes, 1);
 }
 
+TEST(NetworkSmokeTest, EncodedImageProducesSpikes) {
+  auto config = SmallConfig();
+  Network net(config);
+  SpikeLoop loop(net);
+
+  // Bright 10x10 patch encoded at t=0.1.
+  std::vector<uint8_t> image(config.width * config.height, 0);
+  for (int i = 0; i < 50; ++i) image[i] = 255;
+
+  net.EncodeImage(image, 0.1f);
+
+  auto stats = loop.Run(20.0f);
+  EXPECT_GT(stats.total_spikes, 0);
+}
+
 TEST(NetworkSmokeTest, Determinism) {
   auto config = SmallConfig();
 

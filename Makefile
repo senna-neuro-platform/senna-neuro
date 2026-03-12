@@ -45,6 +45,12 @@ CONFIGURED_DEBUG    := $(BUILD_DEBUG)/.configured
 CONFIGURED_RELEASE  := $(BUILD_RELEASE)/.configured
 CONFIGURED_SANITIZE := $(BUILD_SANITIZE)/.configured
 
+# ── Data ─────────────────────────────────────────────────────
+MNIST_DIR        := data/MNIST/raw
+MNIST_URL_BASE   := http://yann.lecun.com/exdb/mnist
+MNIST_URL_MIRROR := https://storage.googleapis.com/cvdf-datasets/mnist
+MNIST_FILES      := train-images-idx3-ubyte.gz train-labels-idx1-ubyte.gz t10k-images-idx3-ubyte.gz t10k-labels-idx1-ubyte.gz
+
 # ══════════════════════════════════════════════════════════════
 #  Help
 # ══════════════════════════════════════════════════════════════
@@ -184,3 +190,21 @@ clean: ## Remove build artifacts
 
 clean-all: clean ## Remove build + Docker volumes
 	$(DOCKER) compose -f $(COMPOSE_FILE) down -v --remove-orphans 2>/dev/null || true
+
+# ══════════════════════════════════════════════════════════════
+#  Data
+# ══════════════════════════════════════════════════════════════
+.PHONY: install-mnist
+install-mnist: ## Download MNIST dataset into data/MNIST/raw
+	@mkdir -p $(MNIST_DIR)
+	@for f in $(MNIST_FILES); do \
+		if [ ! -f $(MNIST_DIR)/$$f ]; then \
+			echo "Downloading $$f"; \
+			if ! curl -fL $(MNIST_URL_BASE)/$$f -o $(MNIST_DIR)/$$f; then \
+				echo "Primary failed, retrying mirror for $$f"; \
+				curl -fL $(MNIST_URL_MIRROR)/$$f -o $(MNIST_DIR)/$$f; \
+			fi; \
+		else \
+			echo "Already present: $$f"; \
+		fi; \
+	done
