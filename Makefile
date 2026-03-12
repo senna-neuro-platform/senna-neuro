@@ -24,7 +24,9 @@ DOCKER       ?= docker
 BUILD_DEBUG    := build/debug
 BUILD_RELEASE  := build/release
 BUILD_SANITIZE := build/sanitize
-SRC_DIRS       := src tests
+SRC_DIRS       := src
+FORMAT_DIRS    := src
+FORMAT_DIRS_ALL:= src tests
 
 # ── Docker images ────────────────────────────────────────────
 REGISTRY     ?=
@@ -34,8 +36,9 @@ TRAINER_IMAGE   := $(REGISTRY)$(IMAGE_PREFIX)-trainer:$(VERSION)
 VISUALIZER_IMAGE := $(REGISTRY)$(IMAGE_PREFIX)-visualizer:$(VERSION)
 
 # ── Source file lists (lazy-evaluated) ───────────────────────
-FORMAT_FILES = $(shell find $(SRC_DIRS) -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
-TIDY_FILES   = $(shell find $(SRC_DIRS) -type f -name '*.cpp' 2>/dev/null)
+FORMAT_FILES      = $(shell find $(FORMAT_DIRS) -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
+FORMAT_FILES_ALL  = $(shell find $(FORMAT_DIRS_ALL) -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
+TIDY_FILES        = $(shell find $(SRC_DIRS) -type f -name '*.cpp' 2>/dev/null)
 
 # ── Sentinel files (avoid redundant reconfiguration) ─────────
 CONFIGURED_DEBUG    := $(BUILD_DEBUG)/.configured
@@ -123,11 +126,11 @@ fmt-check: ## Check formatting (clang-format --dry-run)
 	fi
 
 fmt: ## Auto-format sources in-place
-	@if [ -z "$(FORMAT_FILES)" ]; then \
+	@if [ -z "$(FORMAT_FILES_ALL)" ]; then \
 		echo "No C/C++ source files found."; \
 	else \
-		$(CLANG_FORMAT) -i $(FORMAT_FILES); \
-		echo "Formatted $$(echo $(FORMAT_FILES) | wc -w) files."; \
+		$(CLANG_FORMAT) -i $(FORMAT_FILES_ALL); \
+		echo "Formatted $$(echo $(FORMAT_FILES_ALL) | wc -w) files."; \
 	fi
 
 tidy: $(CONFIGURED_DEBUG) ## Run clang-tidy

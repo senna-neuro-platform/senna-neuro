@@ -53,4 +53,30 @@ class Lattice {
   std::vector<NeuronId> grid_;         // W*H*D, kEmptyVoxel if empty
 };
 
+// Lattice with enforced zones for SENNA MVP:
+//   - Sensory panel: Z=0, 100% density (W*H neurons)
+//   - Processing volume: Z=1..D-2, standard density
+//   - Output layer: Z=D-1, exactly num_outputs neurons evenly spaced
+class ZonedLattice : public Lattice {
+ public:
+  // num_outputs: number of output neurons on Z=D-1 (10 for MNIST).
+  ZonedLattice(int width, int height, int depth, double density, uint64_t seed,
+               int num_outputs = 10);
+
+  int num_outputs() const { return num_outputs_; }
+
+  // Returns the NeuronId of the i-th output neuron (0-based).
+  NeuronId OutputNeuron(int index) const { return output_ids_[index]; }
+
+  // Returns the NeuronId of the sensory neuron at (x, y) on Z=0.
+  NeuronId SensoryNeuron(int x, int y) const;
+
+  // Number of sensory neurons (always width * height).
+  int sensory_count() const { return width() * height(); }
+
+ private:
+  int num_outputs_;
+  std::vector<NeuronId> output_ids_;
+};
+
 }  // namespace senna::spatial

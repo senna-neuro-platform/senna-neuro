@@ -1,9 +1,9 @@
 #include "core/spatial/neighbor_index.hpp"
 
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <set>
-
-#include <gtest/gtest.h>
 
 namespace senna::spatial {
 namespace {
@@ -49,7 +49,7 @@ TEST_F(NeighborIndexTest, NeighborsAreSymmetric) {
         }
       }
       EXPECT_TRUE(found) << "Neuron " << b << " is neighbor of " << a
-                          << " but not vice versa";
+                         << " but not vice versa";
     }
   }
 }
@@ -174,7 +174,8 @@ TEST_F(NeighborIndexTest, FullDensityLattice) {
   EXPECT_EQ(full.neuron_count(), 125);
   NeighborIndex idx(full, 1.0f, 2);
 
-  // Center neuron (2,2,2) should have 6 neighbors at distance 1.0 (face neighbors).
+  // Center neuron (2,2,2) should have 6 neighbors at distance 1.0 (face
+  // neighbors).
   NeuronId center = full.NeuronAt(2, 2, 2);
   ASSERT_NE(center, kEmptyVoxel);
   EXPECT_EQ(idx.NeighborCount(center), 6);
@@ -193,7 +194,8 @@ TEST(NeighborIndexMVPTest, FullScaleLattice28x28x20) {
   // Should produce a substantial number of entries.
   EXPECT_GT(idx.total_entries(), 0u);
 
-  // Every neuron should have at least some neighbors (unless on extreme boundary).
+  // Every neuron should have at least some neighbors (unless on extreme
+  // boundary).
   int zero_count = 0;
   for (NeuronId id = 0; id < lat.neuron_count(); ++id) {
     if (idx.NeighborCount(id) == 0) ++zero_count;

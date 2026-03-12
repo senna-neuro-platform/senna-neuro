@@ -25,9 +25,9 @@ class NeighborIndex {
  public:
   // Builds the neighbor index for all neurons in the lattice.
   // radius: maximum Euclidean distance for a neighbor.
-  // num_threads: number of threads for parallel construction (0 = hardware concurrency).
-  NeighborIndex(const Lattice& lattice, float radius,
-                unsigned num_threads = 0);
+  // num_threads: number of threads for parallel construction (0 = hardware
+  // concurrency).
+  NeighborIndex(const Lattice& lattice, float radius, unsigned num_threads = 0);
 
   // Returns a span of neighbors for the given neuron.
   std::span<const NeighborEntry> Neighbors(NeuronId id) const;

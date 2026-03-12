@@ -1,11 +1,12 @@
+#include <netdb.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <netdb.h>
-#include <sys/socket.h>
 #include <thread>
-#include <unistd.h>
 
 namespace {
 bool TryConnect(const char* host, const char* port) {
@@ -55,7 +56,8 @@ int main() {
       std::cout << "connected" << std::endl;
       break;
     }
-    std::cout << "waiting for senna-core (" << attempt << "/" << max_attempts << ")" << std::endl;
+    std::cout << "waiting for senna-core (" << attempt << "/" << max_attempts
+              << ")" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.21.3-dev`
+- Added `ZonedLattice` in [src/core/spatial/lattice.hpp](src/core/spatial/lattice.hpp) and [src/core/spatial/lattice.cpp](src/core/spatial/lattice.cpp): enforces a fully populated sensory panel on Z=0, clears/places a fixed number of output neurons on the top plane, and exposes helpers to fetch sensory/output neuron IDs.
+- Adjusted lint/format scopes in [Makefile](Makefile): `lint`/`fmt-check` target only `src/`, while `fmt` now reformats both `src/` and `tests/`.
+
 ## `0.21.2-dev`
 - Implemented a parallel neighbor-index builder in [src/core/spatial/neighbor_index.hpp](src/core/spatial/neighbor_index.hpp) and [src/core/spatial/neighbor_index.cpp](src/core/spatial/neighbor_index.cpp): precomputes CSR neighbor lists within a configurable radius using multi-threaded voxel scans, exposes constant-time span accessors, and keeps distance values alongside neuron IDs.
 - Added spatial unit tests for lattice determinism/density and neighbor symmetry/count/distance coverage in [tests/spatial/lattice_test.cpp](tests/spatial/lattice_test.cpp) and [tests/spatial/neighbor_index_test.cpp](tests/spatial/neighbor_index_test.cpp); wired them into CTest via the `test_spatial` target in [CMakeLists.txt](CMakeLists.txt).

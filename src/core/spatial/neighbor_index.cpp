@@ -57,8 +57,7 @@ NeighborIndex::NeighborIndex(const Lattice& lattice, float radius,
             float dist_sq = dx * dx + dy * dy + dz * dz;
 
             if (dist_sq <= r_sq) {
-              per_neuron[i].push_back(
-                  {nid, std::sqrt(dist_sq)});
+              per_neuron[i].push_back({nid, std::sqrt(dist_sq)});
             }
           }
         }
@@ -98,8 +97,7 @@ NeighborIndex::NeighborIndex(const Lattice& lattice, float radius,
 }
 
 std::span<const NeighborEntry> NeighborIndex::Neighbors(NeuronId id) const {
-  return {data_.data() + offsets_[id],
-          data_.data() + offsets_[id + 1]};
+  return {data_.data() + offsets_[id], data_.data() + offsets_[id + 1]};
 }
 
 int NeighborIndex::NeighborCount(NeuronId id) const {

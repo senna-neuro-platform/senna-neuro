@@ -1,19 +1,18 @@
-#include <atomic>
-#include <csignal>
-#include <cstring>
-#include <iostream>
-#include <thread>
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <atomic>
+#include <csignal>
+#include <cstring>
+#include <iostream>
+#include <thread>
+
 namespace {
 std::atomic<bool> g_running{true};
 
-void HandleSignal(int) {
-  g_running.store(false);
-}
+void HandleSignal(int) { g_running.store(false); }
 
 int CreateListener(int port) {
   int fd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -70,7 +69,8 @@ void ServeLoop(int port, bool respond_http) {
 
     sockaddr_in client_addr{};
     socklen_t client_len = sizeof(client_addr);
-    int client_fd = accept(listen_fd, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
+    int client_fd = accept(listen_fd, reinterpret_cast<sockaddr*>(&client_addr),
+                           &client_len);
     if (client_fd < 0) {
       continue;
     }
