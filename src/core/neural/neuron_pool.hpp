@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <random>
 #include <span>
+#include <unordered_set>
 #include <vector>
 
 #include "core/neural/neuron.hpp"
@@ -69,6 +70,17 @@ class NeuronPool {
   }
 
   const LIFParams& params() const { return params_; }
+
+  // Homeostasis: update r_avg and adjust thresholds toward target firing rate.
+  // fired: list of neuron IDs that fired in the last tick.
+  // alpha: smoothing factor for r_avg (close to 1 -> slower).
+  // target_rate: desired per-tick probability of firing.
+  // theta_step: incremental adjustment applied each tick.
+  // global_activity: optional fraction of neurons that fired this tick to
+  // blend with local r_avg.
+  void ApplyHomeostasis(const std::vector<int32_t>& fired, float alpha,
+                        float target_rate, float theta_step,
+                        float global_activity = -1.0f);
 
   // --- LIF dynamics ---
 

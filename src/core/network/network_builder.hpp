@@ -28,6 +28,7 @@ struct NetworkConfig {
   uint64_t seed = 42;
   neural::LIFParams lif_params{};
   synaptic::SynapseParams synapse_params{};
+  float decoder_window_ms = 50.0f;
 };
 
 // Owns all network subsystems and wires them together.
@@ -46,6 +47,8 @@ class Network {
 
   synaptic::SynapseIndex& synapses() { return synapses_; }
   const synaptic::SynapseIndex& synapses() const { return synapses_; }
+
+  const std::vector<int32_t>& output_ids() const { return output_ids_; }
 
   temporal::EventQueue& queue() { return queue_; }
   temporal::TimeManager& time_manager() { return time_manager_; }

@@ -1,9 +1,33 @@
 # Changelog
 
-## `0.26.1-dev`
+## `0.27.8-dev`
+- Stochastic WTA tie-break: event delivery order per tick is shuffled, giving a single random winner when outputs receive equal inputs; default WTA weight restored to doc value (-5) while remaining configurable.
+- Streaming decoder: `SpikeLoop` can attach a `FirstSpikeDecoder`, auto-starts its 50 ms window at run start, and runs optionally on a dedicated worker thread (`RunInThread`) to match DoD Step 5.2. Decoder API now exposes `Reset(t_start)` to sync window automatically.
+- Decoder integration tests updated to streaming path; TimeManager now seeds randomness from network seed for repeatable stochastic behavior.
+- EventQueue remains lock-free MPSC; build fixes applied.
+- Added YAML runtime config (`configs/default.yaml`) with lattice, synapse, homeostasis, encoder/decoder, and simulation seeds; introduced `RuntimeConfig` loader (yaml-cpp) and exposed `decoder_window_ms` in `NetworkConfig`.
+
+## `0.27.7-dev`
+- Homeostasis now blends per-neuron activity with global firing fraction passed from `TimeManager`, exposing configurable alpha/target/step and tests for smoothing/target alignment and global influence.
+- Spike loop delivers tick events per-neuron in parallel (thread pool via `std::execution::par`), then derives run stats/global activity for homeostasis to align with DoD parallel update requirements.
+- Decoder gains a 50 ms decision window: `FirstSpikeDecoder` tracks start time, ignores spikes after expiry, and exposes `ResultWithTimeout`; unit and integration tests updated. WTA inhibition default strengthened (`w_wta=-12`) and integration test enforces a single output winner for similar inputs.
+- EventQueue reworked to lock-free MPSC producer path (atomic pending stack) with single-consumer heap ordering to match DoD concurrency requirements; boundary and ordering semantics preserved.
+
+## `0.27.6-dev`
+- Added homeostasis updates in `TimeManager`/`NeuronPool` and unit tests for LIF decay/refractory/threshold, E/I ratio, and synapse index properties (distance-based delay, weight bounds/signs, WTA params).
+- Tightened decoder/WTA integration: earliest output still wins, decoder stays empty without output spikes, and WTA weight increased in test to enforce a single winner.
+- Added event-queue boundary test for < `t_end` draining behavior.
+
+## `0.27.5-dev`
+- Added unit tests for neuron pool LIF dynamics and synapse index (delay-distance, weight bounds, sign, WTA parameters).
+- Decoder/output integration tightened: earliest output wins even under WTA, decoder stays empty with no output spikes, outputs verified to have incoming volume synapses.
+- Added first-spike decoding integration: network smoke test now feeds output spikes through the decoder to ensure the earliest firing output neuron is selected.
+- Added integration checks for output-layer WTA: output neurons validated for count, top-plane placement, and inhibitory zero-delay WTA links with configured weight across all outputs.
+- Introduced a decoding module with a first-spike decoder (`src/core/decoding/first_spike_decoder.*`) and documentation (`docs/decoding.md`); added unit tests in `tests/decoding/first_spike_decoder_test.cpp` and wired them into CMake.
+- Exposed output-layer metadata in `Network` (`output_ids()`) to support decoders and diagnostics, and added integration checks for output count, top-plane placement, and WTA fan-out.
+- Strengthened `RateEncoder` tests with brightness proportionality and distinct-target assertions plus helper utilities for averaged counts.
 - Wired the input encoder into the network: `Network` now owns a `RateEncoder` and exposes `EncodeImage(...)` to enqueue sensory spikes directly into the event queue, keeping encoder `dt`/seed aligned with the simulation config.
 - Added an integration smoke test in `tests/integration/network_smoke_test.cpp` that encodes an image and verifies spike activity after propagation.
-- Extended `RateEncoder` tests to cover brightness proportionality, distinct target IDs for different images, and stricter bounds; added helper utilities for averaged spike counting.
 
 ## `0.26.0-dev`
 - Implemented rate-based input encoding: [src/core/encoding/rate_encoder.hpp](src/core/encoding/rate_encoder.hpp) / [.cpp](src/core/encoding/rate_encoder.cpp) generate Poisson spike trains from 28×28 images onto the sensory panel, configurable by max rate, presentation window, and injected event value.

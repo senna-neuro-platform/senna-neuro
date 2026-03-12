@@ -1,7 +1,7 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
-#include <mutex>
 #include <queue>
 #include <vector>
 
@@ -43,10 +43,22 @@ class EventQueue {
   size_t size() const;
 
  private:
+  struct Node {
+    SpikeEvent event;
+    Node* next;
+  };
+
+  // Lock-free MPSC pending list. Producers push here; consumer drains into the
+  // heap for time-ordered delivery.
+  mutable std::atomic<Node*> pending_{nullptr};
+  mutable std::atomic<size_t> pending_count_{0};
+
   using MinHeap = std::priority_queue<SpikeEvent, std::vector<SpikeEvent>,
                                       std::greater<SpikeEvent>>;
-  MinHeap heap_;
-  mutable std::mutex mutex_;
+  mutable MinHeap heap_;  // single-consumer only
+
+  // Move all pending nodes into the heap (consumer only).
+  void DrainPendingToHeap() const;
 };
 
 }  // namespace senna::temporal

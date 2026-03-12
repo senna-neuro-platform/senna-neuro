@@ -9,6 +9,8 @@
 #include <iostream>
 #include <thread>
 
+#include "core/config/runtime_config.hpp"
+
 namespace {
 std::atomic<bool> g_running{true};
 
@@ -96,6 +98,10 @@ void ServeLoop(int port, bool respond_http) {
 int main() {
   std::signal(SIGINT, HandleSignal);
   std::signal(SIGTERM, HandleSignal);
+
+  // Load runtime configuration (defaults if file missing).
+  auto cfg = senna::config::LoadRuntimeConfig("configs/default.yaml");
+  (void)cfg;
 
   std::thread grpc_thread(ServeLoop, 50051, false);
   std::thread ws_thread(ServeLoop, 8080, false);

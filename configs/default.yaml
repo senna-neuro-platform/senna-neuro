@@ -1,0 +1,38 @@
+simulation:
+  dt: 0.5
+  seed: 42
+
+lattice:
+  width: 28
+  height: 28
+  depth: 20
+  density: 0.7
+  neighbor_radius: 2.0
+  num_outputs: 10
+  excitatory_ratio: 0.8
+
+lif:
+  V_rest: 0.0
+  V_reset: 0.0
+  tau_m: 20.0
+  t_ref: 2.0
+  theta_base: 1.0
+
+synapse:
+  w_min: 0.01
+  w_max: 0.1
+  c_base: 1.0
+  w_wta: -5.0
+
+homeostasis:
+  alpha: 0.999
+  target_rate: 0.01
+  theta_step: 0.005
+
+encoder:
+  max_rate: 100.0
+  presentation_ms: 50.0
+  input_value: 1.5
+
+decoder:
+  window_ms: 50.0

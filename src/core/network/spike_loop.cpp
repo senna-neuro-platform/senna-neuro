@@ -1,6 +1,7 @@
 #include "core/network/spike_loop.hpp"
 
 #include <set>
+#include <thread>
 
 namespace senna::network {
 
@@ -20,12 +21,18 @@ RunStats SpikeLoop::Run(float duration_ms) {
 
   std::set<int32_t> active_set;
 
+  if (decoder_) {
+    decoder_->Reset(tm.time());
+    decoder_->SetStartTime(tm.time());
+  }
+
   while (tm.time() < t_end) {
     auto fired = tm.Tick(queue, pool, synapses);
 
     for (int32_t id : fired) {
       spike_log_.emplace_back(id, pool.t_spike(id));
       active_set.insert(id);
+      if (decoder_) decoder_->Observe(id, pool.t_spike(id));
     }
     ++ticks;
   }
@@ -36,6 +43,13 @@ RunStats SpikeLoop::Run(float duration_ms) {
       .ticks = ticks,
       .duration_ms = duration_ms,
   };
+}
+
+RunStats SpikeLoop::RunInThread(float duration_ms) {
+  RunStats stats;
+  std::thread worker([&]() { stats = Run(duration_ms); });
+  worker.join();
+  return stats;
 }
 
 }  // namespace senna::network

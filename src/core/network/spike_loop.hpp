@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "core/decoding/first_spike_decoder.hpp"
 #include "core/network/network_builder.hpp"
 
 namespace senna::network {
@@ -24,6 +25,14 @@ class SpikeLoop {
   // Returns per-run statistics.
   RunStats Run(float duration_ms);
 
+  // Run on a dedicated worker thread; blocks until completion.
+  RunStats RunInThread(float duration_ms);
+
+  // Attach a streaming decoder to receive spikes as they occur.
+  void AttachDecoder(decoding::FirstSpikeDecoder* decoder) {
+    decoder_ = decoder;
+  }
+
   // Access the full spike log (neuron_id, time) from the last run.
   const std::vector<std::pair<int32_t, float>>& spike_log() const {
     return spike_log_;
@@ -32,6 +41,7 @@ class SpikeLoop {
  private:
   Network& net_;
   std::vector<std::pair<int32_t, float>> spike_log_;
+  decoding::FirstSpikeDecoder* decoder_ = nullptr;
 };
 
 }  // namespace senna::network

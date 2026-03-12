@@ -73,6 +73,15 @@ TEST(EventQueueTest, QuantizationSameTick) {
   EXPECT_EQ(out.size(), 2);
 }
 
+TEST(EventQueueTest, BoundaryEventStaysForNextTick) {
+  EventQueue q;
+  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 1.5f, .value = 0.1f});
+  std::vector<SpikeEvent> out;
+  q.DrainUntil(1.5f, out);
+  EXPECT_TRUE(out.empty());
+  EXPECT_EQ(q.size(), 1u);
+}
+
 TEST(EventQueueTest, EmptyDrain) {
   EventQueue q;
   std::vector<SpikeEvent> out;

@@ -2,6 +2,7 @@
 
 #include <set>
 
+#include "core/decoding/first_spike_decoder.hpp"
 #include "core/network/network_builder.hpp"
 #include "core/network/spike_loop.hpp"
 
@@ -93,6 +94,168 @@ TEST(NetworkSmokeTest, EncodedImageProducesSpikes) {
 
   auto stats = loop.Run(20.0f);
   EXPECT_GT(stats.total_spikes, 0);
+}
+
+TEST(NetworkSmokeTest, OutputLayerHasCorrectCountAndWtaSynapses) {
+  auto config = SmallConfig();
+  Network net(config);
+
+  EXPECT_EQ(net.output_ids().size(), static_cast<size_t>(config.num_outputs));
+
+  // All output neurons must be on the top plane and have WTA outgoing edges.
+  for (auto id : net.output_ids()) {
+    auto coords = net.lattice().CoordsOf(id);
+    EXPECT_EQ(coords.z, config.depth - 1);
+    EXPECT_GT(net.synapses().OutgoingCount(id), config.num_outputs - 1);
+  }
+}
+
+TEST(NetworkSmokeTest, WtaSynapsesHaveCorrectSignAndDelay) {
+  auto config = SmallConfig();
+  Network net(config);
+
+  auto wta_weight = std::abs(config.synapse_params.w_wta);
+  for (auto pre : net.output_ids()) {
+    for (auto sid : net.synapses().Outgoing(pre)) {
+      const auto& syn = net.synapses().Get(sid);
+      if (std::find(net.output_ids().begin(), net.output_ids().end(),
+                    syn.post_id) == net.output_ids().end()) {
+        continue;  // skip non-output targets
+      }
+      EXPECT_LT(syn.sign, 0.0f);         // inhibitory
+      EXPECT_FLOAT_EQ(syn.delay, 0.0f);  // zero delay
+      EXPECT_FLOAT_EQ(syn.weight, wta_weight);
+    }
+  }
+}
+
+TEST(NetworkSmokeTest, FirstSpikeDecoderPicksInjectedOutput) {
+  auto config = SmallConfig();
+  Network net(config);
+  SpikeLoop loop(net);
+
+  const auto& outputs = net.output_ids();
+  ASSERT_FALSE(outputs.empty());
+
+  // Inject a strong spike directly into output neuron #1.
+  ASSERT_GT(outputs.size(), 1u);
+  net.InjectSpike(outputs[1], 0.1f, 2.0f);
+
+  decoding::FirstSpikeDecoder dec(outputs, config.decoder_window_ms);
+  dec.SetStartTime(0.0f);
+  loop.AttachDecoder(&dec);
+  loop.Run(5.0f);
+
+  ASSERT_TRUE(dec.Result().has_value());
+  EXPECT_EQ(dec.Result().value(), 1);
+}
+
+TEST(NetworkSmokeTest, WtaSuppressesLaterOutput) {
+  auto config = SmallConfig();
+  Network net(config);
+  SpikeLoop loop(net);
+  const auto& outputs = net.output_ids();
+  ASSERT_GE(outputs.size(), 2u);
+
+  // Output 0 fires first with strong input.
+  net.InjectSpike(outputs[0], 0.10f, 2.0f);
+  // Output 1 would fire, but arrives after inhibition; moderate input.
+  net.InjectSpike(outputs[1], 0.12f, 1.2f);
+
+  decoding::FirstSpikeDecoder dec(outputs, config.decoder_window_ms);
+  dec.SetStartTime(0.0f);
+  loop.AttachDecoder(&dec);
+  loop.Run(5.0f);
+
+  int spikes_output1 = 0;
+  for (const auto& entry : loop.spike_log()) {
+    if (entry.first == outputs[1]) ++spikes_output1;
+  }
+
+  ASSERT_TRUE(dec.Result().has_value());
+  EXPECT_EQ(dec.Result().value(), 0);  // first output wins
+  // Output1 may or may not spike depending on weights, but it must not win.
+}
+
+TEST(NetworkSmokeTest, OnlyOneOutputWinsWithSimilarInputs) {
+  auto config = SmallConfig();
+  // Increase WTA inhibition to enforce single winner.
+  config.synapse_params.w_wta = -12.0f;
+  Network net(config);
+  SpikeLoop loop(net);
+  const auto& outputs = net.output_ids();
+  ASSERT_GE(outputs.size(), 2u);
+
+  // Two strong inputs close in time; WTA should leave a single winner.
+  net.InjectSpike(outputs[0], 0.10f, 2.0f);
+  net.InjectSpike(outputs[1], 0.60f,
+                  2.0f);  // arrives next tick, should be inhibited
+
+  decoding::FirstSpikeDecoder dec(outputs, config.decoder_window_ms);
+  dec.SetStartTime(0.0f);
+  loop.AttachDecoder(&dec);
+  loop.Run(5.0f);
+
+  int output_spikes = 0;
+  for (const auto& entry : loop.spike_log()) {
+    if (std::find(outputs.begin(), outputs.end(), entry.first) !=
+        outputs.end()) {
+      ++output_spikes;
+    }
+  }
+
+  ASSERT_TRUE(dec.Result().has_value());
+  EXPECT_EQ(dec.Result().value(), 0);  // earliest wins
+  EXPECT_EQ(output_spikes, 1);         // only one output fired
+}
+
+TEST(NetworkSmokeTest, DecoderEmptyWhenNoOutputSpikes) {
+  auto config = SmallConfig();
+  Network net(config);
+  SpikeLoop loop(net);
+
+  loop.Run(60.0f);  // no stimuli, exceed decoder timeout window
+
+  decoding::FirstSpikeDecoder dec(net.output_ids(), config.decoder_window_ms);
+  dec.SetStartTime(0.0f);
+  loop.AttachDecoder(&dec);
+  EXPECT_FALSE(dec.ResultWithTimeout(net.time_manager().time()).has_value());
+}
+
+TEST(NetworkSmokeTest, RunStatsReported) {
+  auto config = SmallConfig();
+  Network net(config);
+  SpikeLoop loop(net);
+
+  net.InjectSpike(net.output_ids()[0], 0.1f, 1.5f);
+  auto stats = loop.Run(5.0f);
+
+  EXPECT_EQ(stats.ticks, static_cast<int>(5.0f / config.dt));
+  EXPECT_GE(stats.total_spikes, 1);
+  EXPECT_GE(stats.active_neurons, 1);
+  EXPECT_FLOAT_EQ(stats.duration_ms, 5.0f);
+}
+
+TEST(NetworkSmokeTest, OutputsHaveIncomingFromVolume) {
+  auto config = SmallConfig();
+  Network net(config);
+
+  for (auto out : net.output_ids()) {
+    int incoming = net.synapses().IncomingCount(out);
+    EXPECT_GT(incoming, 0);
+
+    bool has_volume_source = false;
+    for (auto sid : net.synapses().Incoming(out)) {
+      const auto& syn = net.synapses().Get(sid);
+      // consider any source not in the output set as volume/input
+      if (std::find(net.output_ids().begin(), net.output_ids().end(),
+                    syn.pre_id) == net.output_ids().end()) {
+        has_volume_source = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(has_volume_source);
+  }
 }
 
 TEST(NetworkSmokeTest, Determinism) {

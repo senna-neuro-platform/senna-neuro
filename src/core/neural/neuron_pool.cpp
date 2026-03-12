@@ -1,6 +1,7 @@
 #include "core/neural/neuron_pool.hpp"
 
 #include <cmath>
+#include <unordered_set>
 
 namespace senna::neural {
 
@@ -47,6 +48,30 @@ void NeuronPool::Fire(int id, float t_now) {
   V_[id] = params_.V_reset;
   t_spike_[id] = t_now;
   t_last_[id] = t_now;
+}
+
+void NeuronPool::ApplyHomeostasis(const std::vector<int32_t>& fired,
+                                  float alpha, float target_rate,
+                                  float theta_step, float global_activity) {
+  std::unordered_set<int32_t> fired_set(fired.begin(), fired.end());
+
+  for (int i = 0; i < size_; ++i) {
+    // Update smoothed firing rate.
+    float spike = fired_set.count(i) ? 1.0f : 0.0f;
+    r_avg_[i] = alpha * r_avg_[i] + (1.0f - alpha) * spike;
+
+    // Blend local and global activity if provided (>=0).
+    float activity = global_activity >= 0.0f
+                         ? 0.5f * global_activity + 0.5f * r_avg_[i]
+                         : r_avg_[i];
+
+    // Adjust threshold toward target firing rate using blended activity.
+    if (activity > target_rate) {
+      theta_[i] += theta_step;
+    } else {
+      theta_[i] = std::max(0.1f, theta_[i] - theta_step);
+    }
+  }
 }
 
 }  // namespace senna::neural

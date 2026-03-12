@@ -17,12 +17,14 @@ endif()
 
 include(CTest)
 find_package(Threads REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 set(SENNA_CORE_SOURCES
   src/core/spatial/lattice.cpp
   src/core/spatial/neighbor_index.cpp
   src/core/neural/neuron.cpp
   src/core/neural/neuron_pool.cpp
+  src/core/decoding/first_spike_decoder.cpp
   src/core/synaptic/synapse.cpp
   src/core/synaptic/synapse_index.cpp
   src/core/temporal/event_queue.cpp
@@ -32,6 +34,7 @@ set(SENNA_CORE_SOURCES
   src/core/plasticity/structural.cpp
   src/core/encoding/rate_encoder.cpp
   src/core/encoding/wta_decoder.cpp
+  src/core/config/runtime_config.cpp
   src/core/observability/metrics_collector.cpp
   src/core/observability/prometheus_exporter.cpp
   src/core/network/network_builder.cpp
@@ -43,6 +46,7 @@ set(SENNA_CORE_SOURCES
 add_library(senna_core_lib ${SENNA_CORE_SOURCES})
 target_compile_features(senna_core_lib PUBLIC cxx_std_23)
 target_include_directories(senna_core_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(senna_core_lib PUBLIC yaml-cpp::yaml-cpp)
 
 set(SENNA_TRAINER_SOURCES
   src/trainer/main.cpp
@@ -96,6 +100,12 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_encoding PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_encoding)
+
+  add_executable(test_decoding
+    tests/decoding/first_spike_decoder_test.cpp
+  )
+  target_link_libraries(test_decoding PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_decoding)
 
   add_executable(test_smoke
     tests/integration/lattice_smoke_test.cpp
