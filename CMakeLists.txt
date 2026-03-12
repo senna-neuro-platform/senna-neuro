@@ -85,6 +85,12 @@ if(BUILD_TESTING)
   target_link_libraries(test_synaptic PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_synaptic)
 
+  add_executable(test_temporal
+    tests/temporal/event_queue_test.cpp
+  )
+  target_link_libraries(test_temporal PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_temporal)
+
   add_executable(test_smoke
     tests/integration/lattice_smoke_test.cpp
   )

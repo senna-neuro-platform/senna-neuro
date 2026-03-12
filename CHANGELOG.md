@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.24.0-dev`
+- Added temporal event infrastructure: thread-safe priority-based [EventQueue](src/core/temporal/event_queue.hpp) with batch push/drain and a ticked [TimeManager](src/core/temporal/time_manager.hpp) that delivers events, triggers spikes via `NeuronPool`, fans out through `SynapseIndex`, and advances simulation time.
+- Introduced temporal unit tests in [tests/temporal/event_queue_test.cpp](tests/temporal/event_queue_test.cpp) covering queue ordering, draining windows, concurrency, and TimeManager spike propagation; registered `test_temporal` targets alongside existing suites in [CMakeLists.txt](CMakeLists.txt).
+
 ## `0.23.0-dev`
 - Added synapse domain model in [src/core/synaptic/synapse.hpp](src/core/synaptic/synapse.hpp): presynaptic/postsynaptic IDs, signed effective weight, distance-proportional delay, and tunable init params (weight range, delay scale, WTA weight).
 - Built a CSR-based `SynapseIndex` in [src/core/synaptic/synapse_index.hpp](src/core/synaptic/synapse_index.hpp) and [src/core/synaptic/synapse_index.cpp](src/core/synaptic/synapse_index.cpp): constructs synapses from neighbor lists with random weights and delays, exposes incoming/outgoing views, and optionally wires WTA inhibition across output neurons.
