@@ -1,6 +1,6 @@
 # SENNA Neuro
 
-**Spatial-Event Neuromorphic Network Architecture** is a spiking system on a 3D lattice (28×28×20). Stimuli hit a sensory panel, propagate through neighbors, adapt via STDP/homeostasis, and a WTA first-spike decoder in the output layer selects the class (MNIST).
+**Spatial-Event Neuromorphic Network Architecture** is a spiking system on a 3D lattice. Stimuli hit a sensory panel, propagate through neighbors, adapt via STDP/homeostasis, and a WTA first-spike decoder in the output layer selects the class (MNIST).
 
 ## Architecture
 
