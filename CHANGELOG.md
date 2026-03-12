@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.23.0-dev`
+- Added synapse domain model in [src/core/synaptic/synapse.hpp](src/core/synaptic/synapse.hpp): presynaptic/postsynaptic IDs, signed effective weight, distance-proportional delay, and tunable init params (weight range, delay scale, WTA weight).
+- Built a CSR-based `SynapseIndex` in [src/core/synaptic/synapse_index.hpp](src/core/synaptic/synapse_index.hpp) and [src/core/synaptic/synapse_index.cpp](src/core/synaptic/synapse_index.cpp): constructs synapses from neighbor lists with random weights and delays, exposes incoming/outgoing views, and optionally wires WTA inhibition across output neurons.
+
 ## `0.22.2-dev`
 - Extended the LIF storage layer: [src/core/neural/neuron_pool.hpp](src/core/neural/neuron_pool.hpp) and [src/core/neural/neuron_pool.cpp](src/core/neural/neuron_pool.cpp) now handle lazy membrane decay, input integration, threshold check, and spike reset via `ReceiveInput`/`Fire`, keeping refractory handling consistent with MVP params.
 - Added an end-to-end lattice smoke test in [tests/integration/lattice_smoke_test.cpp](tests/integration/lattice_smoke_test.cpp) and wired a `test_smoke` target in [CMakeLists.txt](CMakeLists.txt) to cover Step 1 DoD (density bounds, neighbor counts, sensory/output zones, determinism, parallel build parity).
