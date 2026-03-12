@@ -1,5 +1,7 @@
 #include "core/neural/neuron_pool.hpp"
 
+#include <cmath>
+
 namespace senna::neural {
 
 NeuronPool::NeuronPool(const spatial::Lattice& lattice, const LIFParams& params,
@@ -20,6 +22,31 @@ NeuronPool::NeuronPool(const spatial::Lattice& lattice, const LIFParams& params,
     type_[i] = dist(rng) < excitatory_ratio ? NeuronType::Excitatory
                                             : NeuronType::Inhibitory;
   }
+}
+
+bool NeuronPool::ReceiveInput(int id, float t_now, float input) {
+  // Refractory — ignore input entirely.
+  if (IsRefractory(id, t_now)) return false;
+
+  // Lazy exponential decay: V(t) = V_rest + (V_old - V_rest) * exp(-dt/tau_m)
+  float dt = t_now - t_last_[id];
+  if (dt > 0.0f) {
+    float decay = std::exp(-dt / params_.tau_m);
+    V_[id] = params_.V_rest + (V_[id] - params_.V_rest) * decay;
+  }
+
+  // Integrate input.
+  V_[id] += input;
+  t_last_[id] = t_now;
+
+  // Check threshold.
+  return V_[id] >= theta_[id];
+}
+
+void NeuronPool::Fire(int id, float t_now) {
+  V_[id] = params_.V_reset;
+  t_spike_[id] = t_now;
+  t_last_[id] = t_now;
 }
 
 }  // namespace senna::neural

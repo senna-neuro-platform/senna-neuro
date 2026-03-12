@@ -70,6 +70,17 @@ class NeuronPool {
 
   const LIFParams& params() const { return params_; }
 
+  // --- LIF dynamics ---
+
+  // Lazy decay + input integration.
+  // Analytically decays V from t_last to t_now, then adds input.
+  // If refractory, input is ignored.
+  // Returns true if the neuron fires (V >= theta after integration).
+  bool ReceiveInput(int id, float t_now, float input);
+
+  // Fire the neuron: reset V, record spike time.
+  void Fire(int id, float t_now);
+
   // AoS view: gather all fields of neuron id into a Neuron struct.
   Neuron Get(int id, const spatial::Lattice& lattice) const {
     auto [x, y, z] = lattice.CoordsOf(id);

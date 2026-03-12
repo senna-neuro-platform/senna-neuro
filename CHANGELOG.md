@@ -1,5 +1,9 @@
 # Changelog
 
+## `0.22.2-dev`
+- Extended the LIF storage layer: [src/core/neural/neuron_pool.hpp](src/core/neural/neuron_pool.hpp) and [src/core/neural/neuron_pool.cpp](src/core/neural/neuron_pool.cpp) now handle lazy membrane decay, input integration, threshold check, and spike reset via `ReceiveInput`/`Fire`, keeping refractory handling consistent with MVP params.
+- Added an end-to-end lattice smoke test in [tests/integration/lattice_smoke_test.cpp](tests/integration/lattice_smoke_test.cpp) and wired a `test_smoke` target in [CMakeLists.txt](CMakeLists.txt) to cover Step 1 DoD (density bounds, neighbor counts, sensory/output zones, determinism, parallel build parity).
+
 ## `0.22.1-dev`
 - Introduced a LIF neuron domain model in [src/core/neural/neuron.hpp](src/core/neural/neuron.hpp): excitatory/inhibitory types, default MVP parameters, refractory checks, and a compact AoS state view.
 - Added a structure-of-arrays `NeuronPool` in [src/core/neural/neuron_pool.hpp](src/core/neural/neuron_pool.hpp) and [src/core/neural/neuron_pool.cpp](src/core/neural/neuron_pool.cpp): initializes from a lattice, assigns E/I types by ratio and seed, exposes SoA field accessors plus AoS gather/scatter helpers for simulation logic.
