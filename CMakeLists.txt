@@ -30,6 +30,7 @@ set(SENNA_CORE_SOURCES
   src/core/temporal/event_queue.cpp
   src/core/temporal/time_manager.cpp
   src/core/plasticity/stdp.cpp
+  src/core/plasticity/stdp_worker.cpp
   src/core/plasticity/homeostasis.cpp
   src/core/plasticity/structural.cpp
   src/core/encoding/rate_encoder.cpp
@@ -88,6 +89,13 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_synaptic PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_synaptic)
+
+  add_executable(test_plasticity
+    tests/plasticity/stdp_test.cpp
+    tests/plasticity/stdp_worker_test.cpp
+  )
+  target_link_libraries(test_plasticity PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_plasticity)
 
   add_executable(test_temporal
     tests/temporal/event_queue_test.cpp

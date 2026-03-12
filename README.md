@@ -81,6 +81,7 @@ make fmt      # Auto-format (src/ + tests/)
 - `lattice`: size, density, neighbor radius, num_outputs, E/I ratio
 - `lif`: V_rest/reset, tau_m, t_ref, theta_base
 - `synapse`: w_min/w_max, c_base, w_wta
+- `stdp`: A_plus, A_minus, tau_plus, tau_minus, w_max
 - `homeostasis`: alpha, target_rate, theta_step
 - `encoder`: max_rate, presentation_ms, input_value
 - `decoder`: window_ms

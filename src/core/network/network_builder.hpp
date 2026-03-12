@@ -6,6 +6,7 @@
 #include "core/encoding/rate_encoder.hpp"
 #include "core/neural/neuron.hpp"
 #include "core/neural/neuron_pool.hpp"
+#include "core/plasticity/stdp.hpp"
 #include "core/spatial/lattice.hpp"
 #include "core/spatial/neighbor_index.hpp"
 #include "core/synaptic/synapse.hpp"
@@ -31,6 +32,7 @@ struct NetworkConfig {
   temporal::HomeostasisConfig homeostasis{};
   encoding::RateEncoderParams encoder_params{};
   float decoder_window_ms = 50.0f;
+  plasticity::STDPParams stdp_params{};
 };
 
 // Owns all network subsystems and wires them together.

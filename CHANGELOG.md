@@ -1,5 +1,11 @@
 # Changelog
 
+## `0.28.6-dev`
+- STDP worker (lock-free MPSC) runs in background, supervision helper added, weight tapering/limits enforced, and expanded STDP/worker tests (all 96 tests green).
+- Wired STDP into the spike loop: pre/post spikes update outgoing/incoming synapses using STDP params from config.
+- Added STDP params to YAML (`stdp` block) and to `NetworkConfig`; RateEncoder/TimeManager/decoder already pull config values.
+- STDP module implemented with unit tests (`test_plasticity` target).
+
 ## `0.27.9-dev`
 - RuntimeConfig now fully drives network setup: YAML values populate lattice, synapse (incl. WTA), LIF, homeostasis, encoder params, decoder window, dt/seed; Network/TimeManager/encoder constructors consume these instead of hardcoded defaults; SpikeLoop seeds decoder with network seed/window.
 

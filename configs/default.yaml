@@ -24,6 +24,13 @@ synapse:
   c_base: 1.0
   w_wta: -5.0
 
+stdp:
+  A_plus: 0.01
+  A_minus: 0.012
+  tau_plus: 20.0
+  tau_minus: 20.0
+  w_max: 1.0
+
 homeostasis:
   alpha: 0.999
   target_rate: 0.01

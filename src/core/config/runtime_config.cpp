@@ -61,6 +61,19 @@ RuntimeConfig LoadRuntimeConfig(const std::string& path) {
     p.w_wta = MaybeGet<float>(syn, "w_wta", p.w_wta);
   }
 
+  if (auto stdp = root["stdp"]) {
+    cfg.network.stdp_params.A_plus =
+        MaybeGet<float>(stdp, "A_plus", cfg.network.stdp_params.A_plus);
+    cfg.network.stdp_params.A_minus =
+        MaybeGet<float>(stdp, "A_minus", cfg.network.stdp_params.A_minus);
+    cfg.network.stdp_params.tau_plus =
+        MaybeGet<float>(stdp, "tau_plus", cfg.network.stdp_params.tau_plus);
+    cfg.network.stdp_params.tau_minus =
+        MaybeGet<float>(stdp, "tau_minus", cfg.network.stdp_params.tau_minus);
+    cfg.network.stdp_params.w_max =
+        MaybeGet<float>(stdp, "w_max", cfg.network.stdp_params.w_max);
+  }
+
   if (auto homeo = root["homeostasis"]) {
     cfg.network.homeostasis.alpha =
         MaybeGet<float>(homeo, "alpha", cfg.network.homeostasis.alpha);

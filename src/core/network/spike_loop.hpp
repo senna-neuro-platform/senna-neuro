@@ -5,6 +5,7 @@
 
 #include "core/decoding/first_spike_decoder.hpp"
 #include "core/network/network_builder.hpp"
+#include "core/plasticity/stdp_worker.hpp"
 
 namespace senna::network {
 
@@ -42,6 +43,7 @@ class SpikeLoop {
   Network& net_;
   std::vector<std::pair<int32_t, float>> spike_log_;
   decoding::FirstSpikeDecoder* decoder_ = nullptr;
+  std::unique_ptr<plasticity::STDPWorker> stdp_worker_;
 };
 
 }  // namespace senna::network
