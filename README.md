@@ -1,11 +1,6 @@
 # SENNA Neuro
 
-**Spatial-Event Neuromorphic Network Architecture** is a spiking neuromorphic system
-that processes information as sparse events on a 3D lattice of excitatory/inhibitory neurons.
-
-Stimuli arrive at a sensory panel, propagate through local neighborhoods,
-adapt via STDP and homeostasis, and are decoded by a compact output layer
-for classification (MNIST, target accuracy >85%).
+**Spatial-Event Neuromorphic Network Architecture** is a spiking system on a 3D lattice (28×28×20). Stimuli hit a sensory panel, propagate through neighbors, adapt via STDP/homeostasis, and a WTA first-spike decoder in the output layer selects the class (MNIST).
 
 ## Architecture
 
@@ -19,17 +14,17 @@ for classification (MNIST, target accuracy >85%).
                                └────────────────────────────┘
 ```
 
-| Component            | Description                                                |
-|----------------------|------------------------------------------------------------|
-| `spatial/`           | 28x28x20 3D lattice, neighbor search in CSR format         |
-| `neural/`            | LIF neurons, SoA pool, lazy membrane decay                 |
-| `synaptic/`          | Synapses with weights and delays, CSR indices (in/out)     |
-| `temporal/`          | Event queue (MPSC), virtual time manager                   |
-| `plasticity/`        | STDP, threshold homeostasis, structural plasticity         |
-| `encoding/`          | Rate coding (input), WTA first-spike decoder (output)      |
-| `observability/`     | Prometheus metrics, statistics collector                   |
-| `network/`           | Network assembly, main spike loop                          |
-| `interfaces/`        | gRPC API (trainer), WebSocket API (visualizer)             |
+| Component         | Description                                                   |
+|-------------------|---------------------------------------------------------------|
+| `spatial/`        | 3D lattice, CSR neighbors                                     |
+| `neural/`         | LIF (SoA), lazy decay, homeostasis                            |
+| `synaptic/`       | Weight+delay, CSR in/out, WTA output links                    |
+| `temporal/`       | Lock-free MPSC queue, time quantization, parallel tick        |
+| `encoding/`       | MNIST rate encoder, WTA first-spike decoder                   |
+| `network/`        | Network assembly, SpikeLoop with streaming decoder            |
+| `plasticity/`     | STDP, structural plasticity                                   |
+| `observability/`  | Metrics/statistics                                            |
+| `interfaces/`     | gRPC (trainer), WebSocket (visualizer)                        |
 
 ## Quick Start
 
@@ -46,17 +41,9 @@ for classification (MNIST, target accuracy >85%).
 ```bash
 cd senna-neuro
 
-# Configure (Conan + CMake)
-make configure-debug
-
-# Build
-make build-debug
-
-# Test
-make test
-
-# Or all at once (test depends on build)
-make test
+make configure-debug   # Conan + CMake
+make build-debug       # Build
+make test              # Build+test
 ```
 
 ### Build Variants
@@ -86,6 +73,18 @@ make ps       # Service status
 make lint     # clang-format --dry-run + clang-tidy
 make fmt      # Auto-format (src/ + tests/)
 ```
+
+## Configuration
+
+- Main settings live in `configs/default.yaml` and load into `RuntimeConfig`.
+- `simulation`: dt, seed
+- `lattice`: size, density, neighbor radius, num_outputs, E/I ratio
+- `lif`: V_rest/reset, tau_m, t_ref, theta_base
+- `synapse`: w_min/w_max, c_base, w_wta
+- `homeostasis`: alpha, target_rate, theta_step
+- `encoder`: max_rate, presentation_ms, input_value
+- `decoder`: window_ms
+- All values feed directly into `Network`, `TimeManager`, `RateEncoder`, decoder (no hardcoded defaults).
 
 ## Project Structure
 
@@ -124,22 +123,25 @@ senna-neuro/
 
 ## Key Parameters (MVP)
 
-| Parameter               | Value               |
-|-------------------------|---------------------|
-| Lattice                 | 28x28x20            |
-| Density                 | 70%                 |
-| E/I neuron ratio        | 80% / 20%           |
-| Neighbor radius         | 2-3 voxels          |
-| V_rest, V_reset         | 0.0                 |
-| tau_m                   | 20 ms               |
-| Refractory period       | 2 ms                |
-| Base threshold theta    | 1.0                 |
-| STDP A+ / A-            | 0.01 / 0.012        |
-| STDP tau                | 20 ms               |
-| Homeostasis r_target    | 5 Hz                |
-| WTA weight              | -5.0                |
-| Rate coding max_rate    | 100 Hz              |
-| Presentation time       | 50 ms               |
+| Parameter           | Value      |
+|---------------------|------------|
+| Lattice             | 28×28×20   |
+| Density             | 70%        |
+| E/I ratio           | 80% / 20%  |
+| Neighbor radius     | 2–3        |
+| tau_m               | 20 ms      |
+| t_ref               | 2 ms       |
+| theta_base          | 1.0        |
+| STDP A+/A-          | 0.01/0.012 |
+| STDP tau            | 20 ms      |
+| Homeostasis target  | 5 Hz       |
+| WTA weight          | -5.0       |
+| Encoder max_rate    | 100 Hz     |
+| Presentation time   | 50 ms      |
+
+## Data
+
+- Download MNIST once: `make install-mnist` (stores in `data/MNIST/raw`).
 
 ## License
 
