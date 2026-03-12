@@ -20,7 +20,7 @@ struct NeuronCoords {
 // Construction is deterministic given the same seed.
 class Lattice {
  public:
-  // Fills the lattice with neurons at the given density (0.0–1.0).
+  // Fills the lattice with neurons at the given density (0.0-1.0).
   // Voxel (x, y, z) is visited in Z-major, Y-minor, X-inner order.
   Lattice(int width, int height, int depth, double density, uint64_t seed);
 

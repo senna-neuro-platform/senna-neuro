@@ -134,7 +134,7 @@ senna-neuro/
 | Lattice             | 28×28×20   |
 | Density             | 70%        |
 | E/I ratio           | 80% / 20%  |
-| Neighbor radius     | 2–3        |
+| Neighbor radius     | 2-3        |
 | tau_m               | 20 ms      |
 | t_ref               | 2 ms       |
 | theta_base          | 1.0        |

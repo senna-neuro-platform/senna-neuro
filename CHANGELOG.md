@@ -11,7 +11,7 @@
 - Homeostasis refactor: dedicated plasticity module with Hz target, theta_min/theta_max, interval_ticks, and background worker applying double-buffered thresholds without blocking the spike loop.
 - NeuronPool now double-buffers thresholds, exposes snapshots/apply helpers, and keeps r_avg smoothing separate from threshold updates.
 - TimeManager schedules homeostasis snapshots every `interval_ticks`, runs worker thread, and atomically swaps new theta buffers; Network attaches pool automatically.
-- Runtime config/README updated with new homeostasis fields; defaults set to spec (alpha 0.999, target 5 Hz, step 0.001, bounds 0.1–5.0, interval 10).
+- Runtime config/README updated with new homeostasis fields; defaults set to spec (alpha 0.999, target 5 Hz, step 0.001, bounds 0.1-5.0, interval 10).
 - Tests updated for new API and bounds; added clamp coverage; `HomeostasisParametersAffectRate` fixed.
 
 ## `0.28.6-dev`
