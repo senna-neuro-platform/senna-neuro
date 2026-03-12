@@ -1,5 +1,11 @@
 # Changelog
 
+## `0.21.2-dev`
+- Implemented a parallel neighbor-index builder in [src/core/spatial/neighbor_index.hpp](src/core/spatial/neighbor_index.hpp) and [src/core/spatial/neighbor_index.cpp](src/core/spatial/neighbor_index.cpp): precomputes CSR neighbor lists within a configurable radius using multi-threaded voxel scans, exposes constant-time span accessors, and keeps distance values alongside neuron IDs.
+- Added spatial unit tests for lattice determinism/density and neighbor symmetry/count/distance coverage in [tests/spatial/lattice_test.cpp](tests/spatial/lattice_test.cpp) and [tests/spatial/neighbor_index_test.cpp](tests/spatial/neighbor_index_test.cpp); wired them into CTest via the `test_spatial` target in [CMakeLists.txt](CMakeLists.txt).
+- Fixed the Conan/CMake preset alignment: [CMakePresets.json](CMakePresets.json) now uses the flat `build/<preset>` layout, and [conanfile.py](conanfile.py) defers layout so generated toolchains land where presets expect; [Makefile](Makefile) passes `-s build_type=...` during `conan install` to keep dependency builds consistent with presets.
+- Leftover runtime stubs remain unchanged; version bumped to `0.21.2-dev` in [VERSION](VERSION).
+
 ## `0.21.1-dev`
 - Reset the repository for the next-generation prototype: removed the prior MVP runtime, Python training pipeline, acceptance runbooks/tests, and vendored visualizer assets to start from a minimal scaffold.
 - In [CMakeLists.txt](CMakeLists.txt) and [CMakePresets.json](CMakePresets.json), rebuilt the build system around C++23 with Ninja presets for debug/release/sanitize, optional ASan/UBSan via `SENNA_ENABLE_SANITIZERS`, and distinct `senna_core`/`senna_trainer` executables linked through a shared `senna_core_lib` target.

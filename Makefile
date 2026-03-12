@@ -58,19 +58,19 @@ help: ## Show this help
 
 $(CONFIGURED_DEBUG): conanfile.py CMakeLists.txt CMakePresets.json
 	@echo "── Configuring debug ──"
-	$(CONAN) install . --output-folder=$(BUILD_DEBUG) --build=missing
+	$(CONAN) install . --output-folder=$(BUILD_DEBUG) --build=missing -s build_type=Debug
 	$(CMAKE) --preset debug
 	@touch $@
 
 $(CONFIGURED_RELEASE): conanfile.py CMakeLists.txt CMakePresets.json
 	@echo "── Configuring release ──"
-	$(CONAN) install . --output-folder=$(BUILD_RELEASE) --build=missing
+	$(CONAN) install . --output-folder=$(BUILD_RELEASE) --build=missing -s build_type=Release
 	$(CMAKE) --preset release
 	@touch $@
 
 $(CONFIGURED_SANITIZE): conanfile.py CMakeLists.txt CMakePresets.json
 	@echo "── Configuring sanitize ──"
-	$(CONAN) install . --output-folder=$(BUILD_SANITIZE) --build=missing
+	$(CONAN) install . --output-folder=$(BUILD_SANITIZE) --build=missing -s build_type=Debug
 	$(CMAKE) --preset sanitize
 	@touch $@
 

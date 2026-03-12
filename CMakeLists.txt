@@ -60,3 +60,16 @@ add_executable(senna_trainer ${SENNA_TRAINER_SOURCES})
 target_compile_features(senna_trainer PRIVATE cxx_std_23)
 target_include_directories(senna_trainer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(senna_trainer PRIVATE senna_core_lib Threads::Threads)
+
+# --- Tests ---
+if(BUILD_TESTING)
+  find_package(GTest REQUIRED)
+  include(GoogleTest)
+
+  add_executable(test_spatial
+    tests/spatial/lattice_test.cpp
+    tests/spatial/neighbor_index_test.cpp
+  )
+  target_link_libraries(test_spatial PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_spatial)
+endif()

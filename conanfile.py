@@ -19,7 +19,9 @@ class SennaNeuroConan(ConanFile):
     )
 
     def layout(self):
-        cmake_layout(self)
+        # Use a flat layout so that --output-folder maps directly to
+        # ${sourceDir}/build/<preset> expected by CMakePresets.json.
+        pass
 
     def generate(self):
         tc = CMakeToolchain(self)

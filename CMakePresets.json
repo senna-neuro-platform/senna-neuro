@@ -13,8 +13,8 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/${presetName}/generators/conan_toolchain.cmake",
-        "CMAKE_PREFIX_PATH": "${sourceDir}/build/${presetName}/generators"
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/${presetName}/conan_toolchain.cmake",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/build/${presetName}"
       }
     },
     {
