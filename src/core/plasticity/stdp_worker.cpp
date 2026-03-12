@@ -4,11 +4,11 @@
 
 namespace senna::plasticity {
 
-STDPWorker::STDPWorker(synaptic::SynapseIndex& synapses,
-                       neural::NeuronPool& pool,
-                       const synaptic::SynapseParams& syn_params,
-                       const STDPParams& params, uint64_t /*seed*/)
-    : synapses_(synapses),
+STDPWorker::STDPWorker(
+    std::atomic<std::shared_ptr<synaptic::SynapseIndex>>& syn_store,
+    neural::NeuronPool& pool, const synaptic::SynapseParams& syn_params,
+    const STDPParams& params, uint64_t /*seed*/)
+    : syn_store_(syn_store),
       pool_(pool),
       syn_params_(syn_params),
       params_(params) {}
@@ -52,10 +52,15 @@ void STDPWorker::Run() {
     batch.clear();
     DrainPending(batch);
     if (!running_.load() && batch.empty()) break;
+    auto syn_ptr = syn_store_.load();
+    if (!syn_ptr) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(0));
+      continue;
+    }
     for (const auto& s : batch) {
       if (s.id < 0) continue;
-      STDP::OnPreSpike(s.id, s.t, synapses_, pool_, syn_params_, params_);
-      STDP::OnPostSpike(s.id, s.t, synapses_, pool_, syn_params_, params_);
+      STDP::OnPreSpike(s.id, s.t, *syn_ptr, pool_, syn_params_, params_);
+      STDP::OnPostSpike(s.id, s.t, *syn_ptr, pool_, syn_params_, params_);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(0));
   }

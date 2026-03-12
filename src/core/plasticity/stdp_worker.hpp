@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <thread>
 #include <vector>
 
@@ -11,7 +12,8 @@ namespace senna::plasticity {
 // Background STDP worker: consumes spike events and applies pair-based updates.
 class STDPWorker {
  public:
-  STDPWorker(synaptic::SynapseIndex& synapses, neural::NeuronPool& pool,
+  STDPWorker(std::atomic<std::shared_ptr<synaptic::SynapseIndex>>& syn_store,
+             neural::NeuronPool& pool,
              const synaptic::SynapseParams& syn_params,
              const STDPParams& params = {}, uint64_t seed = 42);
   ~STDPWorker();
@@ -31,7 +33,7 @@ class STDPWorker {
   void DrainPending(std::vector<Spike>& out);
   void Run();
 
-  synaptic::SynapseIndex& synapses_;
+  std::atomic<std::shared_ptr<synaptic::SynapseIndex>>& syn_store_;
   neural::NeuronPool& pool_;
   synaptic::SynapseParams syn_params_;
   STDPParams params_;

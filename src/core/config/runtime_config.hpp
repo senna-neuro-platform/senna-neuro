@@ -4,6 +4,7 @@
 
 #include "core/encoding/rate_encoder.hpp"
 #include "core/network/network_builder.hpp"
+#include "core/plasticity/structural.hpp"
 #include "core/temporal/time_manager.hpp"
 
 namespace senna::config {

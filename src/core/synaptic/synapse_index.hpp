@@ -36,6 +36,11 @@ class SynapseIndex {
                const SynapseParams& params = kDefaultSynapseParams,
                uint64_t seed = 42);
 
+  // Build from an explicit synapse list (used by structural plasticity).
+  // Assumes all pre/post ids are < neuron_count. WTA count can be provided.
+  SynapseIndex(int neuron_count, std::vector<Synapse> synapses,
+               int32_t wta_count = 0);
+
   // --- CSR access: incoming synapses (indexed by post_id) ---
 
   std::span<const SynapseId> Incoming(int post_id) const {

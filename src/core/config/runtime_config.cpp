@@ -106,6 +106,19 @@ RuntimeConfig LoadRuntimeConfig(const std::string& path) {
         GetOrDefault<float>(dec, "window_ms", cfg.network.decoder_window_ms);
   }
 
+  if (auto str = root["structural"]) {
+    cfg.network.structural.w_min_prune = GetOrDefault<float>(
+        str, "w_min_prune", cfg.network.structural.w_min_prune);
+    cfg.network.structural.interval_ticks = GetOrDefault<int>(
+        str, "interval_ticks", cfg.network.structural.interval_ticks);
+    cfg.network.structural.sprout_radius = GetOrDefault<float>(
+        str, "sprout_radius", cfg.network.structural.sprout_radius);
+    cfg.network.structural.sprout_weight = GetOrDefault<float>(
+        str, "sprout_weight", cfg.network.structural.sprout_weight);
+    cfg.network.structural.quiet_fraction = GetOrDefault<float>(
+        str, "quiet_fraction", cfg.network.structural.quiet_fraction);
+  }
+
   return cfg;
 }
 

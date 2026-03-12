@@ -1,5 +1,7 @@
 #include "core/network/network_builder.hpp"
 
+#include "core/plasticity/structural.hpp"
+
 namespace senna::network {
 
 static std::vector<int32_t> BuildOutputIds(const spatial::ZonedLattice& lattice,
@@ -19,11 +21,17 @@ Network::Network(const NetworkConfig& config)
       neighbors_(lattice_, config.neighbor_radius, 0),
       pool_(lattice_, config.lif_params, config.excitatory_ratio, config.seed),
       output_ids_(BuildOutputIds(lattice_, config.num_outputs)),
-      synapses_(lattice_, neighbors_, pool_, output_ids_, config.synapse_params,
-                config.seed),
+      synapses_ptr_atomic_(std::make_shared<synaptic::SynapseIndex>(
+          lattice_, neighbors_, pool_, output_ids_, config.synapse_params,
+          config.seed)),
       encoder_(config.encoder_params, config.dt, config.seed),
       time_manager_(config.dt, config.homeostasis, config.seed) {
   time_manager_.attach_pool(&pool_);
+  synapses_cache_ = synapses_ptr_atomic_.load();
+  structural_worker_ = std::make_unique<plasticity::StructuralWorker>(
+      lattice_, neighbors_, pool_, synapses_ptr_atomic_, config.synapse_params,
+      config.structural, config.homeostasis.target_rate_hz);
+  structural_worker_->Start();
 }
 
 void Network::InjectSpike(int32_t neuron_id, float time, float value) {

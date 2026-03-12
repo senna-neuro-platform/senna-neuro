@@ -88,6 +88,7 @@ Main settings live in `configs/default.yaml` and load into `RuntimeConfig`.
 | `homeostasis`  | `alpha`: smoothing; `target_rate`: Hz; `theta_step`: Δθ per Hz error; `theta_min/theta_max`: bounds; `interval_ticks`: apply cadence; `global_mix`: blend global vs local activity |
 | `encoder`      | `max_rate`: Hz; `presentation_ms`: stimulus window; `input_value`: event amplitude |
 | `decoder`      | `window_ms`: first-spike decision window |
+| `structural`   | `w_min_prune`: prune threshold; `interval_ticks`: cadence; `sprout_radius`: search radius; `sprout_weight`: init weight; `quiet_fraction`: r_avg < target * quiet_fraction |
 
 All values feed directly into `Network`, `TimeManager`, `RateEncoder`, decoder (no hardcoded defaults).
 

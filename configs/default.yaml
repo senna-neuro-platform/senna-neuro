@@ -47,3 +47,10 @@ encoder:
 
 decoder:
   window_ms: 50.0
+
+structural:
+  w_min_prune: 0.001
+  interval_ticks: 10000
+  sprout_radius: 2.0
+  sprout_weight: 0.01
+  quiet_fraction: 0.5

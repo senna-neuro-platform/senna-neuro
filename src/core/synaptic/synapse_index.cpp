@@ -56,6 +56,12 @@ SynapseIndex::SynapseIndex(const spatial::Lattice& lattice,
   BuildCSR(n);
 }
 
+SynapseIndex::SynapseIndex(int neuron_count, std::vector<Synapse> synapses,
+                           int32_t wta_count)
+    : synapses_(std::move(synapses)), wta_count_(wta_count) {
+  BuildCSR(neuron_count);
+}
+
 void SynapseIndex::BuildCSR(int neuron_count) {
   const int n = neuron_count;
   const auto total = static_cast<SynapseId>(synapses_.size());

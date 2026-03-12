@@ -1,5 +1,12 @@
 # Changelog
 
+## `0.30.4-dev`
+- Structural plasticity implemented: pruning of sub-threshold non-WTA synapses, sprouting for quiet neurons within a radius with configurable initial weight and delay scaling.
+- RCU synapse index swaps: synapse store now uses atomic shared_ptr; spike loop and STDP worker load current snapshots each tick/batch, keeping the main loop lock-free.
+- Background structural worker runs pruning/sprouting on trigger/interval ticks; integrated into spike loop; graceful stop and tests covering prune, sprout, and background execution.
+- Runtime config, default YAML, and README configuration table now expose structural parameters (w_min_prune, interval_ticks, sprout_radius, sprout_weight, quiet_fraction).
+- Unit and integration suites updated; all tests pass after structural additions.
+
 ## `0.29.5-dev`
 - Homeostasis refactor: dedicated plasticity module with Hz target, theta_min/theta_max, interval_ticks, and background worker applying double-buffered thresholds without blocking the spike loop.
 - NeuronPool now double-buffers thresholds, exposes snapshots/apply helpers, and keeps r_avg smoothing separate from threshold updates.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <span>
 
@@ -8,6 +9,7 @@
 #include "core/neural/neuron_pool.hpp"
 #include "core/plasticity/homeostasis.hpp"
 #include "core/plasticity/stdp.hpp"
+#include "core/plasticity/structural.hpp"
 #include "core/spatial/lattice.hpp"
 #include "core/spatial/neighbor_index.hpp"
 #include "core/synaptic/synapse.hpp"
@@ -31,6 +33,7 @@ struct NetworkConfig {
   neural::LIFParams lif_params{};
   synaptic::SynapseParams synapse_params{};
   plasticity::HomeostasisConfig homeostasis{};
+  plasticity::StructuralConfig structural{};
   encoding::RateEncoderParams encoder_params{};
   float decoder_window_ms = 50.0f;
   plasticity::STDPParams stdp_params{};
@@ -50,8 +53,20 @@ class Network {
   neural::NeuronPool& pool() { return pool_; }
   const neural::NeuronPool& pool() const { return pool_; }
 
-  synaptic::SynapseIndex& synapses() { return synapses_; }
-  const synaptic::SynapseIndex& synapses() const { return synapses_; }
+  const synaptic::SynapseIndex& synapses() const { return *synapses_cache_; }
+  std::shared_ptr<synaptic::SynapseIndex> synapses_ptr() const {
+    synapses_cache_ = synapses_ptr_atomic_.load();
+    return synapses_cache_;
+  }
+  std::atomic<std::shared_ptr<synaptic::SynapseIndex>>& synapses_ptr_atomic() {
+    return synapses_ptr_atomic_;
+  }
+  void UpdateSynapses(std::shared_ptr<synaptic::SynapseIndex> idx) {
+    synapses_ptr_atomic_.store(std::move(idx));
+  }
+  plasticity::StructuralWorker* structural_worker() const {
+    return structural_worker_.get();
+  }
 
   const std::vector<int32_t>& output_ids() const { return output_ids_; }
 
@@ -76,10 +91,12 @@ class Network {
   spatial::NeighborIndex neighbors_;
   neural::NeuronPool pool_;
   std::vector<int32_t> output_ids_;  // must be before synapses_ (init order)
-  synaptic::SynapseIndex synapses_;
+  std::atomic<std::shared_ptr<synaptic::SynapseIndex>> synapses_ptr_atomic_;
+  mutable std::shared_ptr<synaptic::SynapseIndex> synapses_cache_;
   temporal::EventQueue queue_;
   encoding::RateEncoder encoder_;
   temporal::TimeManager time_manager_;
+  std::unique_ptr<plasticity::StructuralWorker> structural_worker_;
 };
 
 }  // namespace senna::network
