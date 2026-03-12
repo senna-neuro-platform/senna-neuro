@@ -10,9 +10,6 @@ namespace senna::config {
 
 struct RuntimeConfig {
   network::NetworkConfig network{};
-  temporal::HomeostasisConfig homeostasis{};
-  encoding::RateEncoderParams encoder{};
-  float decoder_window_ms = 50.0f;
 };
 
 // Load configuration from YAML file. If the file is missing or a field is

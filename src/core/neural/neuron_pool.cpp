@@ -26,7 +26,7 @@ NeuronPool::NeuronPool(const spatial::Lattice& lattice, const LIFParams& params,
 }
 
 bool NeuronPool::ReceiveInput(int id, float t_now, float input) {
-  // Refractory — ignore input entirely.
+  // Refractory - ignore input entirely.
   if (IsRefractory(id, t_now)) return false;
 
   // Lazy exponential decay: V(t) = V_rest + (V_old - V_rest) * exp(-dt/tau_m)

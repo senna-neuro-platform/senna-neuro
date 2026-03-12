@@ -28,11 +28,13 @@ struct NetworkConfig {
   uint64_t seed = 42;
   neural::LIFParams lif_params{};
   synaptic::SynapseParams synapse_params{};
+  temporal::HomeostasisConfig homeostasis{};
+  encoding::RateEncoderParams encoder_params{};
   float decoder_window_ms = 50.0f;
 };
 
 // Owns all network subsystems and wires them together.
-// Acts as mediator — subsystems don't know about each other.
+// Acts as mediator - subsystems don't know about each other.
 class Network {
  public:
   explicit Network(const NetworkConfig& config);
@@ -52,6 +54,7 @@ class Network {
 
   temporal::EventQueue& queue() { return queue_; }
   temporal::TimeManager& time_manager() { return time_manager_; }
+  const NetworkConfig& config() const { return config_; }
 
   // --- Stimulus injection ---
 
@@ -63,8 +66,6 @@ class Network {
 
   // Encode a 28x28 image into sensory spikes and enqueue them at t_start.
   void EncodeImage(std::span<const uint8_t> image, float t_start);
-
-  const NetworkConfig& config() const { return config_; }
 
  private:
   NetworkConfig config_;

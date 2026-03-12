@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <optional>
+#include <random>
 #include <vector>
 
 namespace senna::decoding {
@@ -12,7 +14,7 @@ namespace senna::decoding {
 class FirstSpikeDecoder {
  public:
   explicit FirstSpikeDecoder(std::vector<int32_t> output_ids,
-                             float window_ms = 50.0f);
+                             float window_ms = 50.0f, uint64_t seed = 42);
 
   // Observe a spike; neuron_id is a global neuron index, t is spike time.
   void Observe(int32_t neuron_id, float t);
@@ -20,8 +22,12 @@ class FirstSpikeDecoder {
   // Reset decoder state for a new trial.
   void Reset(float t_start_ms = 0.0f);
 
-  // Returns the winning class index if any (ignores timeout).
-  std::optional<int> Result() const { return winner_; }
+  // Resolve pending simultaneous candidates (if any) using RNG.
+  void Finalize(float t_now);
+
+  // Returns the winning class index if any (ignores timeout). Finalizes pending
+  // candidates if needed.
+  std::optional<int> Result();
 
   // Returns winner if decided; otherwise returns empty when the time window
   // [start_time, start_time + window_ms] has elapsed.
@@ -32,7 +38,10 @@ class FirstSpikeDecoder {
     start_time_ms_ = t_start_ms;
     window_expired_ = false;
     winner_.reset();
+    candidates_.clear();
+    earliest_time_ = std::numeric_limits<float>::max();
   }
+  void SetSeed(uint64_t seed) { rng_.seed(seed); }
 
  private:
   std::vector<int32_t> output_ids_;
@@ -41,6 +50,9 @@ class FirstSpikeDecoder {
   float window_ms_;
   float start_time_ms_ = 0.0f;
   bool window_expired_ = false;
+  float earliest_time_ = std::numeric_limits<float>::max();
+  std::vector<int> candidates_;  // indices into output_ids_
+  std::mt19937_64 rng_;
 };
 
 }  // namespace senna::decoding

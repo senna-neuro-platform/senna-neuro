@@ -2,6 +2,6 @@
 
 namespace senna::synaptic {
 
-// Synapse is a plain data struct — no methods beyond the header inlines.
+// Synapse is a plain data struct - no methods beyond the header inlines.
 
 }  // namespace senna::synaptic

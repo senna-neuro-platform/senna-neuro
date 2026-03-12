@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "core/config/runtime_config.hpp"
+#include "core/network/network_builder.hpp"
 
 namespace {
 std::atomic<bool> g_running{true};
@@ -101,7 +102,8 @@ int main() {
 
   // Load runtime configuration (defaults if file missing).
   auto cfg = senna::config::LoadRuntimeConfig("configs/default.yaml");
-  (void)cfg;
+  senna::network::Network net(cfg.network);
+  (void)net;
 
   std::thread grpc_thread(ServeLoop, 50051, false);
   std::thread ws_thread(ServeLoop, 8080, false);

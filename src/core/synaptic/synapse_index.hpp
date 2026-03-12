@@ -12,8 +12,8 @@
 namespace senna::synaptic {
 
 // Stores all synapses in a flat array with two CSR indices:
-//   - by post_id (incoming synapses — for event delivery and STDP)
-//   - by pre_id  (outgoing synapses — for spike fan-out)
+//   - by post_id (incoming synapses - for event delivery and STDP)
+//   - by pre_id  (outgoing synapses - for spike fan-out)
 //
 // Construction iterates each neuron's neighbor list and creates one synapse
 // per neighbor pair. Weights are uniform-random, delays = distance * c_base.

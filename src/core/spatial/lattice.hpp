@@ -40,7 +40,7 @@ class Lattice {
   void PlaceNeuron(int x, int y, int z);
 
   // Removes a neuron from a voxel (marks it kEmptyVoxel).
-  // Does not shrink the neuron vector — ID remains valid.
+  // Does not shrink the neuron vector - ID remains valid.
   void ClearVoxel(int x, int y, int z);
 
   int VoxelIndex(int x, int y, int z) const;

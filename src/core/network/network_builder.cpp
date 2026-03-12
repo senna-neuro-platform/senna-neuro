@@ -21,8 +21,8 @@ Network::Network(const NetworkConfig& config)
       output_ids_(BuildOutputIds(lattice_, config.num_outputs)),
       synapses_(lattice_, neighbors_, pool_, output_ids_, config.synapse_params,
                 config.seed),
-      encoder_(encoding::kDefaultEncoderParams, config.dt, config.seed),
-      time_manager_(config.dt, {}, config.seed) {}
+      encoder_(config.encoder_params, config.dt, config.seed),
+      time_manager_(config.dt, config.homeostasis, config.seed) {}
 
 void Network::InjectSpike(int32_t neuron_id, float time, float value) {
   queue_.Push({.target_id = neuron_id,

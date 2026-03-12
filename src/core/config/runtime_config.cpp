@@ -62,26 +62,26 @@ RuntimeConfig LoadRuntimeConfig(const std::string& path) {
   }
 
   if (auto homeo = root["homeostasis"]) {
-    cfg.homeostasis.alpha =
-        MaybeGet<float>(homeo, "alpha", cfg.homeostasis.alpha);
-    cfg.homeostasis.target_rate =
-        MaybeGet<float>(homeo, "target_rate", cfg.homeostasis.target_rate);
-    cfg.homeostasis.theta_step =
-        MaybeGet<float>(homeo, "theta_step", cfg.homeostasis.theta_step);
+    cfg.network.homeostasis.alpha =
+        MaybeGet<float>(homeo, "alpha", cfg.network.homeostasis.alpha);
+    cfg.network.homeostasis.target_rate = MaybeGet<float>(
+        homeo, "target_rate", cfg.network.homeostasis.target_rate);
+    cfg.network.homeostasis.theta_step = MaybeGet<float>(
+        homeo, "theta_step", cfg.network.homeostasis.theta_step);
   }
 
   if (auto enc = root["encoder"]) {
-    cfg.encoder.max_rate =
-        MaybeGet<float>(enc, "max_rate", cfg.encoder.max_rate);
-    cfg.encoder.presentation_ms =
-        MaybeGet<float>(enc, "presentation_ms", cfg.encoder.presentation_ms);
-    cfg.encoder.input_value =
-        MaybeGet<float>(enc, "input_value", cfg.encoder.input_value);
+    cfg.network.encoder_params.max_rate =
+        MaybeGet<float>(enc, "max_rate", cfg.network.encoder_params.max_rate);
+    cfg.network.encoder_params.presentation_ms = MaybeGet<float>(
+        enc, "presentation_ms", cfg.network.encoder_params.presentation_ms);
+    cfg.network.encoder_params.input_value = MaybeGet<float>(
+        enc, "input_value", cfg.network.encoder_params.input_value);
   }
 
   if (auto dec = root["decoder"]) {
-    cfg.decoder_window_ms =
-        MaybeGet<float>(dec, "window_ms", cfg.decoder_window_ms);
+    cfg.network.decoder_window_ms =
+        MaybeGet<float>(dec, "window_ms", cfg.network.decoder_window_ms);
   }
 
   return cfg;

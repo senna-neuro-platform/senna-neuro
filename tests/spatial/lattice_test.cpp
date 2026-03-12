@@ -171,7 +171,7 @@ TEST(ZonedLatticeTest, ProcessingVolumeHasStandardDensity) {
 
 TEST(ZonedLatticeTest, CoordsOfRoundTrips) {
   ZonedLattice lat(28, 28, 20, 0.7, 42);
-  // ClearVoxel leaves "orphan" neuron IDs — skip those.
+  // ClearVoxel leaves "orphan" neuron IDs - skip those.
   for (int z = 0; z < 20; ++z) {
     for (int y = 0; y < 28; ++y) {
       for (int x = 0; x < 28; ++x) {

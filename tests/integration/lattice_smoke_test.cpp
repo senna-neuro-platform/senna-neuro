@@ -3,7 +3,7 @@
 #include "core/spatial/lattice.hpp"
 #include "core/spatial/neighbor_index.hpp"
 
-// Step 1.4 acceptance criteria — smoke tests for the full lattice pipeline.
+// Step 1.4 acceptance criteria - smoke tests for the full lattice pipeline.
 // These verify the DoD for Step 1 at MVP scale (28x28x20).
 
 namespace senna::spatial {

@@ -114,7 +114,7 @@ class NeuronPool {
   int size_;
   LIFParams params_;
 
-  // SoA arrays — all sized to size_.
+  // SoA arrays - all sized to size_.
   std::vector<float> V_;        // membrane potential
   std::vector<float> theta_;    // firing threshold
   std::vector<float> t_last_;   // time of last update

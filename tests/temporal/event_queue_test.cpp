@@ -52,7 +52,7 @@ TEST(EventQueueTest, DrainRespectsTimeWindow) {
   q.Push({.target_id = 2, .source_id = 0, .arrival_time = 1.5f, .value = 0.3f});
   q.Push({.target_id = 3, .source_id = 0, .arrival_time = 2.0f, .value = 0.4f});
 
-  // Drain [0, 1.5) — should get events at 1.0 and 1.3.
+  // Drain [0, 1.5) - should get events at 1.0 and 1.3.
   std::vector<SpikeEvent> out;
   int count = q.DrainUntil(1.5f, out);
 

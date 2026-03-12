@@ -24,6 +24,8 @@ RunStats SpikeLoop::Run(float duration_ms) {
   if (decoder_) {
     decoder_->Reset(tm.time());
     decoder_->SetStartTime(tm.time());
+    decoder_->SetSeed(net_.config().seed);
+    decoder_->SetWindow(net_.config().decoder_window_ms);
   }
 
   while (tm.time() < t_end) {
@@ -34,6 +36,7 @@ RunStats SpikeLoop::Run(float duration_ms) {
       active_set.insert(id);
       if (decoder_) decoder_->Observe(id, pool.t_spike(id));
     }
+    if (decoder_) decoder_->Finalize(tm.time());
     ++ticks;
   }
 

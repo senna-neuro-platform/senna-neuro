@@ -1,5 +1,8 @@
 # Changelog
 
+## `0.27.9-dev`
+- RuntimeConfig now fully drives network setup: YAML values populate lattice, synapse (incl. WTA), LIF, homeostasis, encoder params, decoder window, dt/seed; Network/TimeManager/encoder constructors consume these instead of hardcoded defaults; SpikeLoop seeds decoder with network seed/window.
+
 ## `0.27.8-dev`
 - Stochastic WTA tie-break: event delivery order per tick is shuffled, giving a single random winner when outputs receive equal inputs; default WTA weight restored to doc value (-5) while remaining configurable.
 - Streaming decoder: `SpikeLoop` can attach a `FirstSpikeDecoder`, auto-starts its 50 ms window at run start, and runs optionally on a dedicated worker thread (`RunInThread`) to match DoD Step 5.2. Decoder API now exposes `Reset(t_start)` to sync window automatically.
