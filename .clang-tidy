@@ -1,19 +1,37 @@
 Checks: >
   -*,
   bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  
   clang-analyzer-*,
+  -clang-analyzer-alpha.*,
+  
   concurrency-*,
+  
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  
+  performance-*,
+  
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
-  modernize-*,
-  -modernize-use-trailing-return-type,
-  performance-*,
+  -cppcoreguidelines-owning-memory,
+  
   readability-*,
   -readability-magic-numbers,
-  -readability-convert-member-blocks-to-brackets,
-  -readability-identifier-length
-WarningsAsErrors: ''
-HeaderFilterRegex: '^(?!.*(\.pb\.h|\.grpc\.pb\.h))(src/|tests/)'
+  -readability-identifier-length,
+  -readability-function-cognitive-complexity,
+  -readability-convert-member-blocks-to-brackets
+
+# Превращаем критические баги в ошибки компиляции (опционально)
+WarningsAsErrors: 'bugprone-*,clang-analyzer-*,concurrency-*'
+
+# Фильтр заголовков с защитой от gRPC/Protobuf (работает на всех версиях Clang)
+HeaderFilterRegex: '^(?!.*(\.pb\.h|\.grpc\.pb\.h))(src/|tests/|include/)'
+
+# Интеграция с .clang-format
 FormatStyle: file
