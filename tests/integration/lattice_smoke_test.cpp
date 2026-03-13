@@ -16,7 +16,7 @@ class LatticeSmoke : public ::testing::Test {
   static constexpr int kD = 20;
   static constexpr double kDensity = 0.7;
   static constexpr uint64_t kSeed = 42;
-  static constexpr float kRadius = 2.0f;
+  static constexpr float kRadius = 2.0F;
 
   ZonedLattice lattice_{kW, kH, kD, kDensity, kSeed};
   NeighborIndex neighbors_{lattice_, kRadius, 0};

@@ -27,13 +27,15 @@ RunStats SpikeLoop::Run(float duration_ms) {
 
   std::set<int32_t> active_set;
 
-  if (decoder_) {
+  if (decoder_ != nullptr) {
     decoder_->Reset(tm.time());
     decoder_->SetStartTime(tm.time());
     decoder_->SetSeed(cfg.seed);
     decoder_->SetWindow(cfg.decoder_window_ms);
   }
-  if (stdp_worker_) stdp_worker_->Start();
+  if (stdp_worker_) {
+    stdp_worker_->Start();
+  }
 
   while (tm.time() < t_end) {
     auto syn_ptr = net_.synapses_ptr();
@@ -42,18 +44,27 @@ RunStats SpikeLoop::Run(float duration_ms) {
     for (int32_t id : fired) {
       spike_log_.emplace_back(id, pool.t_spike(id));
       active_set.insert(id);
-      if (decoder_) decoder_->Observe(id, pool.t_spike(id));
-      if (stdp_worker_) stdp_worker_->Enqueue(id, pool.t_spike(id));
+      if (decoder_ != nullptr) {
+        decoder_->Observe(id, pool.t_spike(id));
+      }
+      if (stdp_worker_) {
+        stdp_worker_->Enqueue(id, pool.t_spike(id));
+      }
     }
-    if (decoder_) decoder_->Finalize(tm.time());
+    if (decoder_ != nullptr) {
+      decoder_->Finalize(tm.time());
+    }
     ++ticks;
 
-    if (net_.structural_worker() && cfg.structural.interval_ticks > 0 &&
+    if (net_.structural_worker() != nullptr &&
+        cfg.structural.interval_ticks > 0 &&
         (ticks % cfg.structural.interval_ticks) == 0) {
       net_.structural_worker()->Trigger();
     }
   }
-  if (stdp_worker_) stdp_worker_->Stop();
+  if (stdp_worker_) {
+    stdp_worker_->Stop();
+  }
 
   return {
       .total_spikes = static_cast<int>(spike_log_.size()),

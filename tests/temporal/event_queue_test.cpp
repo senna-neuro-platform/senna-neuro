@@ -17,67 +17,67 @@ TEST(EventQueueTest, EmptyOnConstruction) {
   EventQueue q;
   EXPECT_TRUE(q.empty());
   EXPECT_EQ(q.size(), 0);
-  EXPECT_FLOAT_EQ(q.PeekTime(), -1.0f);
+  EXPECT_FLOAT_EQ(q.PeekTime(), -1.0F);
 }
 
 TEST(EventQueueTest, PushAndPeek) {
   EventQueue q;
-  q.Push({.target_id = 0, .source_id = 1, .arrival_time = 5.0f, .value = 0.1f});
-  q.Push({.target_id = 1, .source_id = 2, .arrival_time = 3.0f, .value = 0.2f});
+  q.Push({.target_id = 0, .source_id = 1, .arrival_time = 5.0F, .value = 0.1F});
+  q.Push({.target_id = 1, .source_id = 2, .arrival_time = 3.0F, .value = 0.2F});
 
   EXPECT_EQ(q.size(), 2);
-  EXPECT_FLOAT_EQ(q.PeekTime(), 3.0f);
+  EXPECT_FLOAT_EQ(q.PeekTime(), 3.0F);
 }
 
 TEST(EventQueueTest, DrainInTimeOrder) {
   EventQueue q;
-  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 5.0f, .value = 0.1f});
-  q.Push({.target_id = 1, .source_id = 0, .arrival_time = 1.0f, .value = 0.2f});
-  q.Push({.target_id = 2, .source_id = 0, .arrival_time = 3.0f, .value = 0.3f});
+  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 5.0F, .value = 0.1F});
+  q.Push({.target_id = 1, .source_id = 0, .arrival_time = 1.0F, .value = 0.2F});
+  q.Push({.target_id = 2, .source_id = 0, .arrival_time = 3.0F, .value = 0.3F});
 
   std::vector<SpikeEvent> out;
-  int count = q.DrainUntil(10.0f, out);
+  int count = q.DrainUntil(10.0F, out);
 
   EXPECT_EQ(count, 3);
-  EXPECT_FLOAT_EQ(out[0].arrival_time, 1.0f);
-  EXPECT_FLOAT_EQ(out[1].arrival_time, 3.0f);
-  EXPECT_FLOAT_EQ(out[2].arrival_time, 5.0f);
+  EXPECT_FLOAT_EQ(out[0].arrival_time, 1.0F);
+  EXPECT_FLOAT_EQ(out[1].arrival_time, 3.0F);
+  EXPECT_FLOAT_EQ(out[2].arrival_time, 5.0F);
   EXPECT_TRUE(q.empty());
 }
 
 TEST(EventQueueTest, DrainRespectsTimeWindow) {
   EventQueue q;
-  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 1.0f, .value = 0.1f});
-  q.Push({.target_id = 1, .source_id = 0, .arrival_time = 1.3f, .value = 0.2f});
-  q.Push({.target_id = 2, .source_id = 0, .arrival_time = 1.5f, .value = 0.3f});
-  q.Push({.target_id = 3, .source_id = 0, .arrival_time = 2.0f, .value = 0.4f});
+  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 1.0F, .value = 0.1F});
+  q.Push({.target_id = 1, .source_id = 0, .arrival_time = 1.3F, .value = 0.2F});
+  q.Push({.target_id = 2, .source_id = 0, .arrival_time = 1.5F, .value = 0.3F});
+  q.Push({.target_id = 3, .source_id = 0, .arrival_time = 2.0F, .value = 0.4F});
 
   // Drain [0, 1.5) - should get events at 1.0 and 1.3.
   std::vector<SpikeEvent> out;
-  int count = q.DrainUntil(1.5f, out);
+  int count = q.DrainUntil(1.5F, out);
 
   EXPECT_EQ(count, 2);
-  EXPECT_FLOAT_EQ(out[0].arrival_time, 1.0f);
-  EXPECT_FLOAT_EQ(out[1].arrival_time, 1.3f);
+  EXPECT_FLOAT_EQ(out[0].arrival_time, 1.0F);
+  EXPECT_FLOAT_EQ(out[1].arrival_time, 1.3F);
   EXPECT_EQ(q.size(), 2);  // 1.5 and 2.0 remain
 }
 
 TEST(EventQueueTest, QuantizationSameTick) {
   // Events at 1.1 and 1.3 with dt=0.5: tick [1.0, 1.5) captures both.
   EventQueue q;
-  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 1.1f, .value = 0.1f});
-  q.Push({.target_id = 1, .source_id = 0, .arrival_time = 1.3f, .value = 0.2f});
+  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 1.1F, .value = 0.1F});
+  q.Push({.target_id = 1, .source_id = 0, .arrival_time = 1.3F, .value = 0.2F});
 
   std::vector<SpikeEvent> out;
-  q.DrainUntil(1.5f, out);
+  q.DrainUntil(1.5F, out);
   EXPECT_EQ(out.size(), 2);
 }
 
 TEST(EventQueueTest, BoundaryEventStaysForNextTick) {
   EventQueue q;
-  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 1.5f, .value = 0.1f});
+  q.Push({.target_id = 0, .source_id = 0, .arrival_time = 1.5F, .value = 0.1F});
   std::vector<SpikeEvent> out;
-  q.DrainUntil(1.5f, out);
+  q.DrainUntil(1.5F, out);
   EXPECT_TRUE(out.empty());
   EXPECT_EQ(q.size(), 1u);
 }
@@ -85,7 +85,7 @@ TEST(EventQueueTest, BoundaryEventStaysForNextTick) {
 TEST(EventQueueTest, EmptyDrain) {
   EventQueue q;
   std::vector<SpikeEvent> out;
-  int count = q.DrainUntil(10.0f, out);
+  int count = q.DrainUntil(10.0F, out);
   EXPECT_EQ(count, 0);
   EXPECT_TRUE(out.empty());
 }
@@ -93,13 +93,13 @@ TEST(EventQueueTest, EmptyDrain) {
 TEST(EventQueueTest, PushBatch) {
   EventQueue q;
   std::vector<SpikeEvent> batch = {
-      {.target_id = 0, .source_id = 0, .arrival_time = 3.0f, .value = 0.1f},
-      {.target_id = 1, .source_id = 0, .arrival_time = 1.0f, .value = 0.2f},
-      {.target_id = 2, .source_id = 0, .arrival_time = 2.0f, .value = 0.3f},
+      {.target_id = 0, .source_id = 0, .arrival_time = 3.0F, .value = 0.1F},
+      {.target_id = 1, .source_id = 0, .arrival_time = 1.0F, .value = 0.2F},
+      {.target_id = 2, .source_id = 0, .arrival_time = 2.0F, .value = 0.3F},
   };
   q.PushBatch(batch);
   EXPECT_EQ(q.size(), 3);
-  EXPECT_FLOAT_EQ(q.PeekTime(), 1.0f);
+  EXPECT_FLOAT_EQ(q.PeekTime(), 1.0F);
 }
 
 TEST(EventQueueTest, ConcurrentPush) {
@@ -112,7 +112,7 @@ TEST(EventQueueTest, ConcurrentPush) {
       q.Push({.target_id = thread_id,
               .source_id = 0,
               .arrival_time = static_cast<float>(i),
-              .value = 0.1f});
+              .value = 0.1F});
     }
   };
 
@@ -138,27 +138,27 @@ class TimeManagerTest : public ::testing::Test {
 
   // Tiny lattice: 3x3x1, density 1.0, radius 1.5 (direct neighbors only).
   spatial::Lattice lattice_{3, 3, 1, 1.0, kSeed};
-  spatial::NeighborIndex neighbors_{lattice_, 1.5f, 1};
+  spatial::NeighborIndex neighbors_{lattice_, 1.5F, 1};
   neural::NeuronPool pool_{lattice_, neural::kDefaultLIF, 0.8, kSeed};
   synaptic::SynapseIndex synapses_{lattice_, neighbors_, pool_};
 };
 
 TEST_F(TimeManagerTest, EmptyTickAdvancesTime) {
   EventQueue queue;
-  TimeManager tm(0.5f);
+  TimeManager tm(0.5F);
 
   auto fired = tm.Tick(queue, pool_, synapses_);
   EXPECT_TRUE(fired.empty());
-  EXPECT_FLOAT_EQ(tm.time(), 0.5f);
+  EXPECT_FLOAT_EQ(tm.time(), 0.5F);
 }
 
 TEST_F(TimeManagerTest, EventDelivered) {
   EventQueue queue;
-  TimeManager tm(0.5f);
+  TimeManager tm(0.5F);
 
   // Inject an event that arrives at t=0.1 with a large value.
   queue.Push(
-      {.target_id = 0, .source_id = 1, .arrival_time = 0.1f, .value = 0.5f});
+      {.target_id = 0, .source_id = 1, .arrival_time = 0.1F, .value = 0.5F});
 
   tm.Tick(queue, pool_, synapses_);
 
@@ -166,16 +166,16 @@ TEST_F(TimeManagerTest, EventDelivered) {
   // V starts at 0 (V_rest), input 0.5 -> V = 0.5 (below theta=1.0).
   // But it may have fired if there were subsequent events. Just check V
   // changed. Since 0.5 < 1.0, it shouldn't fire.
-  EXPECT_NEAR(pool_.V(0), 0.5f, 1e-4f);
+  EXPECT_NEAR(pool_.V(0), 0.5F, 1e-4F);
 }
 
 TEST_F(TimeManagerTest, SpikeGeneratesNewEvents) {
   EventQueue queue;
-  TimeManager tm(0.5f);
+  TimeManager tm(0.5F);
 
   // Push event that makes neuron 0 fire (value >= theta).
   queue.Push(
-      {.target_id = 0, .source_id = 1, .arrival_time = 0.1f, .value = 1.5f});
+      {.target_id = 0, .source_id = 1, .arrival_time = 0.1F, .value = 1.5F});
 
   auto fired = tm.Tick(queue, pool_, synapses_);
 
@@ -189,11 +189,11 @@ TEST_F(TimeManagerTest, SpikeGeneratesNewEvents) {
 
 TEST_F(TimeManagerTest, ChainPropagation) {
   EventQueue queue;
-  TimeManager tm(0.5f);
+  TimeManager tm(0.5F);
 
   // Make neuron 0 fire by injecting strong input.
   queue.Push(
-      {.target_id = 0, .source_id = -1, .arrival_time = 0.1f, .value = 1.5f});
+      {.target_id = 0, .source_id = -1, .arrival_time = 0.1F, .value = 1.5F});
 
   // Run enough ticks for events to propagate through the network.
   int total_spikes = 0;
@@ -205,7 +205,7 @@ TEST_F(TimeManagerTest, ChainPropagation) {
   // At least neuron 0 should have fired.
   EXPECT_GE(total_spikes, 1);
   // Time should have advanced by 20 * 0.5 = 10.0 ms.
-  EXPECT_FLOAT_EQ(tm.time(), 10.0f);
+  EXPECT_FLOAT_EQ(tm.time(), 10.0F);
 }
 
 }  // namespace

@@ -15,11 +15,11 @@
 namespace senna::plasticity {
 
 struct StructuralConfig {
-  float w_min_prune = 0.001f;   // prune if |w| < w_min_prune
+  float w_min_prune = 0.001F;   // prune if |w| < w_min_prune
   int interval_ticks = 10000;   // how often to run
-  float sprout_radius = 2.0f;   // search radius for new presynaptic partners
-  float sprout_weight = 0.01f;  // initial weight for new synapses
-  float quiet_fraction = 0.5f;  // threshold: r_avg < target * quiet_fraction
+  float sprout_radius = 2.0F;   // search radius for new presynaptic partners
+  float sprout_weight = 0.01F;  // initial weight for new synapses
+  float quiet_fraction = 0.5F;  // threshold: r_avg < target * quiet_fraction
 };
 
 // Stateless structural plasticity utilities.

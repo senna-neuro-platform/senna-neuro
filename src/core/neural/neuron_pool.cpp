@@ -14,9 +14,9 @@ NeuronPool::NeuronPool(const spatial::Lattice& lattice, const LIFParams& params,
       V_(size_, params.V_rest),
       theta_bufs_{std::vector<float>(size_, params.theta_base),
                   std::vector<float>(size_, params.theta_base)},
-      t_last_(size_, 0.0f),
+      t_last_(size_, 0.0F),
       t_spike_(size_, -params.t_ref),  // allow immediate firing at t=0
-      r_avg_(size_, 0.0f),
+      r_avg_(size_, 0.0F),
       type_(size_) {
   // Assign E/I types randomly with the given ratio.
   std::mt19937_64 rng(seed);
@@ -30,11 +30,13 @@ NeuronPool::NeuronPool(const spatial::Lattice& lattice, const LIFParams& params,
 
 bool NeuronPool::ReceiveInput(int id, float t_now, float input) {
   // Refractory - ignore input entirely.
-  if (IsRefractory(id, t_now)) return false;
+  if (IsRefractory(id, t_now)) {
+    return false;
+  }
 
   // Lazy exponential decay: V(t) = V_rest + (V_old - V_rest) * exp(-dt/tau_m)
   float dt = t_now - t_last_[id];
-  if (dt > 0.0f) {
+  if (dt > 0.0F) {
     float decay = std::exp(-dt / params_.tau_m);
     V_[id] = params_.V_rest + (V_[id] - params_.V_rest) * decay;
   }
@@ -57,15 +59,18 @@ void NeuronPool::UpdateAverages(const std::vector<int32_t>& fired,
                                 float alpha) {
   std::unordered_set<int32_t> fired_set(fired.begin(), fired.end());
   for (int i = 0; i < size_; ++i) {
-    float spike = fired_set.count(i) ? 1.0f : 0.0f;
-    r_avg_[i] = alpha * r_avg_[i] + (1.0f - alpha) * spike;
+    float spike = fired_set.contains(i) ? 1.0F : 0.0F;
+    r_avg_[i] = alpha * r_avg_[i] + (1.0F - alpha) * spike;
   }
 }
 
 void NeuronPool::ApplyThetaBuffer(const std::vector<float>& new_theta) {
-  if (static_cast<int>(new_theta.size()) != size_) return;
+  if (static_cast<int>(new_theta.size()) != size_) {
+    return;
+  }
   int inactive = 1 - theta_active_idx_.load(std::memory_order_acquire);
-  theta_bufs_[inactive] = new_theta;
+  auto inactive_index = static_cast<size_t>(inactive);
+  theta_bufs_.at(inactive_index) = new_theta;
   theta_active_idx_.store(inactive, std::memory_order_release);
 }
 

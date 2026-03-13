@@ -41,23 +41,21 @@ bool TryConnect(const char* host, const char* port) {
 }  // namespace
 
 int main() {
-  const char* host = std::getenv("SENNA_CORE_HOST");
-  const char* port = std::getenv("SENNA_CORE_PORT");
-  if (host == nullptr) {
-    host = "senna-core";
-  }
-  if (port == nullptr) {
-    port = "50051";
-  }
+  const char* host_env =
+      std::getenv("SENNA_CORE_HOST");  // NOLINT(concurrency-mt-unsafe)
+  const char* port_env =
+      std::getenv("SENNA_CORE_PORT");  // NOLINT(concurrency-mt-unsafe)
+  std::string host = host_env != nullptr ? host_env : "senna-core";
+  std::string port = port_env != nullptr ? port_env : "50051";
 
   const int max_attempts = 30;
   for (int attempt = 1; attempt <= max_attempts; ++attempt) {
-    if (TryConnect(host, port)) {
-      std::cout << "connected" << std::endl;
+    if (TryConnect(host.c_str(), port.c_str())) {
+      std::cout << "connected\n";
       break;
     }
     std::cout << "waiting for senna-core (" << attempt << "/" << max_attempts
-              << ")" << std::endl;
+              << ")\n";
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 

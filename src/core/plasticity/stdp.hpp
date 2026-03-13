@@ -7,11 +7,11 @@
 namespace senna::plasticity {
 
 struct STDPParams {
-  float A_plus = 0.01f;
-  float A_minus = 0.012f;
-  float tau_plus = 20.0f;
-  float tau_minus = 20.0f;
-  float w_max = 1.0f;
+  float A_plus = 0.01F;
+  float A_minus = 0.012F;
+  float tau_plus = 20.0F;
+  float tau_minus = 20.0F;
+  float w_max = 1.0F;
 };
 
 // Pair-based STDP updater (stateless).

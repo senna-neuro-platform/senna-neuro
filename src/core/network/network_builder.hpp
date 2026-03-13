@@ -25,17 +25,17 @@ struct NetworkConfig {
   int height = 28;
   int depth = 20;
   double density = 0.7;
-  float neighbor_radius = 2.0f;
+  float neighbor_radius = 2.0F;
   double excitatory_ratio = 0.8;
   int num_outputs = 10;
-  float dt = 0.5f;
+  float dt = 0.5F;
   uint64_t seed = 42;
   neural::LIFParams lif_params{};
   synaptic::SynapseParams synapse_params{};
   plasticity::HomeostasisConfig homeostasis{};
   plasticity::StructuralConfig structural{};
   encoding::RateEncoderParams encoder_params{};
-  float decoder_window_ms = 50.0f;
+  float decoder_window_ms = 50.0F;
   plasticity::STDPParams stdp_params{};
 };
 

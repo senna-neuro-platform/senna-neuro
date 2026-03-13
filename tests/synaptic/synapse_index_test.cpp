@@ -7,7 +7,7 @@ namespace {
 
 TEST(SynapseIndexTest, DelaysFollowDistance) {
   spatial::Lattice lattice(3, 3, 1, 1.0, 42);
-  spatial::NeighborIndex neighbors(lattice, 1.5f, 1);
+  spatial::NeighborIndex neighbors(lattice, 1.5F, 1);
   neural::NeuronPool pool(lattice, neural::kDefaultLIF, 1.0, 123);
 
   SynapseIndex idx(lattice, neighbors, pool);
@@ -20,12 +20,12 @@ TEST(SynapseIndexTest, DelaysFollowDistance) {
   float dy = pre.y - post.y;
   float dz = pre.z - post.z;
   float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
-  EXPECT_NEAR(syn.delay, dist * kDefaultSynapseParams.c_base, 1e-5f);
+  EXPECT_NEAR(syn.delay, dist * kDefaultSynapseParams.c_base, 1e-5F);
 }
 
 TEST(SynapseIndexTest, WeightWithinRangeAndSignMatchesType) {
   spatial::Lattice lattice(3, 3, 1, 1.0, 42);
-  spatial::NeighborIndex neighbors(lattice, 1.5f, 1);
+  spatial::NeighborIndex neighbors(lattice, 1.5F, 1);
 
   // All inhibitory to test sign.
   neural::NeuronPool pool(lattice, neural::kDefaultLIF, 0.0, 321);
@@ -35,18 +35,18 @@ TEST(SynapseIndexTest, WeightWithinRangeAndSignMatchesType) {
     const auto& syn = idx.Get(i);
     EXPECT_LE(syn.weight, kDefaultSynapseParams.w_max);
     EXPECT_GE(syn.weight, kDefaultSynapseParams.w_min);
-    EXPECT_LT(syn.sign, 0.0f);
+    EXPECT_LT(syn.sign, 0.0F);
   }
 }
 
 TEST(SynapseIndexTest, WtaConnectionsAddedWithCorrectParams) {
   spatial::Lattice lattice(3, 3, 1, 1.0, 42);
-  spatial::NeighborIndex neighbors(lattice, 1.5f, 1);
+  spatial::NeighborIndex neighbors(lattice, 1.5F, 1);
   neural::NeuronPool pool(lattice, neural::kDefaultLIF, 1.0, 123);
 
   std::vector<int32_t> outputs = {0, 1, 2};
   SynapseParams params = kDefaultSynapseParams;
-  params.w_wta = -3.0f;
+  params.w_wta = -3.0F;
   SynapseIndex idx(lattice, neighbors, pool, outputs, params, 7);
 
   EXPECT_EQ(idx.wta_count(),
@@ -55,9 +55,9 @@ TEST(SynapseIndexTest, WtaConnectionsAddedWithCorrectParams) {
   for (int32_t i = idx.synapse_count() - idx.wta_count();
        i < idx.synapse_count(); ++i) {
     const auto& syn = idx.Get(i);
-    EXPECT_EQ(syn.delay, 0.0f);
+    EXPECT_EQ(syn.delay, 0.0F);
     EXPECT_FLOAT_EQ(syn.weight, std::abs(params.w_wta));
-    EXPECT_LT(syn.sign, 0.0f);
+    EXPECT_LT(syn.sign, 0.0F);
   }
 }
 

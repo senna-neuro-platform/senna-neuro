@@ -25,7 +25,7 @@ namespace senna::temporal {
 //   6. Advance time by dt
 class TimeManager {
  public:
-  explicit TimeManager(float dt = 0.5f, plasticity::HomeostasisConfig hcfg = {},
+  explicit TimeManager(float dt = 0.5F, plasticity::HomeostasisConfig hcfg = {},
                        uint64_t seed = 42);
   ~TimeManager();
 
@@ -47,7 +47,7 @@ class TimeManager {
  private:
   void homeostasis_worker();
 
-  float t_now_ = 0.0f;
+  float t_now_ = 0.0F;
   float dt_;
   plasticity::Homeostasis homeostasis_;
   plasticity::HomeostasisConfig hcfg_;

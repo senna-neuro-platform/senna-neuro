@@ -14,7 +14,7 @@ struct RunStats {
   int total_spikes = 0;
   int active_neurons = 0;  // number of distinct neurons that fired
   int ticks = 0;
-  float duration_ms = 0.0f;
+  float duration_ms = 0.0F;
 };
 
 // Main computational loop: runs the network for a given duration.

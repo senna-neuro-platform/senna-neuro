@@ -16,23 +16,32 @@ STDPWorker::STDPWorker(
 STDPWorker::~STDPWorker() { Stop(); }
 
 void STDPWorker::Start() {
-  if (running_.exchange(true)) return;
+  if (running_.exchange(true)) {
+    return;
+  }
   worker_ = std::thread(&STDPWorker::Run, this);
 }
 
 void STDPWorker::Stop() {
-  if (!running_.exchange(false)) return;
-  Enqueue(-1, 0.0f);  // wake up
-  if (worker_.joinable()) worker_.join();
+  if (!running_.exchange(false)) {
+    return;
+  }
+  Enqueue(-1, 0.0F);  // wake up
+  if (worker_.joinable()) {
+    worker_.join();
+  }
 }
 
 void STDPWorker::Enqueue(int neuron_id, float t_spike) {
   Node* node = new Node{{neuron_id, t_spike}, nullptr};
   Node* old = pending_.load(std::memory_order_relaxed);
-  do {
+  while (true) {
     node->next = old;
-  } while (!pending_.compare_exchange_weak(old, node, std::memory_order_release,
-                                           std::memory_order_relaxed));
+    if (pending_.compare_exchange_weak(old, node, std::memory_order_release,
+                                       std::memory_order_relaxed)) {
+      break;
+    }
+  }
 }
 
 void STDPWorker::DrainPending(std::vector<Spike>& out) {
@@ -51,14 +60,18 @@ void STDPWorker::Run() {
   while (true) {
     batch.clear();
     DrainPending(batch);
-    if (!running_.load() && batch.empty()) break;
+    if (!running_.load() && batch.empty()) {
+      break;
+    }
     auto syn_ptr = syn_store_.load();
     if (!syn_ptr) {
       std::this_thread::sleep_for(std::chrono::milliseconds(0));
       continue;
     }
     for (const auto& s : batch) {
-      if (s.id < 0) continue;
+      if (s.id < 0) {
+        continue;
+      }
       STDP::OnPreSpike(s.id, s.t, *syn_ptr, pool_, syn_params_, params_);
       STDP::OnPostSpike(s.id, s.t, *syn_ptr, pool_, syn_params_, params_);
     }

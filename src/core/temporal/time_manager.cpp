@@ -36,7 +36,7 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
 
   // 2. Deliver events to target neurons in parallel and collect fired flags.
   std::vector<uint8_t> fired_flags(pool.size(), 0);
-  const unsigned workers = std::max(1u, std::thread::hardware_concurrency());
+  const unsigned workers = std::max(1U, std::thread::hardware_concurrency());
   const size_t chunk = active_targets.empty()
                            ? 0
                            : (active_targets.size() + workers - 1) / workers;
@@ -45,7 +45,9 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
   threads.reserve(workers);
   for (unsigned w = 0; w < workers; ++w) {
     size_t start = w * chunk;
-    if (start >= active_targets.size()) break;
+    if (start >= active_targets.size()) {
+      break;
+    }
     size_t end = std::min(active_targets.size(), start + chunk);
     threads.emplace_back([&, start, end]() {
       for (size_t idx = start; idx < end; ++idx) {
@@ -60,12 +62,16 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
       }
     });
   }
-  for (auto& t : threads) t.join();
+  for (auto& t : threads) {
+    t.join();
+  }
 
   std::vector<int32_t> fired;
   fired.reserve(active_targets.size());
   for (int neuron_id : active_targets) {
-    if (fired_flags[neuron_id]) fired.push_back(neuron_id);
+    if (fired_flags[neuron_id] != 0) {
+      fired.push_back(neuron_id);
+    }
   }
 
   // 3. For each spike, generate new events via outgoing synapses.
@@ -90,9 +96,10 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
 
   // 5. Update smoothed firing rates; schedule background homeostasis.
   pool.UpdateAverages(fired, hcfg_.alpha);
-  float global_activity =
-      pool.size() > 0 ? static_cast<float>(fired.size()) / pool.size() : 0.0f;
-  if (pool_ && hcfg_.interval_ticks > 0) {
+  float global_activity = pool.size() > 0 ? static_cast<float>(fired.size()) /
+                                                static_cast<float>(pool.size())
+                                          : 0.0F;
+  if (pool_ != nullptr && hcfg_.interval_ticks > 0) {
     ++ticks_since_homeo_;
     if (ticks_since_homeo_ >= hcfg_.interval_ticks) {
       ticks_since_homeo_ = 0;
@@ -127,11 +134,15 @@ void TimeManager::homeostasis_worker() {
     {
       std::unique_lock<std::mutex> lk(homeo_mutex_);
       homeo_cv_.wait(lk, [&] { return homeo_stop_ || !homeo_queue_.empty(); });
-      if (homeo_stop_) break;
+      if (homeo_stop_) {
+        break;
+      }
       task = std::move(homeo_queue_.front());
       homeo_queue_.pop_front();
     }
-    if (!pool_) continue;
+    if (pool_ == nullptr) {
+      continue;
+    }
     auto theta_new = homeostasis_.ComputeTheta(
         task.theta_snapshot, task.r_avg_snapshot, dt_, task.global_activity);
     pool_->ApplyThetaBuffer(theta_new);

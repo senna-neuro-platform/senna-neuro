@@ -21,20 +21,20 @@ class NeighborIndexTest : public ::testing::Test {
 };
 
 TEST_F(NeighborIndexTest, AllNeighborsWithinRadius) {
-  constexpr float R = 2.0f;
+  constexpr float R = 2.0F;
   NeighborIndex idx(lattice_, R, 1);
 
   for (NeuronId id = 0; id < lattice_.neuron_count(); ++id) {
     for (auto [nid, dist] : idx.Neighbors(id)) {
-      EXPECT_LE(dist, R + 1e-5f);
-      EXPECT_GT(dist, 0.0f);
+      EXPECT_LE(dist, R + 1e-5F);
+      EXPECT_GT(dist, 0.0F);
       EXPECT_NE(nid, id);
     }
   }
 }
 
 TEST_F(NeighborIndexTest, NeighborsAreSymmetric) {
-  constexpr float R = 2.0f;
+  constexpr float R = 2.0F;
   NeighborIndex idx(lattice_, R, 1);
 
   // If B is a neighbor of A, then A must be a neighbor of B.
@@ -44,7 +44,7 @@ TEST_F(NeighborIndexTest, NeighborsAreSymmetric) {
       for (auto [c, dist_ba] : idx.Neighbors(b)) {
         if (c == a) {
           found = true;
-          EXPECT_NEAR(dist_ab, dist_ba, 1e-5f);
+          EXPECT_NEAR(dist_ab, dist_ba, 1e-5F);
           break;
         }
       }
@@ -55,7 +55,7 @@ TEST_F(NeighborIndexTest, NeighborsAreSymmetric) {
 }
 
 TEST_F(NeighborIndexTest, CenterNeuronHasMoreNeighborsThanCorner) {
-  constexpr float R = 2.0f;
+  constexpr float R = 2.0F;
   NeighborIndex idx(lattice_, R, 1);
 
   // Find a neuron near center (5,5,5).
@@ -84,7 +84,7 @@ TEST_F(NeighborIndexTest, CenterNeuronHasMoreNeighborsThanCorner) {
 }
 
 TEST_F(NeighborIndexTest, ExpectedNeighborCountForR2) {
-  constexpr float R = 2.0f;
+  constexpr float R = 2.0F;
   NeighborIndex idx(lattice_, R, 1);
 
   // For a neuron in the center: sphere of radius 2 has volume 4/3*pi*8 ~ 33.5
@@ -108,7 +108,7 @@ TEST_F(NeighborIndexTest, ExpectedNeighborCountForR2) {
 }
 
 TEST_F(NeighborIndexTest, NoSelfInNeighbors) {
-  constexpr float R = 3.0f;
+  constexpr float R = 3.0F;
   NeighborIndex idx(lattice_, R, 1);
 
   for (NeuronId id = 0; id < lattice_.neuron_count(); ++id) {
@@ -119,7 +119,7 @@ TEST_F(NeighborIndexTest, NoSelfInNeighbors) {
 }
 
 TEST_F(NeighborIndexTest, DistancesAreCorrect) {
-  constexpr float R = 2.0f;
+  constexpr float R = 2.0F;
   NeighborIndex idx(lattice_, R, 1);
 
   for (NeuronId id = 0; id < lattice_.neuron_count(); ++id) {
@@ -130,13 +130,13 @@ TEST_F(NeighborIndexTest, DistancesAreCorrect) {
       float dy = static_cast<float>(ny - cy);
       float dz = static_cast<float>(nz - cz);
       float expected = std::sqrt(dx * dx + dy * dy + dz * dz);
-      EXPECT_NEAR(dist, expected, 1e-5f);
+      EXPECT_NEAR(dist, expected, 1e-5F);
     }
   }
 }
 
 TEST_F(NeighborIndexTest, ParallelAndSequentialGiveSameResult) {
-  constexpr float R = 2.0f;
+  constexpr float R = 2.0F;
   NeighborIndex seq(lattice_, R, 1);
   NeighborIndex par(lattice_, R, 4);
 
@@ -156,7 +156,7 @@ TEST_F(NeighborIndexTest, ParallelAndSequentialGiveSameResult) {
 }
 
 TEST_F(NeighborIndexTest, ZeroRadiusGivesNoNeighbors) {
-  NeighborIndex idx(lattice_, 0.0f, 1);
+  NeighborIndex idx(lattice_, 0.0F, 1);
   for (NeuronId id = 0; id < lattice_.neuron_count(); ++id) {
     EXPECT_EQ(idx.NeighborCount(id), 0);
   }
@@ -165,14 +165,14 @@ TEST_F(NeighborIndexTest, ZeroRadiusGivesNoNeighbors) {
 TEST_F(NeighborIndexTest, EmptyLatticeWorks) {
   Lattice empty(5, 5, 5, 0.0, 42);
   EXPECT_EQ(empty.neuron_count(), 0);
-  NeighborIndex idx(empty, 2.0f, 1);
+  NeighborIndex idx(empty, 2.0F, 1);
   EXPECT_EQ(idx.total_entries(), 0u);
 }
 
 TEST_F(NeighborIndexTest, FullDensityLattice) {
   Lattice full(5, 5, 5, 1.0, 42);
   EXPECT_EQ(full.neuron_count(), 125);
-  NeighborIndex idx(full, 1.0f, 2);
+  NeighborIndex idx(full, 1.0F, 2);
 
   // Center neuron (2,2,2) should have 6 neighbors at distance 1.0 (face
   // neighbors).

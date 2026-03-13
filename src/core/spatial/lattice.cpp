@@ -9,7 +9,9 @@ Lattice::Lattice(int width, int height, int depth, double density,
     : width_(width),
       height_(height),
       depth_(depth),
-      grid_(width * height * depth, kEmptyVoxel) {
+      grid_(static_cast<size_t>(width) * static_cast<size_t>(height) *
+                static_cast<size_t>(depth),
+            kEmptyVoxel) {
   std::mt19937_64 rng(seed);
   std::uniform_real_distribution<double> dist(0.0, 1.0);
 
@@ -31,7 +33,7 @@ NeuronId Lattice::NeuronAt(int x, int y, int z) const {
 NeuronCoords Lattice::CoordsOf(NeuronId id) const { return neurons_[id]; }
 
 void Lattice::PlaceNeuron(int x, int y, int z) {
-  NeuronId id = static_cast<NeuronId>(neurons_.size());
+  auto id = static_cast<NeuronId>(neurons_.size());
   neurons_.push_back({x, y, z});
   grid_[VoxelIndex(x, y, z)] = id;
 }

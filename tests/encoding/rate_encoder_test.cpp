@@ -21,25 +21,25 @@ class RateEncoderTest : public ::testing::Test {
   // Helper: drain all events and count them.
   int DrainAll(temporal::EventQueue& queue) {
     std::vector<temporal::SpikeEvent> out;
-    queue.DrainUntil(1e6f, out);
+    queue.DrainUntil(1e6F, out);
     return static_cast<int>(out.size());
   }
 
   int EncodeAndCount(const std::vector<uint8_t>& image,
                      uint64_t seed_offset = 0) {
-    RateEncoder enc({}, 0.5f, kSeed + seed_offset);
+    RateEncoder enc({}, 0.5F, kSeed + seed_offset);
     temporal::EventQueue queue;
-    enc.Encode(image, lattice_, queue, 0.0f);
+    enc.Encode(image, lattice_, queue, 0.0F);
     return DrainAll(queue);
   }
 };
 
 TEST_F(RateEncoderTest, WhitePixelHighRate) {
-  RateEncoder enc({}, 0.5f, kSeed);
+  RateEncoder enc({}, 0.5F, kSeed);
   temporal::EventQueue queue;
 
   // White pixel (255) for 50ms at 100Hz -> expect ~5 spikes.
-  int count = enc.EncodeSinglePixel(0, 0, 255, lattice_, queue, 0.0f);
+  int count = enc.EncodeSinglePixel(0, 0, 255, lattice_, queue, 0.0F);
 
   // With Poisson rate 100Hz, 50ms: expected ~5, allow 2-8.
   EXPECT_GE(count, 2);
@@ -48,10 +48,10 @@ TEST_F(RateEncoderTest, WhitePixelHighRate) {
 }
 
 TEST_F(RateEncoderTest, BlackPixelNoSpikes) {
-  RateEncoder enc({}, 0.5f, kSeed);
+  RateEncoder enc({}, 0.5F, kSeed);
   temporal::EventQueue queue;
 
-  int count = enc.EncodeSinglePixel(0, 0, 0, lattice_, queue, 0.0f);
+  int count = enc.EncodeSinglePixel(0, 0, 0, lattice_, queue, 0.0F);
   EXPECT_EQ(count, 0);
   EXPECT_TRUE(queue.empty());
 }
@@ -61,14 +61,14 @@ TEST_F(RateEncoderTest, MediumPixelModerateRate) {
   int total = 0;
   int trials = 20;
   for (int i = 0; i < trials; ++i) {
-    RateEncoder enc({}, 0.5f, kSeed + i);
+    RateEncoder enc({}, 0.5F, kSeed + i);
     temporal::EventQueue queue;
-    total += enc.EncodeSinglePixel(0, 0, 128, lattice_, queue, 0.0f);
+    total += enc.EncodeSinglePixel(0, 0, 128, lattice_, queue, 0.0F);
   }
   float avg = static_cast<float>(total) / trials;
   // 128/255 * 100Hz * 50ms/1000 = ~2.5 spikes expected.
-  EXPECT_GE(avg, 1.0f);
-  EXPECT_LE(avg, 4.0f);
+  EXPECT_GE(avg, 1.0F);
+  EXPECT_LE(avg, 4.0F);
 }
 
 TEST_F(RateEncoderTest, BrighterImageMoreSpikes) {
@@ -76,13 +76,13 @@ TEST_F(RateEncoderTest, BrighterImageMoreSpikes) {
   std::vector<uint8_t> bright(784, 255);
   std::vector<uint8_t> dark(784, 64);
 
-  RateEncoder enc1({}, 0.5f, kSeed);
+  RateEncoder enc1({}, 0.5F, kSeed);
   temporal::EventQueue q1;
-  int bright_count = enc1.Encode(bright, lattice_, q1, 0.0f);
+  int bright_count = enc1.Encode(bright, lattice_, q1, 0.0F);
 
-  RateEncoder enc2({}, 0.5f, kSeed);
+  RateEncoder enc2({}, 0.5F, kSeed);
   temporal::EventQueue q2;
-  int dark_count = enc2.Encode(dark, lattice_, q2, 0.0f);
+  int dark_count = enc2.Encode(dark, lattice_, q2, 0.0F);
 
   EXPECT_GT(bright_count, dark_count);
 }
@@ -93,7 +93,7 @@ TEST_F(RateEncoderTest, TotalSpikesProportionalToBrightness) {
   std::vector<uint8_t> img_b(784, 50);
 
   // Average over multiple seeds to smooth randomness.
-  float avg_a = 0.0f, avg_b = 0.0f;
+  float avg_a = 0.0F, avg_b = 0.0F;
   int trials = 8;
   for (int i = 0; i < trials; ++i) {
     avg_a += EncodeAndCount(img_a, i);
@@ -103,7 +103,7 @@ TEST_F(RateEncoderTest, TotalSpikesProportionalToBrightness) {
   avg_b /= trials;
 
   // Expect roughly 4x spikes; allow slack due to Poisson variance.
-  EXPECT_GT(avg_a, 2.5f * avg_b);
+  EXPECT_GT(avg_a, 2.5F * avg_b);
 }
 
 TEST_F(RateEncoderTest, DifferentImagesProduceDifferentTargets) {
@@ -114,17 +114,17 @@ TEST_F(RateEncoderTest, DifferentImagesProduceDifferentTargets) {
   img_a[0] = 255;             // (0,0)
   img_b[27 * 28 + 27] = 255;  // (27,27)
 
-  RateEncoder enc_a({}, 0.5f, kSeed);
-  RateEncoder enc_b({}, 0.5f,
+  RateEncoder enc_a({}, 0.5F, kSeed);
+  RateEncoder enc_b({}, 0.5F,
                     kSeed);  // same seed; RNG path differs by location
   temporal::EventQueue q1, q2;
 
-  enc_a.Encode(img_a, lattice_, q1, 0.0f);
-  enc_b.Encode(img_b, lattice_, q2, 0.0f);
+  enc_a.Encode(img_a, lattice_, q1, 0.0F);
+  enc_b.Encode(img_b, lattice_, q2, 0.0F);
 
   std::vector<temporal::SpikeEvent> e1, e2;
-  q1.DrainUntil(1e6f, e1);
-  q2.DrainUntil(1e6f, e2);
+  q1.DrainUntil(1e6F, e1);
+  q2.DrainUntil(1e6F, e2);
 
   // They may have different counts; require at least one differing target id.
   bool targets_differ = false;
@@ -143,12 +143,12 @@ TEST_F(RateEncoderTest, DifferentImagesProduceDifferentTargets) {
 }
 
 TEST_F(RateEncoderTest, HigherIntensityYieldsMoreSpikesSinglePixel) {
-  RateEncoder enc({}, 0.5f, kSeed);
+  RateEncoder enc({}, 0.5F, kSeed);
   temporal::EventQueue q1, q2;
-  int c1 = enc.EncodeSinglePixel(0, 0, 200, lattice_, q1, 0.0f);
+  int c1 = enc.EncodeSinglePixel(0, 0, 200, lattice_, q1, 0.0F);
   // Rerun with a fresh encoder/seed to avoid RNG depletion.
-  RateEncoder enc2({}, 0.5f, kSeed);
-  int c2 = enc2.EncodeSinglePixel(0, 0, 50, lattice_, q2, 0.0f);
+  RateEncoder enc2({}, 0.5F, kSeed);
+  int c2 = enc2.EncodeSinglePixel(0, 0, 50, lattice_, q2, 0.0F);
   EXPECT_GT(c1, c2);
 }
 
@@ -159,9 +159,9 @@ TEST_F(RateEncoderTest, FullImageEncode) {
     image[i] = 200;
   }
 
-  RateEncoder enc({}, 0.5f, kSeed);
+  RateEncoder enc({}, 0.5F, kSeed);
   temporal::EventQueue queue;
-  int count = enc.Encode(image, lattice_, queue, 0.0f);
+  int count = enc.Encode(image, lattice_, queue, 0.0F);
 
   // Half pixels at 200, half at 0. Should produce spikes.
   EXPECT_GT(count, 0);
@@ -172,20 +172,20 @@ TEST_F(RateEncoderTest, Determinism) {
   std::vector<uint8_t> image(784);
   for (int i = 0; i < 784; ++i) image[i] = static_cast<uint8_t>(i % 256);
 
-  RateEncoder enc1({}, 0.5f, kSeed);
+  RateEncoder enc1({}, 0.5F, kSeed);
   temporal::EventQueue q1;
-  int c1 = enc1.Encode(image, lattice_, q1, 0.0f);
+  int c1 = enc1.Encode(image, lattice_, q1, 0.0F);
 
-  RateEncoder enc2({}, 0.5f, kSeed);
+  RateEncoder enc2({}, 0.5F, kSeed);
   temporal::EventQueue q2;
-  int c2 = enc2.Encode(image, lattice_, q2, 0.0f);
+  int c2 = enc2.Encode(image, lattice_, q2, 0.0F);
 
   EXPECT_EQ(c1, c2);
 
   // Drain and compare events.
   std::vector<temporal::SpikeEvent> e1, e2;
-  q1.DrainUntil(1e6f, e1);
-  q2.DrainUntil(1e6f, e2);
+  q1.DrainUntil(1e6F, e1);
+  q2.DrainUntil(1e6F, e2);
 
   ASSERT_EQ(e1.size(), e2.size());
   for (size_t i = 0; i < e1.size(); ++i) {
@@ -197,16 +197,16 @@ TEST_F(RateEncoderTest, Determinism) {
 TEST_F(RateEncoderTest, EventTimesWithinPresentation) {
   std::vector<uint8_t> image(784, 200);
 
-  RateEncoder enc({}, 0.5f, kSeed);
+  RateEncoder enc({}, 0.5F, kSeed);
   temporal::EventQueue queue;
-  enc.Encode(image, lattice_, queue, 10.0f);
+  enc.Encode(image, lattice_, queue, 10.0F);
 
   std::vector<temporal::SpikeEvent> events;
-  queue.DrainUntil(1e6f, events);
+  queue.DrainUntil(1e6F, events);
 
   for (const auto& e : events) {
-    EXPECT_GE(e.arrival_time, 10.0f);
-    EXPECT_LT(e.arrival_time, 60.0f);  // t_start + presentation_ms
+    EXPECT_GE(e.arrival_time, 10.0F);
+    EXPECT_LT(e.arrival_time, 60.0F);  // t_start + presentation_ms
   }
 }
 

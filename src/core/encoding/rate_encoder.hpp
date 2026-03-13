@@ -12,9 +12,9 @@ namespace senna::encoding {
 
 // Parameters for rate coding.
 struct RateEncoderParams {
-  float max_rate = 100.0f;        // Hz (for pixel value 255)
-  float presentation_ms = 50.0f;  // presentation duration (ms)
-  float input_value = 1.5f;       // spike event value injected into neuron
+  float max_rate = 100.0F;        // Hz (for pixel value 255)
+  float presentation_ms = 50.0F;  // presentation duration (ms)
+  float input_value = 1.5F;       // spike event value injected into neuron
 };
 
 inline constexpr RateEncoderParams kDefaultEncoderParams{};
@@ -29,7 +29,7 @@ class RateEncoder {
  public:
   // dt: time step (ms), same as TimeManager dt.
   RateEncoder(const RateEncoderParams& params = kDefaultEncoderParams,
-              float dt = 0.5f, uint64_t seed = 42);
+              float dt = 0.5F, uint64_t seed = 42);
 
   // Encode one image and push spike events into the queue.
   // image: 28x28 = 784 pixel values (row-major, [0..255]).

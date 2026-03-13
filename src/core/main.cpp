@@ -13,9 +13,12 @@
 #include "core/network/network_builder.hpp"
 
 namespace {
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::atomic<bool> g_running{true};
 
-void HandleSignal(int) { g_running.store(false); }
+void HandleSignal(int signo) {  // NOLINT(misc-unused-parameters)
+  g_running.store(false);
+}
 
 int CreateListener(int port) {
   int fd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -36,7 +39,9 @@ int CreateListener(int port) {
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   addr.sin_port = htons(static_cast<uint16_t>(port));
 
-  if (bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  auto* addr_ptr = reinterpret_cast<sockaddr*>(&addr);
+  if (bind(fd, addr_ptr, sizeof(addr)) < 0) {
     std::perror("bind");
     ::close(fd);
     return -1;
@@ -72,8 +77,9 @@ void ServeLoop(int port, bool respond_http) {
 
     sockaddr_in client_addr{};
     socklen_t client_len = sizeof(client_addr);
-    int client_fd = accept(listen_fd, reinterpret_cast<sockaddr*>(&client_addr),
-                           &client_len);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto* client_ptr = reinterpret_cast<sockaddr*>(&client_addr);
+    int client_fd = accept(listen_fd, client_ptr, &client_len);
     if (client_fd < 0) {
       continue;
     }

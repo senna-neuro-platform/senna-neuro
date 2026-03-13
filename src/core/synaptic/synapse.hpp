@@ -20,10 +20,10 @@ struct Synapse {
 
 // Parameters for synapse initialization.
 struct SynapseParams {
-  float w_min = 0.01f;  // minimum initial weight
-  float w_max = 0.1f;   // maximum initial weight
-  float c_base = 1.0f;  // delay = distance * c_base (ms/voxel)
-  float w_wta = -5.0f;  // WTA inhibitory weight for output layer (doc default)
+  float w_min = 0.01F;  // minimum initial weight
+  float w_max = 0.1F;   // maximum initial weight
+  float c_base = 1.0F;  // delay = distance * c_base (ms/voxel)
+  float w_wta = -5.0F;  // WTA inhibitory weight for output layer (doc default)
 };
 
 inline constexpr SynapseParams kDefaultSynapseParams{};

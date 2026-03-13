@@ -23,7 +23,9 @@ SynapseIndex::SynapseIndex(const spatial::Lattice& lattice,
 
     for (const auto& entry : nbrs) {
       int post = entry.id;
-      if (post == pre) continue;
+      if (post == pre) {
+        continue;
+      }
 
       synapses_.push_back({
           .pre_id = pre,
@@ -40,13 +42,15 @@ SynapseIndex::SynapseIndex(const spatial::Lattice& lattice,
   // = 0.
   for (size_t i = 0; i < output_ids.size(); ++i) {
     for (size_t j = 0; j < output_ids.size(); ++j) {
-      if (i == j) continue;
+      if (i == j) {
+        continue;
+      }
       synapses_.push_back({
           .pre_id = output_ids[i],
           .post_id = output_ids[j],
           .weight = std::abs(params.w_wta),
-          .delay = 0.0f,
-          .sign = -1.0f,
+          .delay = 0.0F,
+          .sign = -1.0F,
       });
       ++wta_count_;
     }

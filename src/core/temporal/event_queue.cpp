@@ -7,15 +7,21 @@ namespace senna::temporal {
 void EventQueue::Push(const SpikeEvent& event) {
   Node* node = new Node{event, nullptr};
   Node* old_head = pending_.load(std::memory_order_relaxed);
-  do {
+  while (true) {
     node->next = old_head;
-  } while (!pending_.compare_exchange_weak(
-      old_head, node, std::memory_order_release, std::memory_order_relaxed));
+    if (pending_.compare_exchange_weak(old_head, node,
+                                       std::memory_order_release,
+                                       std::memory_order_relaxed)) {
+      break;
+    }
+  }
   pending_count_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void EventQueue::PushBatch(const std::vector<SpikeEvent>& events) {
-  if (events.empty()) return;
+  if (events.empty()) {
+    return;
+  }
 
   // Build a local LIFO list.
   Node* head = nullptr;
@@ -25,13 +31,19 @@ void EventQueue::PushBatch(const std::vector<SpikeEvent>& events) {
 
   // Attach list to pending stack.
   Node* old_head = pending_.load(std::memory_order_relaxed);
-  do {
+  while (true) {
     // Find tail once per attempt.
     Node* tail = head;
-    while (tail->next != nullptr) tail = tail->next;
+    while (tail->next != nullptr) {
+      tail = tail->next;
+    }
     tail->next = old_head;
-  } while (!pending_.compare_exchange_weak(
-      old_head, head, std::memory_order_release, std::memory_order_relaxed));
+    if (pending_.compare_exchange_weak(old_head, head,
+                                       std::memory_order_release,
+                                       std::memory_order_relaxed)) {
+      break;
+    }
+  }
 
   pending_count_.fetch_add(events.size(), std::memory_order_relaxed);
 }
@@ -68,7 +80,9 @@ int EventQueue::DrainUntil(float t_end, std::vector<SpikeEvent>& out) {
 
 float EventQueue::PeekTime() const {
   DrainPendingToHeap();
-  if (heap_.empty()) return -1.0f;
+  if (heap_.empty()) {
+    return -1.0F;
+  }
   return heap_.top().arrival_time;
 }
 

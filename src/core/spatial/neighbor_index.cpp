@@ -25,7 +25,7 @@ NeighborIndex::NeighborIndex(const Lattice& lattice, float radius,
   // Phase 1: each thread builds a local neighbor list per neuron.
   // We partition neurons across threads.
   if (num_threads == 0) {
-    num_threads = std::max(1u, std::thread::hardware_concurrency());
+    num_threads = std::max(1U, std::thread::hardware_concurrency());
   }
   num_threads = std::min(num_threads, static_cast<unsigned>(n));
 
@@ -46,14 +46,18 @@ NeighborIndex::NeighborIndex(const Lattice& lattice, float radius,
       for (int z = z_lo; z <= z_hi; ++z) {
         for (int y = y_lo; y <= y_hi; ++y) {
           for (int x = x_lo; x <= x_hi; ++x) {
-            if (x == cx && y == cy && z == cz) continue;
+            if (x == cx && y == cy && z == cz) {
+              continue;
+            }
 
             NeuronId nid = lattice.NeuronAt(x, y, z);
-            if (nid == kEmptyVoxel) continue;
+            if (nid == kEmptyVoxel) {
+              continue;
+            }
 
-            float dx = static_cast<float>(x - cx);
-            float dy = static_cast<float>(y - cy);
-            float dz = static_cast<float>(z - cz);
+            auto dx = static_cast<float>(x - cx);
+            auto dy = static_cast<float>(y - cy);
+            auto dz = static_cast<float>(z - cz);
             float dist_sq = dx * dx + dy * dy + dz * dz;
 
             if (dist_sq <= r_sq) {

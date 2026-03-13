@@ -14,7 +14,7 @@ namespace senna::plasticity {
 class StructuralTest : public ::testing::Test {
  protected:
   spatial::Lattice lattice_{3, 3, 1, 1.0, 42};  // full grid
-  spatial::NeighborIndex neighbors_{lattice_, 1.5f, 0};
+  spatial::NeighborIndex neighbors_{lattice_, 1.5F, 0};
   neural::LIFParams lif_{};
 };
 
@@ -27,14 +27,14 @@ TEST_F(StructuralTest, PrunesLowWeightSynapses) {
 
   // Force one synapse to be tiny.
   synaptic::Synapse& s0 = idx.synapses()[0];
-  s0.weight = 0.0001f;
+  s0.weight = 0.0001F;
 
   StructuralConfig cfg;
-  cfg.w_min_prune = 0.001f;
+  cfg.w_min_prune = 0.001F;
   StructuralPlasticity sp(cfg);
 
   auto pruned = sp.Run(lattice_, neighbors_, pool, idx,
-                       /*homeo_target_hz=*/5.0f, syn_params);
+                       /*homeo_target_hz=*/5.0F, syn_params);
   EXPECT_LT(pruned.synapse_count(), idx.synapse_count());
 }
 
@@ -45,7 +45,7 @@ TEST_F(StructuralTest, SproutsForQuietNeurons) {
   synaptic::SynapseIndex idx(lattice_, neighbors_, pool, {}, syn_params, 999);
 
   // Make neuron 0 very quiet.
-  pool.r_avg(0) = 0.0f;
+  pool.r_avg(0) = 0.0F;
   // Remove all incoming to neuron 0 to ensure sprout is needed.
   std::vector<synaptic::Synapse> filtered;
   for (auto s : idx.synapses()) {
@@ -55,12 +55,12 @@ TEST_F(StructuralTest, SproutsForQuietNeurons) {
                                   idx.wta_count());
 
   StructuralConfig cfg;
-  cfg.quiet_fraction = 0.9f;
-  cfg.sprout_weight = 0.02f;
+  cfg.quiet_fraction = 0.9F;
+  cfg.sprout_weight = 0.02F;
   StructuralPlasticity sp(cfg);
 
   auto updated = sp.Run(lattice_, neighbors_, pool, without0,
-                        /*homeo_target_hz=*/5.0f, syn_params);
+                        /*homeo_target_hz=*/5.0F, syn_params);
 
   // Expect at least one incoming synapse to neuron 0 after sprout.
   bool has_incoming0 = false;
@@ -83,9 +83,9 @@ TEST_F(StructuralTest, WorkerPrunesInBackground) {
   int initial = base_idx->synapse_count();
   // Force a non-WTA synapse to be tiny so it gets pruned.
   for (auto& s : base_idx->synapses()) {
-    bool is_wta = (s.delay == 0.0f && s.sign < 0.0f && s.pre_id != s.post_id);
+    bool is_wta = (s.delay == 0.0F && s.sign < 0.0F && s.pre_id != s.post_id);
     if (!is_wta) {
-      s.weight = 0.00001f;
+      s.weight = 0.00001F;
       break;
     }
   }
@@ -94,13 +94,13 @@ TEST_F(StructuralTest, WorkerPrunesInBackground) {
   store.store(base_idx);
 
   StructuralConfig cfg;
-  cfg.w_min_prune = 0.001f;
+  cfg.w_min_prune = 0.001F;
   cfg.interval_ticks = 1;
-  cfg.sprout_radius = 0.0f;  // disable sprouting
-  cfg.quiet_fraction = 0.0f;
+  cfg.sprout_radius = 0.0F;  // disable sprouting
+  cfg.quiet_fraction = 0.0F;
 
   StructuralWorker worker(lattice_, neighbors_, pool, store, syn_params, cfg,
-                          /*homeo_target_hz=*/5.0f);
+                          /*homeo_target_hz=*/5.0F);
   worker.Start();
   worker.Trigger();
   std::this_thread::sleep_for(std::chrono::milliseconds(5));

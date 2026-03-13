@@ -7,7 +7,9 @@ namespace senna::config {
 namespace {
 template <typename T>
 T GetOrDefault(const YAML::Node& node, const char* key, const T& def) {
-  if (!node || !node[key]) return def;
+  if (!node || !node[key]) {
+    return def;
+  }
   try {
     return node[key].as<T>();
   } catch (...) {

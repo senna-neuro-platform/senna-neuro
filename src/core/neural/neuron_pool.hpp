@@ -63,9 +63,9 @@ class NeuronPool {
 
   int size() const { return size_; }
 
-  // Returns +1.0f for excitatory, -1.0f for inhibitory.
+  // Returns +1.0F for excitatory, -1.0F for inhibitory.
   float sign(int id) const {
-    return type_[id] == NeuronType::Excitatory ? 1.0f : -1.0f;
+    return type_[id] == NeuronType::Excitatory ? 1.0F : -1.0F;
   }
 
   // Is the neuron in refractory period at time t?

@@ -10,7 +10,7 @@ namespace {
 
 struct WorkerNet {
   spatial::Lattice lattice{2, 1, 1, 1.0, 7};
-  spatial::NeighborIndex neighbors{lattice, 2.0f, 1};
+  spatial::NeighborIndex neighbors{lattice, 2.0F, 1};
   neural::NeuronPool pool{lattice, neural::kDefaultLIF, 1.0, 99};
   std::shared_ptr<synaptic::SynapseIndex> syn_index =
       std::make_shared<synaptic::SynapseIndex>(lattice, neighbors, pool);
@@ -28,10 +28,10 @@ TEST(STDPWorkerTest, ProcessesEnqueuedSpikes) {
   worker.Start();
 
   // Pre then post; worker should process both and potentiate.
-  net.pool.Fire(0, 0.0f);
-  net.pool.Fire(1, 5.0f);
-  worker.Enqueue(0, 0.0f);
-  worker.Enqueue(1, 5.0f);
+  net.pool.Fire(0, 0.0F);
+  net.pool.Fire(1, 5.0F);
+  worker.Enqueue(0, 0.0F);
+  worker.Enqueue(1, 5.0F);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
   worker.Stop();
