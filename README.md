@@ -147,7 +147,7 @@ senna-neuro/
 
 ## Data
 
-- Download MNIST once: `make install-mnist` (stores in `data/MNIST/raw`).
+Download MNIST once: `make install-mnist` (stores in `data/MNIST/raw`).
 
 ## License
 
