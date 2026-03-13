@@ -139,11 +139,12 @@ fmt: ## Auto-format sources in-place
 		echo "Formatted $$(echo $(FORMAT_FILES_ALL) | wc -w) files."; \
 	fi
 
-tidy: $(CONFIGURED_DEBUG) ## Run clang-tidy
-	@if [ -z "$(TIDY_FILES)" ]; then \
-		echo "No C/C++ source files found."; \
+tidy: $(CONFIGURED_DEBUG)
+	$(eval FILES_TO_TIDY := $(shell find $(SRC_DIRS) -type f -name '*.cpp'))
+	@if [ -z "$(FILES_TO_TIDY)" ]; then \
+		echo "No files found"; \
 	else \
-		$(CLANG_TIDY) -p $(BUILD_DEBUG) $(TIDY_FILES); \
+		echo $(FILES_TO_TIDY) | xargs -n 1 -P $$(nproc) $(CLANG_TIDY) -p $(BUILD_DEBUG) --quiet; \
 	fi
 
 # ══════════════════════════════════════════════════════════════

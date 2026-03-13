@@ -1,9 +1,19 @@
 Checks: >
+  -*,
   bugprone-*,
+  clang-analyzer-*,
+  concurrency-*,
   cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   modernize-*,
+  -modernize-use-trailing-return-type,
   performance-*,
-  readability-*
+  readability-*,
+  -readability-magic-numbers,
+  -readability-convert-member-blocks-to-brackets,
+  -readability-identifier-length
 WarningsAsErrors: ''
-HeaderFilterRegex: 'src/|tests/'
+HeaderFilterRegex: '^(?!.*(\.pb\.h|\.grpc\.pb\.h))(src/|tests/)'
 FormatStyle: file
