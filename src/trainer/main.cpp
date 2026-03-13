@@ -8,6 +8,8 @@
 #include <iostream>
 #include <thread>
 
+#include "core/config/runtime_config.hpp"
+
 namespace {
 bool TryConnect(const char* host, const char* port) {
   addrinfo hints{};
@@ -41,12 +43,14 @@ bool TryConnect(const char* host, const char* port) {
 }  // namespace
 
 int main() {
+  auto cfg = senna::config::LoadRuntimeConfig("configs/default.yaml");
   const char* host_env =
       std::getenv("SENNA_CORE_HOST");  // NOLINT(concurrency-mt-unsafe)
   const char* port_env =
       std::getenv("SENNA_CORE_PORT");  // NOLINT(concurrency-mt-unsafe)
-  std::string host = host_env != nullptr ? host_env : "senna-core";
-  std::string port = port_env != nullptr ? port_env : "50051";
+  std::string host = host_env != nullptr ? host_env : cfg.trainer.host;
+  std::string port =
+      port_env != nullptr ? port_env : std::to_string(cfg.trainer.port);
 
   const int max_attempts = 30;
   for (int attempt = 1; attempt <= max_attempts; ++attempt) {

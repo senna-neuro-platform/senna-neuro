@@ -30,7 +30,7 @@ RunStats SpikeLoop::Run(float duration_ms) {
   if (decoder_ != nullptr) {
     decoder_->Reset(tm.time());
     decoder_->SetStartTime(tm.time());
-    decoder_->SetSeed(cfg.seed);
+    decoder_->SetSeed(cfg.decoder_seed);
     decoder_->SetWindow(cfg.decoder_window_ms);
   }
   if (stdp_worker_) {

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/neural/neuron_pool.hpp"
+#include "core/observability/metrics_collector.hpp"
 #include "core/spatial/lattice.hpp"
 #include "core/spatial/neighbor_index.hpp"
 #include "core/synaptic/synapse.hpp"
@@ -51,7 +52,8 @@ class StructuralWorker {
                    neural::NeuronPool& pool,
                    std::atomic<std::shared_ptr<synaptic::SynapseIndex>>& store,
                    synaptic::SynapseParams syn_params, StructuralConfig cfg,
-                   float homeo_target_hz);
+                   float homeo_target_hz,
+                   observability::MetricsCollector* metrics = nullptr);
   ~StructuralWorker();
 
   void Start();
@@ -72,6 +74,7 @@ class StructuralWorker {
   StructuralPlasticity sp_;
   StructuralConfig cfg_;
   float homeo_target_hz_;
+  observability::MetricsCollector* metrics_{nullptr};
 
   std::atomic<bool> running_{false};
   std::thread worker_;

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/neural/neuron_pool.hpp"
+#include "core/observability/metrics_collector.hpp"
 #include "core/plasticity/homeostasis.hpp"
 #include "core/synaptic/synapse_index.hpp"
 #include "core/temporal/event_queue.hpp"
@@ -43,6 +44,9 @@ class TimeManager {
     hcfg_ = cfg;
   }
   void attach_pool(neural::NeuronPool* pool);
+  void attach_metrics(observability::MetricsCollector* metrics) {
+    metrics_ = metrics;
+  }
 
  private:
   void homeostasis_worker();
@@ -70,6 +74,11 @@ class TimeManager {
     float global_activity;
   };
   std::deque<HomeoTask> homeo_queue_;
+
+  observability::MetricsCollector* metrics_ = nullptr;
+  uint64_t tick_counter_ = 0;
+  int excitatory_count_ = 0;
+  int inhibitory_count_ = 0;
 };
 
 }  // namespace senna::temporal

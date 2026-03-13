@@ -1,6 +1,9 @@
 #include "core/temporal/time_manager.hpp"
 
+#include <sys/resource.h>
+
 #include <algorithm>
+#include <chrono>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -14,6 +17,7 @@ TimeManager::TimeManager(float dt, plasticity::HomeostasisConfig hcfg,
 std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
                                        neural::NeuronPool& pool,
                                        const synaptic::SynapseIndex& synapses) {
+  auto tick_start = std::chrono::steady_clock::now();
   float t_end = t_now_ + dt_;
 
   // 1. Drain events for this tick [t_now_, t_now_ + dt).
@@ -118,11 +122,66 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
   // 6. Advance time.
   t_now_ = t_end;
 
+  if (metrics_ != nullptr) {
+    const double tick_ms = std::chrono::duration<double, std::milli>(
+                               std::chrono::steady_clock::now() - tick_start)
+                               .count();
+
+    // Count spikes per type.
+    int e_spikes = 0;
+    int i_spikes = 0;
+    for (int id : fired) {
+      if (pool.type(id) == neural::NeuronType::Excitatory) {
+        ++e_spikes;
+      } else {
+        ++i_spikes;
+      }
+    }
+    const double dt_s = static_cast<double>(dt_) / 1000.0;  // dt_ in ms
+    double e_rate = (excitatory_count_ > 0 && dt_s > 0.0)
+                        ? static_cast<double>(e_spikes) /
+                              static_cast<double>(excitatory_count_) / dt_s
+                        : 0.0;
+    double i_rate = (inhibitory_count_ > 0 && dt_s > 0.0)
+                        ? static_cast<double>(i_spikes) /
+                              static_cast<double>(inhibitory_count_) / dt_s
+                        : 0.0;
+
+    metrics_->RecordTickSummary(tick_counter_,
+                                static_cast<uint32_t>(fired.size()),
+                                static_cast<uint32_t>(fired.size()), tick_ms);
+    metrics_->RecordRates(e_rate, i_rate);
+    metrics_->RecordSynapseCount(
+        static_cast<uint64_t>(synapses.synapse_count()));
+    metrics_->RecordVirtualTimeMs(static_cast<uint64_t>(t_now_));
+    // Memory usage (RSS) in bytes.
+    struct rusage usage {};
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+      long rss_kb =
+          usage.ru_maxrss;  // NOLINT(cppcoreguidelines-pro-type-union-access)
+      if (rss_kb > 0) {
+        metrics_->RecordMemoryBytes(static_cast<uint64_t>(rss_kb) * 1024ULL);
+      }
+    }
+    ++tick_counter_;
+  }
+
   return fired;
 }
 
 void TimeManager::attach_pool(neural::NeuronPool* pool) {
   pool_ = pool;
+  if (pool_ != nullptr) {
+    excitatory_count_ = 0;
+    inhibitory_count_ = 0;
+    for (auto t : pool_->type_array()) {
+      if (t == neural::NeuronType::Excitatory) {
+        ++excitatory_count_;
+      } else {
+        ++inhibitory_count_;
+      }
+    }
+  }
   if (!homeo_thread_.joinable()) {
     homeo_thread_ = std::thread(&TimeManager::homeostasis_worker, this);
   }

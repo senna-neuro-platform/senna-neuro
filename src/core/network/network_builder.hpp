@@ -7,6 +7,7 @@
 #include "core/encoding/rate_encoder.hpp"
 #include "core/neural/neuron.hpp"
 #include "core/neural/neuron_pool.hpp"
+#include "core/observability/metrics_collector.hpp"
 #include "core/plasticity/homeostasis.hpp"
 #include "core/plasticity/stdp.hpp"
 #include "core/plasticity/structural.hpp"
@@ -36,6 +37,7 @@ struct NetworkConfig {
   plasticity::StructuralConfig structural{};
   encoding::RateEncoderParams encoder_params{};
   float decoder_window_ms = 50.0F;
+  uint64_t decoder_seed = 42;
   plasticity::STDPParams stdp_params{};
 };
 
@@ -43,7 +45,8 @@ struct NetworkConfig {
 // Acts as mediator - subsystems don't know about each other.
 class Network {
  public:
-  explicit Network(const NetworkConfig& config);
+  explicit Network(const NetworkConfig& config,
+                   observability::MetricsCollector* metrics = nullptr);
 
   // --- Accessors ---
   spatial::ZonedLattice& lattice() { return lattice_; }
@@ -74,6 +77,10 @@ class Network {
   temporal::TimeManager& time_manager() { return time_manager_; }
   const NetworkConfig& config() const { return config_; }
 
+  // External observability updates (e.g., from trainer or phase manager).
+  void UpdatePhase(double phase, double sleep_pressure);
+  void UpdateAccuracy(double train, double test);
+
   // --- Stimulus injection ---
 
   // Inject a spike event into a specific neuron at a given time.
@@ -97,6 +104,7 @@ class Network {
   encoding::RateEncoder encoder_;
   temporal::TimeManager time_manager_;
   std::unique_ptr<plasticity::StructuralWorker> structural_worker_;
+  observability::MetricsCollector* metrics_{nullptr};
 };
 
 }  // namespace senna::network

@@ -11,6 +11,8 @@
 
 #include "core/config/runtime_config.hpp"
 #include "core/network/network_builder.hpp"
+#include "core/observability/metrics_collector.hpp"
+#include "core/observability/prometheus_exporter.hpp"
 
 namespace {
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
@@ -108,16 +110,40 @@ int main() {
 
   // Load runtime configuration (defaults if file missing).
   auto cfg = senna::config::LoadRuntimeConfig("configs/default.yaml");
-  senna::network::Network net(cfg.network);
-  (void)net;
+  senna::observability::MetricsCollector metrics;
+  senna::network::Network net(cfg.network, &metrics);
+  senna::observability::ObservabilityThread obs(
+      metrics, net.lattice().neuron_count(), std::chrono::milliseconds(2),
+      cfg.observability.tick_duration_buckets);
+  // Initialize derived metrics that are fed from external subsystems.
+  net.UpdatePhase(0.0, 0.0);
+  net.UpdateAccuracy(0.0, 0.0);
+  obs.Start();
+  senna::observability::PrometheusExporter prometheus;
+  prometheus.Start(cfg.ports.metrics,
+                   senna::observability::MakePrometheusRender(obs),
+                   cfg.observability.exporter_backlog);
 
-  std::thread grpc_thread(ServeLoop, 50051, false);
-  std::thread ws_thread(ServeLoop, 8080, false);
-  std::thread metrics_thread(ServeLoop, 9090, true);
+  std::thread loop_thread([&]() {
+    while (g_running.load()) {
+      auto syn = net.synapses_ptr();
+      net.time_manager().Tick(net.queue(), net.pool(), *syn);
+      std::this_thread::sleep_for(std::chrono::milliseconds(cfg.loop_sleep_ms));
+    }
+  });
+
+  std::thread grpc_thread(ServeLoop, cfg.ports.grpc, false);
+  std::thread ws_thread(ServeLoop, cfg.ports.ws, false);
+  // metrics served by PrometheusExporter
 
   grpc_thread.join();
   ws_thread.join();
-  metrics_thread.join();
+  g_running.store(false);
+  if (loop_thread.joinable()) {
+    loop_thread.join();
+  }
+  prometheus.Stop();
+  obs.Stop();
 
   return 0;
 }

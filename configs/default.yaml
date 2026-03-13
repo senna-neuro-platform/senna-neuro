@@ -47,6 +47,11 @@ encoder:
 
 decoder:
   window_ms: 50.0
+  seed: 42
+
+observability:
+  tick_duration_buckets: [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+  exporter_backlog: 8
 
 structural:
   w_min_prune: 0.001
@@ -54,3 +59,15 @@ structural:
   sprout_radius: 2.0
   sprout_weight: 0.01
   quiet_fraction: 0.5
+
+ports:
+  grpc: 50051
+  ws: 8080
+  metrics: 9090
+
+trainer:
+  host: senna-core
+  port: 50051
+
+loop:
+  sleep_ms: 1

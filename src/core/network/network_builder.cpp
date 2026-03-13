@@ -14,7 +14,8 @@ static std::vector<int32_t> BuildOutputIds(const spatial::ZonedLattice& lattice,
   return ids;
 }
 
-Network::Network(const NetworkConfig& config)
+Network::Network(const NetworkConfig& config,
+                 observability::MetricsCollector* metrics)
     : config_(config),
       lattice_(config.width, config.height, config.depth, config.density,
                config.seed, config.num_outputs),
@@ -25,12 +26,14 @@ Network::Network(const NetworkConfig& config)
           lattice_, neighbors_, pool_, output_ids_, config.synapse_params,
           config.seed)),
       encoder_(config.encoder_params, config.dt, config.seed),
-      time_manager_(config.dt, config.homeostasis, config.seed) {
+      time_manager_(config.dt, config.homeostasis, config.seed),
+      metrics_(metrics) {
   time_manager_.attach_pool(&pool_);
+  time_manager_.attach_metrics(metrics_);
   synapses_cache_ = synapses_ptr_atomic_.load();
   structural_worker_ = std::make_unique<plasticity::StructuralWorker>(
       lattice_, neighbors_, pool_, synapses_ptr_atomic_, config.synapse_params,
-      config.structural, config.homeostasis.target_rate_hz);
+      config.structural, config.homeostasis.target_rate_hz, metrics_);
   structural_worker_->Start();
 }
 
@@ -50,6 +53,18 @@ void Network::InjectSensory(int x, int y, float time, float value) {
 
 void Network::EncodeImage(std::span<const uint8_t> image, float t_start) {
   encoder_.Encode(image, lattice_, queue_, t_start);
+}
+
+void Network::UpdatePhase(double phase, double sleep_pressure) {
+  if (metrics_ != nullptr) {
+    metrics_->RecordPhase(phase, sleep_pressure);
+  }
+}
+
+void Network::UpdateAccuracy(double train, double test) {
+  if (metrics_ != nullptr) {
+    metrics_->RecordAccuracy(train, test);
+  }
 }
 
 }  // namespace senna::network

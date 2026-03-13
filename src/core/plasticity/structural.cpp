@@ -21,7 +21,7 @@ StructuralWorker::StructuralWorker(
     neural::NeuronPool& pool,
     std::atomic<std::shared_ptr<synaptic::SynapseIndex>>& store,
     synaptic::SynapseParams syn_params, StructuralConfig cfg,
-    float homeo_target_hz)
+    float homeo_target_hz, observability::MetricsCollector* metrics)
     : lattice_(lattice),
       neighbors_(neighbors),
       pool_(pool),
@@ -29,7 +29,8 @@ StructuralWorker::StructuralWorker(
       syn_params_(syn_params),
       sp_(cfg),
       cfg_(cfg),
-      homeo_target_hz_(homeo_target_hz) {}
+      homeo_target_hz_(homeo_target_hz),
+      metrics_(metrics) {}
 
 StructuralWorker::~StructuralWorker() { Stop(); }
 
@@ -76,9 +77,27 @@ void StructuralWorker::Loop() {
     if (!current) {
       continue;
     }
-    auto updated = std::make_shared<synaptic::SynapseIndex>(sp_.Run(
-        lattice_, neighbors_, pool_, *current, homeo_target_hz_, syn_params_));
+    auto updated_raw = sp_.Run(lattice_, neighbors_, pool_, *current,
+                               homeo_target_hz_, syn_params_);
+    auto current_sz = static_cast<int64_t>(current->synapses().size());
+    auto updated_sz = static_cast<int64_t>(updated_raw.synapses().size());
+    auto pruned =
+        static_cast<uint64_t>(std::max<int64_t>(0, current_sz - updated_sz));
+    auto sprouted =
+        static_cast<uint64_t>(std::max<int64_t>(0, updated_sz - current_sz));
+    auto updated =
+        std::make_shared<synaptic::SynapseIndex>(std::move(updated_raw));
     store_.store(updated);
+    if (metrics_ != nullptr) {
+      if (pruned > 0) {
+        metrics_->RecordPrune(pruned);
+      }
+      if (sprouted > 0) {
+        metrics_->RecordSprout(sprouted);
+      }
+      metrics_->RecordSynapseCount(
+          static_cast<uint64_t>(updated->synapse_count()));
+    }
   }
 }
 

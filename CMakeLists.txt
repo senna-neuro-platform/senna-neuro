@@ -117,6 +117,12 @@ if(BUILD_TESTING)
   target_link_libraries(test_decoding PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_decoding)
 
+  add_executable(test_observability
+    tests/observability/metrics_observability_test.cpp
+  )
+  target_link_libraries(test_observability PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_observability)
+
   add_executable(test_smoke
     tests/integration/lattice_smoke_test.cpp
     tests/integration/network_smoke_test.cpp

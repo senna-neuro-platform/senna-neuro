@@ -1,4 +1,10 @@
 # Changelog
+## `0.31.0-dev`
+- Implemented observability pipeline: lock-free `MetricsCollector` for event recording, `ObservabilityThread` for aggregation, and PrometheusExporter for HTTP metrics endpoint.
+- Added runtime configuration for observability (tick duration buckets, exporter backlog), ports (gRPC, WS, metrics), trainer (host/port), and loop sleep interval.
+- Integrated metrics recording in `TimeManager` (tick summaries, rates, memory usage), `StructuralWorker` (prune/sprout counts), and `Network` (phase/accuracy updates).
+- Updated trainer `main.cpp` to load runtime config and use configured host/port.
+- Added comprehensive unit and integration tests for observability components, including live pipeline testing with network ticks.
 
 ## `0.30.4-dev`
 - Structural plasticity implemented: pruning of sub-threshold non-WTA synapses, sprouting for quiet neurons within a radius with configurable initial weight and delay scaling.

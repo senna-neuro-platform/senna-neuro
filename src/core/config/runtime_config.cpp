@@ -106,6 +106,9 @@ RuntimeConfig LoadRuntimeConfig(const std::string& path) {
   if (auto dec = root["decoder"]) {
     cfg.network.decoder_window_ms =
         GetOrDefault<float>(dec, "window_ms", cfg.network.decoder_window_ms);
+    cfg.network.decoder_seed =
+        GetOrDefault<uint64_t>(dec, "seed", cfg.network.decoder_seed);
+    cfg.decoder_cfg.seed = cfg.network.decoder_seed;
   }
 
   if (auto str = root["structural"]) {
@@ -119,6 +122,42 @@ RuntimeConfig LoadRuntimeConfig(const std::string& path) {
         str, "sprout_weight", cfg.network.structural.sprout_weight);
     cfg.network.structural.quiet_fraction = GetOrDefault<float>(
         str, "quiet_fraction", cfg.network.structural.quiet_fraction);
+  }
+
+  if (auto ports = root["ports"]) {
+    cfg.ports.grpc = GetOrDefault<int>(ports, "grpc", cfg.ports.grpc);
+    cfg.ports.ws = GetOrDefault<int>(ports, "ws", cfg.ports.ws);
+    cfg.ports.metrics = GetOrDefault<int>(ports, "metrics", cfg.ports.metrics);
+  }
+
+  if (auto loop = root["loop"]) {
+    cfg.loop_sleep_ms = GetOrDefault<int>(loop, "sleep_ms", cfg.loop_sleep_ms);
+  }
+
+  if (auto obs = root["observability"]) {
+    if (auto buckets = obs["tick_duration_buckets"]) {
+      cfg.observability.tick_duration_buckets = buckets.as<std::vector<double>>(
+          cfg.observability.tick_duration_buckets);
+    }
+    cfg.observability.exporter_backlog = GetOrDefault<int>(
+        obs, "exporter_backlog", cfg.observability.exporter_backlog);
+  }
+
+  if (auto trainer = root["trainer"]) {
+    cfg.trainer.host =
+        GetOrDefault<std::string>(trainer, "host", cfg.trainer.host);
+    cfg.trainer.port = GetOrDefault<int>(trainer, "port", cfg.trainer.port);
+  } else {
+    // Align trainer port with gRPC port when not explicitly provided.
+    cfg.trainer.port = cfg.ports.grpc;
+  }
+
+  // If trainer section exists but omits port, fall back to gRPC port for
+  // consistency with runtime bindings.
+  if (auto trainer = root["trainer"]) {
+    if (!trainer["port"]) {
+      cfg.trainer.port = cfg.ports.grpc;
+    }
   }
 
   return cfg;
