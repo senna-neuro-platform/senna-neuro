@@ -1,5 +1,10 @@
 # Changelog
-# Changelog
+
+## `0.35.0-dev`
+- Trainer CLI implemented: commands `train|test|bench`, CLI/env overrides for host/port/epochs/sample caps, loads MNIST data from paths in config.
+- MNIST loader added with IDX parsing and validation; training pipeline orchestrates epochs, injects stimuli via gRPC, polls predictions, sends supervision, and reports accuracy.
+- Trainer config struct/YAML loader with core connection, timing, dataset paths, and sample limits; CMake wired to build trainer pipeline and tests.
+
 ## `0.34.0-dev`
 - Defined full gRPC API in `src/proto/senna.proto`: trainer/core RPCs (InjectStimulus, GetPrediction, Supervise, GetStatus, Configure, StreamPredictions, ReportAccuracy, Shutdown).
 - WebSocket server cleanup: safer command parsing (`contains` + guarded `if_contains`), initialized CBOR buffers, orderly acceptor shutdown.

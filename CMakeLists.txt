@@ -91,22 +91,24 @@ find_package(ZLIB REQUIRED)
 
 target_link_libraries(senna_core_lib PUBLIC yaml-cpp::yaml-cpp Boost::system Boost::json ZLIB::ZLIB senna_proto)
 
-set(SENNA_TRAINER_SOURCES
-  src/trainer/main.cpp
-  src/trainer/mnist_loader.cpp
-  src/trainer/training_pipeline.cpp
-  src/trainer/config.cpp
-)
-
 add_executable(senna_core src/core/main.cpp)
 target_compile_features(senna_core PRIVATE cxx_std_23)
 target_include_directories(senna_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(senna_core PRIVATE senna_core_lib Threads::Threads)
 
-add_executable(senna_trainer ${SENNA_TRAINER_SOURCES})
+add_library(senna_trainer_lib
+  src/trainer/mnist_loader.cpp
+  src/trainer/training_pipeline.cpp
+  src/trainer/config.cpp
+)
+target_compile_features(senna_trainer_lib PUBLIC cxx_std_23)
+target_include_directories(senna_trainer_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(senna_trainer_lib PUBLIC senna_proto yaml-cpp::yaml-cpp Threads::Threads)
+
+add_executable(senna_trainer src/trainer/main.cpp)
 target_compile_features(senna_trainer PRIVATE cxx_std_23)
 target_include_directories(senna_trainer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(senna_trainer PRIVATE senna_core_lib Threads::Threads)
+target_link_libraries(senna_trainer PRIVATE senna_trainer_lib)
 
 # --- Tests ---
 if(BUILD_TESTING)
@@ -183,4 +185,12 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_smoke PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_smoke)
+
+  add_executable(test_trainer
+    tests/trainer/mnist_loader_test.cpp
+    tests/trainer/config_test.cpp
+    tests/trainer/training_pipeline_test.cpp
+  )
+  target_link_libraries(test_trainer PRIVATE senna_trainer_lib senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_trainer)
 endif()
