@@ -35,3 +35,6 @@ data/
 # Node artifacts
 visualizer/node_modules/
 visualizer/package-lock.json
+
+# Tests artifacts
+Testing/*

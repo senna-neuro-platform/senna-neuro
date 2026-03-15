@@ -19,6 +19,7 @@ let waveStartMs = performance.now();
 const waveSpeed = 12; // units per second along +Z
 const waveSigma = 1.2;
 let waveOriginZ = 0;
+let paused = false;
 
 const showSyn = document.getElementById("showSyn");
 const filterE = document.getElementById("filterE");
@@ -225,6 +226,7 @@ function handleMessage(evt) {
     });
     synLines.geometry.attributes.position.needsUpdate = true;
   } else if (msg.type === "TickUpdate") {
+    if (paused) return; // skip updates while visualization is paused
     waveStartMs = performance.now(); // restart wavefront each update
     timeEl.textContent = `${msg.t_ms.toFixed(1)} ms`;
     if (typeof msg.label === "number") {
@@ -267,8 +269,18 @@ function connect() {
     statusEl.textContent = "error";
   };
   ws.onmessage = handleMessage;
-  btnPause.onclick = () => ws.send(JSON.stringify({ type: "Pause" }));
-  btnResume.onclick = () => ws.send(JSON.stringify({ type: "Resume" }));
+  btnPause.onclick = () => {
+    paused = true;
+    btnPause.style.opacity = "0.5";
+    btnResume.style.opacity = "1";
+    showToast("Visualization paused");
+  };
+  btnResume.onclick = () => {
+    paused = false;
+    btnPause.style.opacity = "1";
+    btnResume.style.opacity = "0.5";
+    showToast("Visualization resumed");
+  };
   tickInterval.oninput = () =>
     ws.send(JSON.stringify({ type: "SetUpdateInterval", ticks: parseInt(tickInterval.value, 10) }));
   autoInterf.onchange = () => {

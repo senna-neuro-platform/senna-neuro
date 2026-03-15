@@ -1,4 +1,10 @@
 # Changelog
+# Changelog
+## `0.34.0-dev`
+- Defined full gRPC API in `src/proto/senna.proto`: trainer/core RPCs (InjectStimulus, GetPrediction, Supervise, GetStatus, Configure, StreamPredictions, ReportAccuracy, Shutdown).
+- WebSocket server cleanup: safer command parsing (`contains` + guarded `if_contains`), initialized CBOR buffers, orderly acceptor shutdown.
+- WebSocket integration tests re-enabled; frame reads now guarded against hangs (further stability planned).
+
 ## `0.33.0-dev`
 - WebSocket protocol now binary (CBOR + deflate) with double-buffered network snapshots, chunked synapse LOD, K-tick tick gating, label propagation, and stream-only Pause/Resume (ядро не трогаем).
 - Visualizer upgraded: decodes binary stream, E/I/O filters, alpha/heatmap, interference maps (auto/capture/show), wavefront animation from sensory panel, synapse rendering toggle, SetLabel integration.

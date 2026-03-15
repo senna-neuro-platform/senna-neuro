@@ -19,6 +19,45 @@ include(CTest)
 find_package(Threads REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system json)
+find_package(gRPC REQUIRED)
+find_package(protobuf REQUIRED)
+# Ensure Conan protobuf headers take priority over any system-installed protobuf.
+include_directories(BEFORE SYSTEM "${protobuf_INCLUDE_DIR}")
+
+# --- Proto generation ---
+set(PROTO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/proto/senna.proto")
+set(PROTO_OUT "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${PROTO_OUT}")
+
+set(PROTO_GENERATED_SRCS
+  "${PROTO_OUT}/senna.pb.cc"
+  "${PROTO_OUT}/senna.pb.h"
+  "${PROTO_OUT}/senna.grpc.pb.cc"
+  "${PROTO_OUT}/senna.grpc.pb.h"
+)
+
+add_custom_command(
+  OUTPUT ${PROTO_GENERATED_SRCS}
+  COMMAND "${protobuf_INCLUDE_DIR}/../bin/protoc"
+    --proto_path="${CMAKE_CURRENT_SOURCE_DIR}/src/proto"
+    --proto_path="${protobuf_INCLUDE_DIR}"
+    --cpp_out="${PROTO_OUT}"
+    --grpc_out="${PROTO_OUT}"
+    --plugin=protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
+    "${PROTO_SRC}"
+  DEPENDS "${PROTO_SRC}"
+  COMMENT "Generating protobuf/gRPC C++ sources"
+)
+
+add_library(senna_proto ${PROTO_GENERATED_SRCS})
+target_include_directories(senna_proto PUBLIC "${PROTO_OUT}")
+target_link_libraries(senna_proto PUBLIC protobuf::libprotobuf gRPC::grpc++)
+set_target_properties(senna_proto PROPERTIES
+  CXX_STANDARD 23
+  CXX_CLANG_TIDY ""
+)
+# Suppress warnings in generated code.
+target_compile_options(senna_proto PRIVATE -w)
 
 set(SENNA_CORE_SOURCES
   src/core/spatial/lattice.cpp
@@ -50,7 +89,7 @@ target_compile_features(senna_core_lib PUBLIC cxx_std_23)
 target_include_directories(senna_core_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 find_package(ZLIB REQUIRED)
 
-target_link_libraries(senna_core_lib PUBLIC yaml-cpp::yaml-cpp Boost::system Boost::json ZLIB::ZLIB)
+target_link_libraries(senna_core_lib PUBLIC yaml-cpp::yaml-cpp Boost::system Boost::json ZLIB::ZLIB senna_proto)
 
 set(SENNA_TRAINER_SOURCES
   src/trainer/main.cpp
@@ -131,6 +170,12 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_interfaces PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_interfaces)
+
+  add_executable(test_grpc
+    tests/interfaces/grpc_server_test.cpp
+  )
+  target_link_libraries(test_grpc PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_grpc)
 
   add_executable(test_smoke
     tests/integration/lattice_smoke_test.cpp
