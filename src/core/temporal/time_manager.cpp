@@ -122,6 +122,26 @@ std::vector<int32_t> TimeManager::Tick(EventQueue& queue,
   // 6. Advance time.
   t_now_ = t_end;
 
+  {
+    std::scoped_lock lock(last_fired_mutex_);
+    last_fired_ = fired;
+    last_spikes_.clear();
+    last_spikes_.reserve(fired.size());
+    for (int32_t id : fired) {
+      last_spikes_.emplace_back(id, pool.t_spike(id));
+    }
+    last_t_ms_ = t_now_;
+  }
+  {
+    std::scoped_lock lk(stream_mutex_);
+    auto snap = std::make_shared<Snapshot>();
+    snap->tick = tick_counter_;
+    snap->t_ms = last_t_ms_;
+    snap->fired = last_fired_;
+    snap->spikes = last_spikes_;
+    stream_snapshot_ = std::move(snap);
+  }
+
   if (metrics_ != nullptr) {
     const double tick_ms = std::chrono::duration<double, std::milli>(
                                std::chrono::steady_clock::now() - tick_start)

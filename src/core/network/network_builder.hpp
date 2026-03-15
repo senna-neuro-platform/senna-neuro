@@ -81,6 +81,9 @@ class Network {
   void UpdatePhase(double phase, double sleep_pressure);
   void UpdateAccuracy(double train, double test);
 
+  double phase() const { return phase_; }
+  double sleep_pressure() const { return sleep_pressure_; }
+
   // --- Stimulus injection ---
 
   // Inject a spike event into a specific neuron at a given time.
@@ -105,6 +108,8 @@ class Network {
   temporal::TimeManager time_manager_;
   std::unique_ptr<plasticity::StructuralWorker> structural_worker_;
   observability::MetricsCollector* metrics_{nullptr};
+  double phase_ = 0.0;
+  double sleep_pressure_ = 0.0;
 };
 
 }  // namespace senna::network

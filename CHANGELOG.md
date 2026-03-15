@@ -1,4 +1,10 @@
 # Changelog
+## `0.33.0-dev`
+- WebSocket protocol now binary (CBOR + deflate) with double-buffered network snapshots, chunked synapse LOD, K-tick tick gating, label propagation, and stream-only Pause/Resume (ядро не трогаем).
+- Visualizer upgraded: decodes binary stream, E/I/O filters, alpha/heatmap, interference maps (auto/capture/show), wavefront animation from sensory panel, synapse rendering toggle, SetLabel integration.
+- Tests cover binary frames end-to-end: CBOR inflate, NetworkState neuron count, SynapseChunk presence, Ack, TickUpdate flow, and Pause/Resume blocking of stream.
+- Core loop decoupled from UI controls; removed pause/sleep control channels, fixed loop sleep to config value.
+
 ## `0.32.0-dev`
 - Grafana provisioning completed: datasource given stable UID, three dashboards (activity/training/performance) preprovisioned with Prometheus queries and thresholds; dashboard provider points to dedicated subfolder to avoid RO mount conflicts.
 - Prometheus config tightened: added scrape/evaluation intervals, scrape timeout, explicit metrics_path and service label.

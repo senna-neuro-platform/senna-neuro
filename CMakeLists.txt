@@ -18,6 +18,7 @@ endif()
 include(CTest)
 find_package(Threads REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system json)
 
 set(SENNA_CORE_SOURCES
   src/core/spatial/lattice.cpp
@@ -47,7 +48,9 @@ set(SENNA_CORE_SOURCES
 add_library(senna_core_lib ${SENNA_CORE_SOURCES})
 target_compile_features(senna_core_lib PUBLIC cxx_std_23)
 target_include_directories(senna_core_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(senna_core_lib PUBLIC yaml-cpp::yaml-cpp)
+find_package(ZLIB REQUIRED)
+
+target_link_libraries(senna_core_lib PUBLIC yaml-cpp::yaml-cpp Boost::system Boost::json ZLIB::ZLIB)
 
 set(SENNA_TRAINER_SOURCES
   src/trainer/main.cpp
@@ -122,6 +125,12 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_observability PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
   gtest_discover_tests(test_observability)
+
+  add_executable(test_interfaces
+    tests/interfaces/ws_server_test.cpp
+  )
+  target_link_libraries(test_interfaces PRIVATE senna_core_lib GTest::gtest_main Threads::Threads)
+  gtest_discover_tests(test_interfaces)
 
   add_executable(test_smoke
     tests/integration/lattice_smoke_test.cpp

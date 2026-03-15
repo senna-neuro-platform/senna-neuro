@@ -31,3 +31,7 @@ data/
 .vscode/
 .idea/
 .DS_Store
+
+# Node artifacts
+visualizer/node_modules/
+visualizer/package-lock.json

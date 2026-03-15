@@ -3,23 +3,120 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SENNA Visualizer (Stub)</title>
+    <title>SENNA Visualizer</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 32px;
+      :root {
+        --bg: #0b1021;
+        --panel: #121933;
+        --text: #e8ecff;
+        --accent: #7dd3fc;
+        --muted: #7c87a5;
+        --grid: #1f2b4d;
       }
-      code {
-        background: #f0f0f0;
-        padding: 2px 4px;
-        border-radius: 4px;
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(circle at 20% 20%, #111a34 0, #0b1021 40%),
+          radial-gradient(circle at 80% 10%, #0f203d 0, #0b1021 30%),
+          #0b1021;
+        color: var(--text);
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        height: 100vh;
+        overflow: hidden;
+      }
+      #hud {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: rgba(18, 25, 51, 0.75);
+        border: 1px solid rgba(125, 211, 252, 0.2);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      }
+      #hud h1 {
+        margin: 0 0 4px;
+        font-size: 16px;
+        letter-spacing: 0.04em;
+      }
+      #hud .row {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      #hud .row strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      #canvas-container {
+        width: 100vw;
+        height: 100vh;
+      }
+      #toast {
+        position: absolute;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(18, 25, 51, 0.9);
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: 1px solid rgba(125, 211, 252, 0.25);
+        color: var(--text);
+        font-size: 13px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+      #toast.show {
+        opacity: 1;
+        transform: translate(-50%, -4px);
       }
     </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+          "three/examples/jsm/controls/OrbitControls": "https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js"
+        }
+      }
+    </script>
   </head>
   <body>
-    <h1>SENNA Visualizer (Stub)</h1>
-    <p>Connecting to <code>ws://&lt;host&gt;:8080/ws</code> ...</p>
-    <pre id="status">idle</pre>
-    <script src="app.js"></script>
+    <div id="canvas-container"></div>
+    <div id="hud">
+      <h1>SENNA Visualizer</h1>
+      <div class="row">
+        <span>Status: <strong id="status">idle</strong></span>
+        <span>t: <strong id="time">0 ms</strong></span>
+        <span>fired: <strong id="fired">0</strong></span>
+        <button id="btnPause">Pause</button>
+        <button id="btnResume">Resume</button>
+        <label>Δticks <input type="range" id="tickInterval" min="1" max="50" value="10" /></label>
+        <label><input type="checkbox" id="showSyn" checked /> synapses</label>
+        <label><input type="checkbox" id="filterE" checked /> E</label>
+        <label><input type="checkbox" id="filterI" checked /> I</label>
+        <label><input type="checkbox" id="filterO" checked /> O</label>
+        <label><input type="checkbox" id="heatmap" /> heatmap</label>
+        <label>alpha <input type="range" id="alpha" min="0" max="1" step="0.05" value="0.6" /></label>
+        <label>class
+          <select id="classSelect">
+            <option>0</option><option>1</option><option>2</option><option>3</option><option>4</option>
+            <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option>
+          </select>
+        </label>
+        <button id="btnCapture">Capture</button>
+        <button id="btnShowInterf">Show Interf</button>
+        <label><input type="checkbox" id="autoInterf" /> auto</label>
+        <span>label: <strong id="lblCurrent">-</strong></span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <div id="toast"></div>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

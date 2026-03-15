@@ -36,7 +36,27 @@ class TimeManager {
                             const synaptic::SynapseIndex& synapses);
 
   float time() const { return t_now_; }
+  uint64_t tick_count() const { return tick_counter_; }
   float dt() const { return dt_; }
+  std::vector<int32_t> LastFiredCopy() const {
+    std::scoped_lock lock(last_fired_mutex_);
+    return last_fired_;
+  }
+  std::vector<std::pair<int32_t, float>> LastSpikesCopy() const {
+    std::scoped_lock lock(last_fired_mutex_);
+    return last_spikes_;
+  }
+  float last_time() const { return last_t_ms_; }
+  struct Snapshot {
+    uint64_t tick{0};
+    float t_ms{0};
+    std::vector<int32_t> fired;
+    std::vector<std::pair<int32_t, float>> spikes;
+  };
+  std::shared_ptr<Snapshot> SnapshotPtr() const {
+    std::scoped_lock lock(stream_mutex_);
+    return stream_snapshot_;
+  }
 
   void set_time(float t) { t_now_ = t; }
   void set_homeostasis(const plasticity::HomeostasisConfig& cfg) {
@@ -60,6 +80,14 @@ class TimeManager {
   // Reusable buffers to avoid per-tick allocations.
   std::vector<SpikeEvent> tick_events_;
   std::vector<SpikeEvent> new_events_;
+
+  // Last tick fired ids (for WebSocket streaming).
+  std::vector<int32_t> last_fired_;
+  std::vector<std::pair<int32_t, float>> last_spikes_;
+  float last_t_ms_ = 0.0F;
+  mutable std::mutex last_fired_mutex_;
+  std::shared_ptr<Snapshot> stream_snapshot_{std::make_shared<Snapshot>()};
+  mutable std::mutex stream_mutex_;
 
   // Homeostasis background thread state.
   neural::NeuronPool* pool_ = nullptr;

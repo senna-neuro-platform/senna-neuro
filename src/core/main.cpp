@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "core/config/runtime_config.hpp"
+#include "core/interfaces/ws_server.hpp"
 #include "core/network/network_builder.hpp"
 #include "core/observability/metrics_collector.hpp"
 #include "core/observability/prometheus_exporter.hpp"
@@ -124,26 +125,28 @@ int main() {
                    senna::observability::MakePrometheusRender(obs),
                    cfg.observability.exporter_backlog);
 
+  senna::interfaces::WsServer ws_server(cfg.ports.ws, &net);
+  ws_server.Start();
+
+  const auto loop_sleep = std::chrono::milliseconds(cfg.loop_sleep_ms);
   std::thread loop_thread([&]() {
     while (g_running.load()) {
       auto syn = net.synapses_ptr();
       net.time_manager().Tick(net.queue(), net.pool(), *syn);
-      std::this_thread::sleep_for(std::chrono::milliseconds(cfg.loop_sleep_ms));
+      std::this_thread::sleep_for(loop_sleep);
     }
   });
 
   std::thread grpc_thread(ServeLoop, cfg.ports.grpc, false);
-  std::thread ws_thread(ServeLoop, cfg.ports.ws, false);
-  // metrics served by PrometheusExporter
 
   grpc_thread.join();
-  ws_thread.join();
   g_running.store(false);
   if (loop_thread.joinable()) {
     loop_thread.join();
   }
   prometheus.Stop();
   obs.Stop();
+  ws_server.Stop();
 
   return 0;
 }

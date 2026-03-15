@@ -56,6 +56,8 @@ void Network::EncodeImage(std::span<const uint8_t> image, float t_start) {
 }
 
 void Network::UpdatePhase(double phase, double sleep_pressure) {
+  phase_ = phase;
+  sleep_pressure_ = sleep_pressure;
   if (metrics_ != nullptr) {
     metrics_->RecordPhase(phase, sleep_pressure);
   }
