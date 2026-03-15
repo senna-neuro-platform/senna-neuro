@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   senna-core:
     build:
@@ -47,7 +45,7 @@ services:
     volumes:
       - ./configs/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
       - ./configs/grafana/dashboard-provider.yml:/etc/grafana/provisioning/dashboards/dashboard-provider.yml:ro
-      - ./configs/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./configs/grafana/dashboards:/etc/grafana/provisioning/dashboards/dashboards:ro
 
   visualizer:
     build:

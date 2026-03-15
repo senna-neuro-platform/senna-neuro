@@ -1,8 +1,144 @@
 {
-  "id": null,
+  "uid": "senna-training",
   "title": "Training",
+  "timezone": "browser",
   "schemaVersion": 37,
   "version": 1,
-  "panels": [],
-  "timezone": "browser"
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Train Accuracy",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_train_accuracy", "legendFormat": "train", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Test Accuracy",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_test_accuracy", "legendFormat": "test", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Synapse Count",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_synapse_count", "legendFormat": "synapses", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Virtual Time (ms)",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_virtual_time_ms", "legendFormat": "vt", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+        "orientation": "horizontal",
+        "colorMode": "background"
+      },
+      "gridPos": { "h": 8, "w": 4, "x": 12, "y": 8 }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Prunings (rate)",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "increase(senna_pruned_total[5m])", "legendFormat": "pruned/5m", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" },
+        "drawStyle": "bars"
+      },
+      "gridPos": { "h": 8, "w": 10, "x": 16, "y": 8 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Sproutings (rate)",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "increase(senna_sprouted_total[5m])", "legendFormat": "sprouted/5m", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" },
+        "drawStyle": "bars"
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    }
+  ]
 }

@@ -1,8 +1,174 @@
 {
-  "id": null,
+  "uid": "senna-activity",
   "title": "Activity",
+  "timezone": "browser",
   "schemaVersion": 37,
   "version": 1,
-  "panels": [],
-  "timezone": "browser"
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Active Neurons Ratio",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_active_neurons_ratio", "legendFormat": "ratio", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Spikes per Tick",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_spikes_per_tick", "legendFormat": "spikes", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "E/I Balance",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_ei_balance", "legendFormat": "E/I", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 3.5 },
+              { "color": "yellow", "value": 4.5 },
+              { "color": "red", "value": 5.5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Excitatory Rate Avg",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_excitatory_rate_avg", "legendFormat": "E Hz", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "hertz" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Inhibitory Rate Avg",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_inhibitory_rate_avg", "legendFormat": "I Hz", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "hertz" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 }
+    },
+    {
+      "id": 6,
+      "type": "gauge",
+      "title": "Sleep Pressure",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_sleep_pressure", "legendFormat": "pressure", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 0.8 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false } },
+      "gridPos": { "h": 8, "w": 4, "x": 16, "y": 8 }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Current Phase",
+      "datasource": { "type": "prometheus", "uid": "senna-prom" },
+      "targets": [
+        { "expr": "senna_current_phase", "legendFormat": "phase", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "Awake" }, "1": { "text": "Sleep" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "blue", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+        "orientation": "horizontal",
+        "colorMode": "background"
+      },
+      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 8 }
+    }
+  ]
 }

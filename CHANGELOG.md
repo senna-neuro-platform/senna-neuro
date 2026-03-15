@@ -1,4 +1,8 @@
 # Changelog
+## `0.32.0-dev`
+- Grafana provisioning completed: datasource given stable UID, three dashboards (activity/training/performance) preprovisioned with Prometheus queries and thresholds; dashboard provider points to dedicated subfolder to avoid RO mount conflicts.
+- Prometheus config tightened: added scrape/evaluation intervals, scrape timeout, explicit metrics_path and service label.
+
 ## `0.31.0-dev`
 - Implemented observability pipeline: lock-free `MetricsCollector` for event recording, `ObservabilityThread` for aggregation, and PrometheusExporter for HTTP metrics endpoint.
 - Added runtime configuration for observability (tick duration buckets, exporter backlog), ports (gRPC, WS, metrics), trainer (host/port), and loop sleep interval.
